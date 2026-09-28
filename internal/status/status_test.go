@@ -1018,6 +1018,37 @@ func TestLastMessageSkipsCodexQueuedFollowUpAndDoneTime(t *testing.T) {
 		t.Fatalf("queued pane quote = %q ok=%v, want %q as without the queued block", line, ok, want)
 	}
 
+	narrow := transcript +
+		"• Queued follow-up\n" +
+		"  inputs\n" +
+		"  ↳ Also, after that\n" +
+		"    finishes, tell me\n" +
+		"    what tmux is.\n" +
+		"    shift + ← edit\n" +
+		"    last queued\n" +
+		"    message\n" +
+		"\n" +
+		composer
+	if line, _, ok := engine.LastMessage("codex", narrow); !ok || line != want {
+		t.Fatalf("narrow queued pane quote = %q ok=%v, want %q as without the queued block", line, ok, want)
+	}
+
+	wrapped := transcript +
+		"• Queued\n" +
+		"  follow-up\n" +
+		"  inputs\n" +
+		"  ↳ Also, after that\n" +
+		"    finishes, tell me\n" +
+		"    what tmux is.\n" +
+		"    shift + ← edit\n" +
+		"    last queued\n" +
+		"    message\n" +
+		"\n" +
+		composer
+	if line, _, ok := engine.LastMessage("codex", wrapped); !ok || line != want {
+		t.Fatalf("wrapped 22-col queued pane quote = %q ok=%v, want %q as without the queued block", line, ok, want)
+	}
+
 	done := "› Tea or coffee?\n" +
 		"\n" +
 		"• Tea, good choice.\n" +
