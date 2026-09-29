@@ -501,7 +501,7 @@ func (m *Model) viewFooter() string {
 			worktreeHint = "on"
 		}
 		return m.transientFooter(legendSection{title: "Prompt", pairs: [][2]string{
-			{"↵", "send"}, {"↑↓", "target or caret"}, {"tab/⇧tab", "tool: " + m.quickTool()},
+			{"↵", "send"}, {"↑↓", "target or caret"}, {"tab/alt+m/⇧tab", "tool: " + m.quickTool()},
 			{"alt+w", "worktree: " + worktreeHint}, {"esc", "close"},
 		}})
 	}
