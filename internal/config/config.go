@@ -475,7 +475,7 @@ turn_end = "(?m)^(?:─+ Worked for [\\dhms. ]+─+|─+|  (?:Worked for [\\dhms
 chrome_line = "^\\s*─*\\s*$|^\\s+(?:⚠|↓|Tip: |Copied )"
 # a message queued during a turn is drawn under the running step, with its
 # edit hint, until the turn picks it up; a narrow pane wraps the heading
-chrome_block = "^• Queued(?: follow-|\\s*$)"
+chrome_block = "^• Queued(?: follow-|\\s*\\n\\s+(?:follow-up|inputs))"
 # every message and tool call opens on a "• " bullet
 message_start = "^• "
 # a command's output is drawn under this glyph, on its own indented row

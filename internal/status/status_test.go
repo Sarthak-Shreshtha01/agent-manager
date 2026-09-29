@@ -1059,6 +1059,17 @@ func TestLastMessageSkipsCodexQueuedFollowUpAndDoneTime(t *testing.T) {
 	if line, _, ok := engine.LastMessage("codex", done); !ok || line != "Tea, good choice." {
 		t.Fatalf("done pane quote = %q ok=%v, want the reply alone", line, ok)
 	}
+
+	reply := "› Status?\n" +
+		"\n" +
+		"• Queued\n" +
+		"  done 12:59 AM\n" +
+		"\n" +
+		"› Ask Codex to do anything\n" +
+		"  gpt-5.1-codex default · /home/dev"
+	if line, _, ok := engine.LastMessage("codex", reply); !ok || line != "Queued" {
+		t.Fatalf("genuine reply 'Queued' quote = %q ok=%v, want 'Queued'", line, ok)
+	}
 }
 
 // InputDraft reads what the user has typed after the composer marker, and
