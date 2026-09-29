@@ -48,6 +48,7 @@ prebuilt binary from the releases page.
 | --- | --- |
 | `space` | Docks a prompt bar. On a group row it spawns a new agent with that prompt; on a session row it answers the agent already running there. |
 | `tab` | Cycles which CLI the next spawn starts. |
+| `shift+tab` | Steps the CLI back one. |
 | `alt+w` | Spawns the agent into a fresh git worktree and branch. |
 | `ctrl+r` | Opens a full-screen whole-file diff whose line comments go back to the agent as one review prompt. |
 | `v` | Revives a dead session on the conversation it held. |

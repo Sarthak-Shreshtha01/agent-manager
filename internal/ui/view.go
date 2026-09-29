@@ -501,8 +501,8 @@ func (m *Model) viewFooter() string {
 			worktreeHint = "on"
 		}
 		return m.transientFooter(legendSection{title: "Prompt", pairs: [][2]string{
-			{"↵", "send"}, {"↑↓", "target or caret"}, {"tab", "tool: " + m.quickTool()},
-			{"shift+tab", "worktree: " + worktreeHint}, {"esc", "close"},
+			{"↵", "send"}, {"↑↓", "target or caret"}, {"tab/⇧tab", "tool: " + m.quickTool()},
+			{"alt+w", "worktree: " + worktreeHint}, {"esc", "close"},
 		}})
 	}
 	if m.split.resizeMode || m.split.dragging {
