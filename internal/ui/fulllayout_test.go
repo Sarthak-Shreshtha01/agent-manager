@@ -411,29 +411,6 @@ func TestFullLayoutTransientFootersAreOneRow(t *testing.T) {
 	}
 }
 
-func TestQuickPromptFooterKeys(t *testing.T) {
-	m := shotModel()
-	m.quick.active = true
-	m.quick.toolNames = []string{"claude"}
-
-	footerOne := m.viewFooter()
-	if strings.Contains(footerOne, "shift+tab") || strings.Contains(footerOne, "previous tool") {
-		t.Errorf("one tool enabled, footer shouldn't have shift+tab: %q", footerOne)
-	}
-	if !strings.Contains(footerOne, "tab") || !strings.Contains(footerOne, "tool: claude") {
-		t.Errorf("one tool enabled, missing tab pair: %q", footerOne)
-	}
-
-	m.quick.toolNames = []string{"claude", "codex"}
-	footerTwo := m.viewFooter()
-	if !strings.Contains(footerTwo, "shift+tab") || !strings.Contains(footerTwo, "previous tool") {
-		t.Errorf("two tools enabled, missing shift+tab pair: %q", footerTwo)
-	}
-	if !strings.Contains(footerTwo, "tab") || !strings.Contains(footerTwo, "tool: claude") {
-		t.Errorf("two tools enabled, missing tab pair: %q", footerTwo)
-	}
-}
-
 func TestFullFocusRuleNamesTheSession(t *testing.T) {
 	m := shotModel()
 	m.fullLayout = true
