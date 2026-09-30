@@ -873,4 +873,7 @@ func TestQuickPromptFooterKeys(t *testing.T) {
 	if !strings.Contains(footerTwo, "tab") || !strings.Contains(footerTwo, "tool: claude") {
 		t.Errorf("two tools enabled, missing tab pair: %q", footerTwo)
 	}
+	if !strings.Contains(footerTwo, "ctrl+t") || !strings.Contains(footerTwo, "worktree: ") {
+		t.Errorf("missing ctrl+t worktree pair: %q", footerTwo)
+	}
 }

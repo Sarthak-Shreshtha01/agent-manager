@@ -506,7 +506,7 @@ func (m *Model) viewFooter() string {
 		if len(m.quick.toolNames) > 1 {
 			pairs = append(pairs, [2]string{"shift+tab", "previous tool"})
 		}
-		pairs = append(pairs, [2]string{"alt+w", "worktree: " + worktreeHint}, [2]string{"esc", "close"})
+		pairs = append(pairs, [2]string{"ctrl+t", "worktree: " + worktreeHint}, [2]string{"esc", "close"})
 		return m.transientFooter(legendSection{title: "Prompt", pairs: pairs})
 	}
 	if m.split.resizeMode || m.split.dragging {
