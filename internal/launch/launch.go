@@ -210,17 +210,19 @@ func Environment(manager *hooks.Manager, toolName string, tool config.Tool, base
 	if err != nil {
 		return "", nil, err
 	}
-	target := sessionreport.Target{Exe: Executable(), HooksDir: manager.Dir(), TelemetryFile: manager.TelemetryFile(id, stamp), Cwd: cwd}
-	command, err = sessionreport.Apply(tool.SessionReport, target, command, env)
-	if err != nil {
-		return "", nil, err
+	if tracksConversations {
+		target := sessionreport.Target{Exe: Executable(), HooksDir: manager.Dir(), TelemetryFile: manager.TelemetryFile(id, stamp), Cwd: cwd}
+		command, err = sessionreport.Apply(tool.SessionReport, target, command, env)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 	agentFile := manager.AgentFile(id)
 	if tool.StatusSource != hooks.StatusSourceClaude {
 		return asAgentProcess(agentFile, stamp, command), env, nil
 	}
 	trackCommand := ""
-	if tool.SessionReport == sessionreport.StyleClaude {
+	if tracksConversations && tool.SessionReport == sessionreport.StyleClaude {
 		trackCommand = sessionreport.HookCommand(Executable(), sessionreport.StyleClaude, "session_id")
 	}
 	settingsPath, err := manager.WriteSettings(id, launch, trackCommand)

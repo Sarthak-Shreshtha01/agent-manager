@@ -11,6 +11,9 @@ import (
 	"testing"
 )
 
+// A TUI launched without a controlling terminal fails with the one message
+// that tells the user what to open it in; the Setsid call is what makes the
+// child terminal-less, which Windows has no equivalent of.
 func TestMainReportsHeadlessStartupFailure(t *testing.T) {
 	if prepareMainProcess() {
 		main()

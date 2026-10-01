@@ -8,6 +8,10 @@ import (
 	"github.com/YoanWai/agent-manager/internal/tmux"
 )
 
+// tracksConversations: the agent runs under a pid its launch records, so
+// it can report the conversations it switches to.
+const tracksConversations = true
+
 // agentCommand starts the agent with exec, so it takes over the pid
 // asAgentProcess exports and records.
 func agentCommand(base string) string {

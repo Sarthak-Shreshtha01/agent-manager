@@ -25,6 +25,7 @@ func newToolBinaries(cfg config.Config) toolBinaries {
 // other pane would otherwise be read as that tool.
 var interpreters = map[string]bool{
 	"sh": true, "bash": true, "zsh": true, "dash": true, "fish": true,
+	"pwsh": true, "powershell": true,
 	"env": true, "node": true, "npx": true, "deno": true, "bun": true,
 	"python": true, "python3": true, "ruby": true, "perl": true,
 	"uv": true, "uvx": true,

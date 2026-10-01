@@ -44,11 +44,11 @@ func runBoundedShell(env []string, command string) (string, error) {
 	output := &cappedBuffer{limit: commandOutputLimit}
 	cmd.Stdout = output
 	cmd.Stderr = output
-	// The timeout ends the whole command, not only sh: a curl or a
+	// The timeout ends the whole command, not only the shell: a curl or a
 	// backgrounded job would otherwise outlive it, one per notification.
 	killTreeOnCancel(cmd)
-	// A child that outlives sh keeps the output pipe open; this stops
-	// waiting for it once sh is gone.
+	// A child that outlives the shell keeps the output pipe open; this stops
+	// waiting for it once the shell is gone.
 	cmd.WaitDelay = time.Second
 	err = cmd.Run()
 	return output.String(), err

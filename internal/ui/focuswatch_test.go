@@ -2,7 +2,9 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -15,8 +17,8 @@ import (
 
 func requireFocusDriver(t *testing.T) *tmux.Driver {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	driver, err := tmux.NewWithSocket(testSocket)
 	if err != nil {
@@ -25,12 +27,22 @@ func requireFocusDriver(t *testing.T) *tmux.Driver {
 	return driver
 }
 
+// skipControlMode skips a test that needs the watcher's control client up:
+// on Windows OpenControl refuses by design and previews poll instead.
+func skipControlMode(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the manager does not use psmux control mode")
+	}
+}
+
 // The watcher pushes a fresh preview when the pane paints, with no tick
 // asking for it.
 func TestFocusWatchPushesPaneUpdates(t *testing.T) {
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "focus" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -150,7 +162,7 @@ func TestFocusWatchRefocus(t *testing.T) {
 	stamp := strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	first, second := "fw1"+stamp, "fw2"+stamp
 	for _, id := range []string{first, second} {
-		if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+		if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 			t.Fatalf("Create %s: %v", id, err)
 		}
 	}
@@ -350,7 +362,7 @@ func waitFocusArrival(t *testing.T, arrivals <-chan focusArrival, contains strin
 func TestFocusWatchRefocusWhileSendBlocked(t *testing.T) {
 	driver := requireFocusDriver(t)
 	id := "fwb" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -449,9 +461,10 @@ func TestFocusWatchBacksOffAfterFailure(t *testing.T) {
 // an unquoted tmux format silently answers with tmux's default status
 // message instead, which is exactly how the cursor went missing.
 func TestFocusWatchReportsCursor(t *testing.T) {
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "cur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -493,10 +506,12 @@ func TestFocusWatchReportsCursor(t *testing.T) {
 }
 
 func TestFocusWatchHonorsHiddenCursor(t *testing.T) {
+	skipControlMode(t)
+	skipPOSIXShell(t)
 	driver := requireFocusDriver(t)
 	id := "hidecur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	command := "printf '\\033[?25lhidden-cursor'; exec sleep 10"
-	if err := driver.Create(id, "/tmp", command, nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), command, nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -616,9 +631,10 @@ func TestControlCaptureKeepsTrailingBlankRows(t *testing.T) {
 // preview silently dropping to the poll cadence reads as the manager
 // lagging, with nothing on screen saying why.
 func TestFocusWatchReportsALostClient(t *testing.T) {
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "lost" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })

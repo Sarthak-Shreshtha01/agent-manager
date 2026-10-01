@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -144,6 +145,9 @@ func TestAReaderThatFailsSaysWhy(t *testing.T) {
 // A caller leaving mid-answer stops the CLI it asked, which its own process
 // group keeps out of reach of the terminal's signals.
 func TestStopAllEndsACLIMidAnswer(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no process-group signal probe on windows")
+	}
 	t.Setenv("CATALOG_FAKE", "silent")
 	done := make(chan error, 1)
 	go func() {
