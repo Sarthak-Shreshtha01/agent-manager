@@ -145,6 +145,19 @@ func TestSocketPathFromRelativeTmpdirIsAbsolute(t *testing.T) {
 	}
 }
 
+// tmux skips a TMUX_TMPDIR it cannot resolve and puts its socket under /tmp.
+func TestSocketPathFromMissingTmpdirFallsBackToTmp(t *testing.T) {
+	t.Setenv("TMUX_TMPDIR", filepath.Join(t.TempDir(), "missing"))
+	tmp, err := filepath.EvalSymlinks("/tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(tmp, fmt.Sprintf("tmux-%d", os.Getuid()), testSocket)
+	if got := socketPathFromEnv(testSocket); got != want {
+		t.Fatalf("socket path = %q, want %q", got, want)
+	}
+}
+
 // A terminal pane carries no session id in its environment, so the CLI
 // running in one asks which managed session tmux filed that pane under.
 func TestSessionOfPaneResolvesAManagedPane(t *testing.T) {

@@ -314,7 +314,13 @@ func openReadOnly(path string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, err
 	}
-	dsn := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	// A Windows path (C:/...) needs a leading slash, or SQLite reads the drive
+	// as the URI authority (file://C:/...) and refuses to open it.
+	dbPath := filepath.ToSlash(path)
+	if filepath.VolumeName(path) != "" && !strings.HasPrefix(dbPath, "/") {
+		dbPath = "/" + dbPath
+	}
+	dsn := url.URL{Scheme: "file", Path: dbPath}
 	query := dsn.Query()
 	query.Set("mode", "ro")
 	dsn.RawQuery = query.Encode()

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Windows has no /proc, so no process's open files are listed there.
 // Muse holds its current session's registry file or session lock open, and
 // Antigravity its conversation's presence lock, so the one such file the
 // agent holds names its conversation.

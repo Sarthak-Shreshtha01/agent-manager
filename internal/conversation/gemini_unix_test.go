@@ -43,6 +43,9 @@ func TestGeminiReadsTheAgentsNewestConversationAndEmptiesTheFile(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Windows refuses to remove a file another handle holds open, so a newer
+// launch cannot replace the file under a reader there.
 func TestTelemetryCleanupDoesNotTruncateANewerLaunchFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "row.otel")
 	appendFile(t, path, telemetryLog(os.Getpid(), "old"))

@@ -52,6 +52,8 @@ func osScheme(goos string, run runner) Scheme {
 		return darwinScheme(run)
 	case "linux":
 		return linuxScheme(run)
+	case "windows":
+		return windowsScheme()
 	default:
 		return SchemeUnknown
 	}

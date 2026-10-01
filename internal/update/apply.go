@@ -2,6 +2,7 @@ package update
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -54,11 +55,8 @@ func homebrewManaged(source, execPath string) bool {
 }
 
 // Apply downloads the release named by tag, verifies the archive for this
-// OS and architecture against the release's checksums.txt, and atomically
-// replaces the binary at execPath. The swap uses rename, so the running
-// process keeps its (now unlinked) image and the next start runs the new
-// build under a fresh inode, which also sidesteps macOS's per-inode
-// signature cache.
+// OS and architecture against the release's checksums.txt, and replaces
+// the binary at execPath through swapBinary.
 func Apply(ctx context.Context, tag, execPath string) error {
 	if homebrewManaged(buildSource, execPath) {
 		return homebrewAdvice(execPath)
@@ -68,7 +66,7 @@ func Apply(ctx context.Context, tag, execPath string) error {
 	defer cancel()
 
 	version := strings.TrimPrefix(tag, "v")
-	asset := fmt.Sprintf("agent-manager_%s_%s_%s.tar.gz", version, runtime.GOOS, runtime.GOARCH)
+	asset := fmt.Sprintf("agent-manager_%s_%s_%s%s", version, runtime.GOOS, runtime.GOARCH, archiveExt)
 
 	wantSum, err := fetchChecksum(ctx, tag, asset)
 	if err != nil {
@@ -93,10 +91,7 @@ func Apply(ctx context.Context, tag, execPath string) error {
 	if err := extractBinary(archive, staged); err != nil {
 		return err
 	}
-	if err := swapBinary(staged, target); err != nil {
-		return err
-	}
-	return nil
+	return swapBinary(staged, target)
 }
 
 func fetchChecksum(ctx context.Context, tag, asset string) (string, error) {
@@ -125,7 +120,7 @@ func fetchAsset(ctx context.Context, tag, asset string) (string, error) {
 		return "", err
 	}
 	defer body.Close()
-	tmp, err := os.CreateTemp("", "agent-manager-update-*.tar.gz")
+	tmp, err := os.CreateTemp("", "agent-manager-update-*"+archiveExt)
 	if err != nil {
 		return "", err
 	}
@@ -174,10 +169,19 @@ func verifyChecksum(path, want string) error {
 	return nil
 }
 
+var errNoBinary = errors.New("update: archive holds no agent-manager binary")
+
 // extractBinary writes the archive's agent-manager entry to staged,
 // executable, next to the target so the final rename stays on one
 // filesystem.
 func extractBinary(archive, staged string) error {
+	if archiveExt == ".zip" {
+		return extractZip(archive, staged)
+	}
+	return extractTar(archive, staged)
+}
+
+func extractTar(archive, staged string) error {
 	file, err := os.Open(archive)
 	if err != nil {
 		return err
@@ -192,23 +196,47 @@ func extractBinary(archive, staged string) error {
 	for {
 		header, err := entries.Next()
 		if errors.Is(err, io.EOF) {
-			return errors.New("update: archive holds no agent-manager binary")
+			return errNoBinary
 		}
 		if err != nil {
 			return err
 		}
-		if filepath.Base(header.Name) != "agent-manager" || header.Typeflag != tar.TypeReg {
+		if filepath.Base(header.Name) != binaryName || header.Typeflag != tar.TypeReg {
 			continue
 		}
-		out, err := os.OpenFile(staged, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+		return writeStaged(staged, entries)
+	}
+}
+
+func extractZip(archive, staged string) error {
+	entries, err := zip.OpenReader(archive)
+	if err != nil {
+		return err
+	}
+	defer entries.Close()
+	for _, entry := range entries.File {
+		if filepath.Base(entry.Name) != binaryName || !entry.Mode().IsRegular() {
+			continue
+		}
+		body, err := entry.Open()
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(out, io.LimitReader(entries, binaryLimit)); err != nil {
-			out.Close()
-			os.Remove(staged)
-			return err
-		}
-		return out.Close()
+		defer body.Close()
+		return writeStaged(staged, body)
 	}
+	return errNoBinary
+}
+
+func writeStaged(staged string, body io.Reader) error {
+	out, err := os.OpenFile(staged, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, io.LimitReader(body, binaryLimit)); err != nil {
+		out.Close()
+		os.Remove(staged)
+		return err
+	}
+	return out.Close()
 }
