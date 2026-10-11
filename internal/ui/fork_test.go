@@ -168,6 +168,46 @@ func TestForkSelectedSessionCreatesNamedSibling(t *testing.T) {
 	}
 }
 
+// The source switched conversation after the row was listed; the fork
+// branches from the one it is on now.
+func TestForkBranchesFromTheConversationTheSourceReported(t *testing.T) {
+	m := buildModel(t)
+	createSession(t, m, "source", t.TempDir(), "")
+	source := m.sessionRows()[0]
+	if err := m.services.store.SetAgentSessionID(source.ID, "launch-conversation"); err != nil {
+		t.Fatal(err)
+	}
+	m.applyCmd(t, m.refreshCmd())
+	if result, err := m.services.store.ReportAgentSessionID(source.ID, source.Tool, "switched", 0); err != nil || result != store.ReportAdopted {
+		t.Fatalf("report: %v %v", result, err)
+	}
+	m.selectSessionRow(t, "source")
+	if row, _ := m.selectedRow(); row.sess.AgentSessionID != "launch-conversation" {
+		listed := row.sess.AgentSessionID
+		t.Fatalf("listed row is on %q; the test needs it a poll behind", listed)
+	}
+	argsFile := filepath.Join(t.TempDir(), "fork-args")
+	tool := m.services.cfg.Tools[source.Tool]
+	tool.ForkCommand = "printf '%s\\n' {id} > " + tmux.ShellQuote(argsFile) + "; cat"
+	m.services.cfg.Tools[source.Tool] = tool
+
+	updated, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = updated.(*Model)
+	if m.mode != modeFork {
+		t.Fatalf("fork mode = %v", m.mode)
+	}
+	m.fork.name.SetValue("child")
+	updated, cmd := m.handleForkKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(*Model)
+	m.applyCmd(t, cmd)
+	if m.errBar.text != "" {
+		t.Fatalf("fork: %q", m.errBar.text)
+	}
+	if args := readWhenWritten(t, argsFile); args != "switched\n" {
+		t.Fatalf("fork args = %q, want the reported conversation", args)
+	}
+}
+
 // A fork launches on its source's model and keeps it for its own relaunches.
 func TestForkCarriesTheSourceChoice(t *testing.T) {
 	m := buildModel(t)

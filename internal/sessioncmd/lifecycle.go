@@ -181,7 +181,7 @@ func (l *Lifecycle) Launch(request LaunchRequest) (LaunchResult, error) {
 			l.discardWorktree(sess)
 		}
 	}
-	command, env, err := launch.Environment(l.runtime.Hooks, sess.Tool, request.Tool, request.BaseCommand, sess.ID)
+	command, env, err := launch.Environment(l.runtime.Hooks, sess.Tool, request.Tool, request.BaseCommand, sess.ID, sess.Cwd, time.Time{})
 	if err != nil {
 		discard()
 		return LaunchResult{}, err
@@ -250,8 +250,19 @@ func (l *Lifecycle) Kill(sess store.Session) (store.Session, error) {
 	return sess, nil
 }
 
-func (l *Lifecycle) Revive(sess store.Session, pane PaneSize) (RelaunchResult, error) {
+// Revive relaunches a dead session or an agent that quit to its shell. The
+// row is read again first, since the listed copy can predate the last
+// conversation the agent reported, and the agent's last conversation is
+// settled before the revive command is built.
+func (l *Lifecycle) Revive(listed store.Session, pane PaneSize) (RelaunchResult, error) {
 	if err := l.requireHooks(); err != nil {
+		return RelaunchResult{}, err
+	}
+	sess, err := l.runtime.Store.Get(listed.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return RelaunchResult{}, fmt.Errorf("session %s: %w", listed.ID, store.ErrSessionGone)
+	}
+	if err != nil {
 		return RelaunchResult{}, err
 	}
 	tool, ok := l.runtime.Config.Tools[sess.Tool]
@@ -264,24 +275,28 @@ func (l *Lifecycle) Revive(sess store.Session, pane PaneSize) (RelaunchResult, e
 	if tool.Shell && l.runtime.Driver.Exists(sess.ID) {
 		return RelaunchResult{}, fmt.Errorf("%s is a shell; its pane is already open", sess.Name)
 	}
-	degraded := sess.AgentSessionID == "" && tool.ResumeByIDCommand != "" && tool.ResumePickerCommand == ""
+	degraded := func(sess store.Session) bool {
+		return sess.AgentSessionID == "" && tool.ResumeByIDCommand != "" && tool.ResumePickerCommand == ""
+	}
 	if l.runtime.Driver.Exists(sess.ID) {
-		launchedAt, err := RelaunchInPane(l.runtime.Driver, l.runtime.Store, l.runtime.Hooks, sess, tool)
+		relaunched, err := RelaunchInPane(l.runtime.Driver, l.runtime.Store, l.runtime.Hooks, sess.ID, tool)
 		if err != nil {
 			return RelaunchResult{}, err
 		}
-		if sess.AgentSessionID == "" && tool.ResumePickerKeys != "" {
-			InjectPickerKeys(l.runtime.Driver, sess.ID, tool)
+		if relaunched.AgentSessionID == "" && tool.ResumePickerKeys != "" {
+			InjectPickerKeys(l.runtime.Driver, relaunched.ID, tool)
 		}
-		sess.Status = status.Starting
-		sess.AgentLaunchedAt = launchedAt
-		return RelaunchResult{Session: sess, LaunchedAt: launchedAt, ReusedPane: true, Degraded: degraded}, nil
+		relaunched.Status = status.Starting
+		return RelaunchResult{Session: relaunched, LaunchedAt: relaunched.AgentLaunchedAt, ReusedPane: true, Degraded: degraded(relaunched)}, nil
+	}
+	if sess, err = settleBeforeRevive(l.runtime.Store, l.runtime.Hooks, sess, tool.SessionReport, true); err != nil {
+		return RelaunchResult{}, err
 	}
 	tool = tool.WithChoice(sess.Choice)
 	if err := SnapshotRelaunch(l.runtime.Store, sess, tool, sess.AgentSessionID); err != nil {
 		return RelaunchResult{}, err
 	}
-	return l.launchExisting(sess, tool, launch.ReviveCommand(tool, sess.AgentSessionID), pane, degraded, true, func(at time.Time) error {
+	return l.launchExisting(sess, tool, launch.ReviveCommand(tool, sess.AgentSessionID), pane, degraded(sess), true, func(at time.Time) error {
 		return l.runtime.Store.SetAgentLaunchedAt(sess.ID, at)
 	})
 }
@@ -325,7 +340,8 @@ func (l *Lifecycle) Restart(sess store.Session, pane PaneSize) (RelaunchResult, 
 }
 
 func (l *Lifecycle) launchExisting(sess store.Session, tool config.Tool, baseCommand string, pane PaneSize, degraded, injectPicker bool, bind func(time.Time) error) (RelaunchResult, error) {
-	command, env, err := launch.Environment(l.runtime.Hooks, sess.Tool, tool, baseCommand, sess.ID)
+	launchedAt := time.Now()
+	command, env, err := launch.Environment(l.runtime.Hooks, sess.Tool, tool, baseCommand, sess.ID, sess.Cwd, launchedAt)
 	if err != nil {
 		return RelaunchResult{}, err
 	}
@@ -336,7 +352,6 @@ func (l *Lifecycle) launchExisting(sess store.Session, tool config.Tool, baseCom
 	if err := l.runtime.Driver.Create(sess.ID, sess.Cwd, command, env, size.Width, size.Height); err != nil {
 		return RelaunchResult{}, err
 	}
-	launchedAt := time.Now()
 	if err := bind(launchedAt); err != nil {
 		_ = l.runtime.Driver.Kill(sess.ID)
 		return RelaunchResult{}, err
@@ -494,6 +509,7 @@ func (l *Lifecycle) DeleteForHuman(selection DeleteSelection) (DeleteResult, err
 			l.runtime.Hooks.RemoveReviewBase,
 			l.runtime.Hooks.RemoveReviewScope,
 			l.runtime.Hooks.RemoveSettings,
+			l.runtime.Hooks.RemoveAgentFiles,
 		} {
 			if err := remove(sess.ID); err != nil {
 				return result, err

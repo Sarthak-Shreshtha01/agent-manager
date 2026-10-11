@@ -158,7 +158,10 @@ func TestLifecycleRestoreReportsCompletedSessionsBeforeFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "second"})
+	// Restore reads each row again, so the missing directory has to be the
+	// stored one: the second session gets its own, removed after archiving.
+	secondDir := t.TempDir()
+	second, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "second", Directory: secondDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +177,9 @@ func TestLifecycleRestoreReportsCompletedSessionsBeforeFailure(t *testing.T) {
 	}
 	firstRow, _ = h.store.Get(first.ID)
 	secondRow, _ = h.store.Get(second.ID)
-	secondRow.Cwd = filepath.Join(t.TempDir(), "missing")
+	if err := os.RemoveAll(secondDir); err != nil {
+		t.Fatal(err)
+	}
 	result, err := lifecycle.RestoreForHuman(ArchiveSelection{Sessions: []store.Session{firstRow, secondRow}}, PaneSize{Width: 80, Height: 24})
 	if err == nil || !strings.Contains(err.Error(), "working directory no longer exists") {
 		t.Fatalf("restore failure = %v", err)
@@ -461,5 +466,34 @@ func TestLifecycleSpawnHandsBackTheWorktreeWhenLaunchFails(t *testing.T) {
 	}
 	if strings.Count(string(worktrees), "worktree ") != 1 {
 		t.Fatalf("failed spawn left its worktree:\n%s", worktrees)
+	}
+}
+
+// A launch whose time the row cannot record names an agent no revive would
+// recognize, so the pane started for it goes too.
+func TestRelaunchKillsTheNewPaneWhenItsLaunchCannotPersist(t *testing.T) {
+	h := newSessionHarness(t)
+	runtime := harnessRuntime(t, h)
+	lifecycle, err := NewLifecycle(runtime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess := store.Session{ID: "phoenix1", Name: "phoenix", Tool: "echoer", Cwd: t.TempDir(), Status: status.Dead}
+	if err := h.store.CreateSession(sess); err != nil {
+		t.Fatal(err)
+	}
+	tool := runtime.Config.Tools[sess.Tool]
+	bind := func(launchedAt time.Time) error {
+		if err := h.store.Delete(sess.ID); err != nil {
+			return err
+		}
+		return h.store.SetAgentLaunchedAt(sess.ID, launchedAt)
+	}
+	_, err = lifecycle.launchExisting(sess, tool, "sleep 30", PaneSize{Width: 80, Height: 24}, false, false, bind)
+	if !errors.Is(err, store.ErrSessionGone) {
+		t.Fatalf("relaunch error = %v, want ErrSessionGone", err)
+	}
+	if h.driver.Exists(sess.ID) {
+		t.Fatal("the pane started for a launch the row never recorded is still running")
 	}
 }

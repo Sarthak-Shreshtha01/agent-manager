@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/conversation"
 	"github.com/YoanWai/agent-manager/internal/store"
 )
 
@@ -31,9 +32,18 @@ func (s *Sessions) Kill(sessionID, targetID string) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
+	// Some CLIs keep the conversation they are on only while they run,
+	// and no manager screen may be open to have followed it.
+	var followErr error
+	if tool, known := runtime.cfg.Tools[target.Tool]; known && runtime.driver.Exists(target.ID) {
+		target, followErr = FollowConversation(runtime.store, lifecycle.runtime.Hooks, &conversation.Reader{}, target, tool.SessionReport)
+	}
 	killed, err := lifecycle.Kill(target)
 	if err != nil {
 		return Session{}, err
+	}
+	if followErr != nil {
+		return Session{}, fmt.Errorf("killed %s, but could not read which conversation it was on: %w", target.Name, followErr)
 	}
 	return runtime.sessionInfo(killed, false, false), nil
 }

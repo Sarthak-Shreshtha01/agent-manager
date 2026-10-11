@@ -20,7 +20,7 @@ mutation family. The runner
 seeds a disposable caller identity, since caller discovery through process
 ancestry must not authorize the developer's real session inside a test profile.
 
-The process gate takes about 90 seconds, including real heartbeat aging and
+The process gate takes about 70 seconds, including real heartbeat aging and
 reclamation. It starts the managers on PTYs as owned subprocesses so pause and
 cleanup target exact PIDs. All tmux calls use absolute fixture socket paths.
 Results and logs remain at the printed artifact directory on failure.

@@ -10,12 +10,11 @@ import (
 )
 
 type lifecycleRequest struct {
-	target        confirmTarget
-	pane          sessioncmd.PaneSize
-	watched       string
-	allowLive     bool
-	emptyNotice   string
-	successNotice string
+	target      confirmTarget
+	pane        sessioncmd.PaneSize
+	watched     string
+	allowLive   bool
+	emptyNotice string
 }
 
 func (lifecycleRequest) effectRequest() {}
@@ -40,11 +39,7 @@ func (lifecycleEffectResult) effectResult() {}
 func (m *Model) queueLifecycle(target confirmTarget, allowLive bool, emptyNotice string) {
 	target.sessions = append([]store.Session(nil), target.sessions...)
 	w, h := m.paneTargetSize()
-	notice := ""
-	if target.action == actionRevive && !target.batch && len(target.sessions) == 1 {
-		notice = m.degradedResumeNotice(target.sessions[0])
-	}
-	m.enqueueEffect(lifecycleRequest{target: target, pane: sessioncmd.PaneSize{Width: w, Height: h}, watched: m.watchedSession(), allowLive: allowLive, emptyNotice: emptyNotice, successNotice: notice}, 0, false)
+	m.enqueueEffect(lifecycleRequest{target: target, pane: sessioncmd.PaneSize{Width: w, Height: h}, watched: m.watchedSession(), allowLive: allowLive, emptyNotice: emptyNotice}, 0, false)
 }
 
 func (s effectServices) runLifecycle(request lifecycleRequest) (effectResult, error) {
@@ -133,8 +128,10 @@ func (s effectServices) runLifecycle(request lifecycleRequest) (effectResult, er
 	if reflowErr != nil {
 		return result, reflowErr
 	}
-	if target.action == actionRevive && !target.batch {
-		result.notice = request.successNotice
+	// The notice reads the revived row: the listed copy can predate the
+	// conversation the agent last reported.
+	if target.action == actionRevive && !target.batch && len(target.sessions) == 1 && len(result.launches) == 1 && result.launches[0].result.Degraded {
+		result.notice = degradedResumeText(result.launches[0].result.Session.Name)
 	}
 	if target.action == actionRevive && target.batch {
 		switch {

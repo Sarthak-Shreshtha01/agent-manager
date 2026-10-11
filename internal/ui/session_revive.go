@@ -59,7 +59,6 @@ func (m *Model) reviveSelected() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.queueLifecycle(confirmTarget{action: actionRevive, sessions: []store.Session{entry.sess}}, true, "")
-	m.reportErr(m.degradedResumeNotice(entry.sess))
 	return m, m.nextEffectCmd()
 }
 
@@ -119,7 +118,11 @@ func (m *Model) degradedResumeNotice(sess store.Session) string {
 	if !ok || sess.AgentSessionID != "" || tool.ResumeByIDCommand == "" || tool.ResumePickerCommand != "" {
 		return ""
 	}
-	return fmt.Sprintf("revived %s with --continue: no conversation id captured, may resume the wrong conversation", sess.Name)
+	return degradedResumeText(sess.Name)
+}
+
+func degradedResumeText(name string) string {
+	return fmt.Sprintf("revived %s with --continue: no conversation id captured, may resume the wrong conversation", name)
 }
 
 // reviveSession relaunches one dead session under its old id, keeping its

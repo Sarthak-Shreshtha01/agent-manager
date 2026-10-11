@@ -110,11 +110,12 @@ func (p *twoManagers) spawnReady(t *testing.T) store.Session {
 	id := uuid.NewString()[:8]
 	tool := p.cfg.Tools["ready-tool"]
 	plan := launch.Assemble("ready-tool", tool, "", false, false)
-	command, env, err := launch.Environment(p.hooks, "ready-tool", tool, plan.Command, id)
+	cwd := t.TempDir()
+	command, env, err := launch.Environment(p.hooks, "ready-tool", tool, plan.Command, id, cwd, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := p.driver.Create(id, t.TempDir(), command, env, 80, 24); err != nil {
+	if err := p.driver.Create(id, cwd, command, env, 80, 24); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()

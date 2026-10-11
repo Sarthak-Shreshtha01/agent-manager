@@ -513,6 +513,8 @@ func (q *quickBar) handlePickKey(h quickHost, msg tea.KeyMsg) tea.Cmd {
 		if msg.String() == "up" {
 			delta = -1
 		}
+		// The row is already highlighted and enter picks it, so this arrow moves.
+		ch.sugg.chosen = true
 		ch.sugg.move(len(list), delta)
 		return nil
 	}

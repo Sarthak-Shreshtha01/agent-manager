@@ -42,7 +42,7 @@ type section struct {
 	commands []command
 }
 
-func sections(version string) []section {
+func sections(version string, specs settingSpecs) []section {
 	return []section{
 		sessionSection(),
 		taskSection(),
@@ -50,12 +50,13 @@ func sections(version string) []section {
 		terminalSection(),
 		reviewSection(),
 		reportSection(version),
+		settingsSection(specs),
 		updateSection(version),
 	}
 }
 
-func Commands(version string) map[string]Command {
-	return commandTable(sections(version))
+func Commands(version string, specs settingSpecs) map[string]Command {
+	return commandTable(sections(version, specs))
 }
 
 func commandTable(groups []section) map[string]Command {
@@ -68,7 +69,7 @@ func commandTable(groups []section) map[string]Command {
 	return table
 }
 
-func CommandsWithBackend(version string, backend *sessioncmd.Backend) map[string]Command {
+func CommandsWithBackend(version string, specs settingSpecs, backend *sessioncmd.Backend) map[string]Command {
 	if backend == nil {
 		panic("command backend is required")
 	}
@@ -79,15 +80,15 @@ func CommandsWithBackend(version string, backend *sessioncmd.Backend) map[string
 		groupSection("Shared task list", "task", "the work list every session in this manager claims from", taskVerbsWith(func(string) taskCommands { return sessions })),
 		fileSectionWith(func(string) fileCommands { return sessions }),
 		groupSection("Managed terminals", "terminal", "shells the user watches beside the agents, for work they should be able to watch, attach to or take over", terminalVerbsWith(func(string) terminalCommands { return terminals })),
-		reviewSectionWith(func(string) mailboxCommands { return backend }), reportSection(version), updateSection(version),
+		reviewSectionWith(func(string) mailboxCommands { return backend }), reportSection(version), settingsSection(specs), updateSection(version),
 	})
 }
 
-func CommandsWithArchiveOwner(version string, owner sessioncmd.ArchiveOwner) map[string]Command {
+func CommandsWithArchiveOwner(version string, specs settingSpecs, owner sessioncmd.ArchiveOwner) map[string]Command {
 	if owner == nil {
 		panic("archive owner is required for explicit composition")
 	}
-	table := Commands(version)
+	table := Commands(version, specs)
 	factory := func(configDir string) sessionCommands {
 		return sessioncmd.NewSessionsWithArchiveOwner(configDir, sessioncmd.CLIVocabulary(), owner)
 	}
@@ -103,8 +104,8 @@ func Help(version string, proactive bool) string {
 	if !proactive {
 		help.WriteString("Work with those other agents only when the user asks: on your own, do not list, message, spawn or wait on them, or create or claim shared tasks.\n")
 	}
-	help.WriteString("update needs no caller, and issue and feature use only the exported session id. Every other command acts as the session or terminal it runs in, resolved from the environment or from the tmux pane, so run them from your own shell. sessions, groups, snapshot, spawn, read, wait, kill, revive, archive, create-group and delete-group also run from a script outside Agent Manager, where spawn defaults to the CLI picked in settings, the root group and the script's directory. So do send with --from <name>, whose message says no reply can reach the sender, and terminal create, send, read and close, which there open a terminal under no session and drive only terminals under none.\n")
-	for _, section := range sections(version) {
+	help.WriteString("update and settings need no caller, and issue and feature use only the exported session id. Every other command acts as the session or terminal it runs in, resolved from the environment or from the tmux pane, so run them from your own shell. sessions, groups, snapshot, spawn, read, wait, kill, revive, archive, create-group and delete-group also run from a script outside Agent Manager, where spawn defaults to the CLI picked in settings, the root group and the script's directory. So do send with --from <name>, whose message says no reply can reach the sender, and terminal create, send, read and close, which there open a terminal under no session and drive only terminals under none.\n")
+	for _, section := range sections(version, nil) {
 		help.WriteString("\n" + section.title + "\n")
 		help.WriteString(usageLines(section.commands))
 	}

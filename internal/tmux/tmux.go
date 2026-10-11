@@ -238,12 +238,16 @@ func (d *Driver) ClearRequest() error {
 
 func (d *Driver) Kill(id string) error {
 	if !d.Exists(id) {
-		os.Remove(launchScriptPath(id))
+		removeScripts(id)
 		return nil
 	}
 	_, err := d.run("kill-session", "-t", sessionName(id))
-	os.Remove(launchScriptPath(id))
+	removeScripts(id)
 	return err
+}
+
+func removeScripts(id string) {
+	os.Remove(launchScriptPath(id))
 }
 
 func (d *Driver) Exists(id string) bool {

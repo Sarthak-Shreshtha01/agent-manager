@@ -64,7 +64,14 @@ type Tool struct {
 	// tool's sessions: "claude", "codex", "opencode", "grok", "gemini",
 	// "hermes", "command-code", "muse", "antigravity" or "none".
 	// Empty uses the tool's config key when it names a known style.
-	MCP            string `toml:"mcp"`
+	MCP string `toml:"mcp"`
+	// SessionReport names how the manager learns each conversation the
+	// running agent switches to, so revive resumes the one it was on: the
+	// agent reports it ("claude", "pi", "omp", "opencode", "command-code",
+	// "codex", "gemini"), or the manager reads it from what the CLI keeps
+	// ("muse", "grok", "antigravity", "hermes"). "none" keeps the id
+	// captured at launch.
+	SessionReport  string `toml:"session_report"`
 	StatusSource   string `toml:"status_source"`
 	DefaultStatus  string `toml:"default_status"`
 	ActivityCutoff string `toml:"activity_cutoff"`

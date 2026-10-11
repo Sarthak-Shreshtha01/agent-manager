@@ -2,9 +2,12 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"github.com/YoanWai/agent-manager/internal/config"
+	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"os"
@@ -92,7 +95,7 @@ func TestReviveRecreatesDeadSession(t *testing.T) {
 	}
 }
 
-func TestReviveKillsNewPaneWhenLaunchTimeCannotPersist(t *testing.T) {
+func TestReviveOfADeletedRowLeavesNoPane(t *testing.T) {
 	m := buildModel(t)
 	createSession(t, m, "phoenix", t.TempDir(), "")
 
@@ -109,7 +112,7 @@ func TestReviveKillsNewPaneWhenLaunchTimeCannotPersist(t *testing.T) {
 		t.Fatalf("revive error = %v, want ErrSessionGone", err)
 	}
 	if m.services.tmux.Exists(sess.ID) {
-		t.Fatal("failed revive must kill the newly created tmux session")
+		t.Fatal("a failed revive must leave no tmux session behind")
 	}
 }
 
@@ -569,5 +572,63 @@ func TestReviveStartsTheAgentAgainInALivePane(t *testing.T) {
 			t.Fatalf("the shell lost the session environment after the relaunched agent exited; pane:\n%s", pane)
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func launchCaptureCommand(argsFile string) string {
+	script := `printf '%s\n' "$` + hooks.EnvLaunch + `" "$@" > ` + tmux.ShellQuote(argsFile) + `; cat`
+	return "sh -c " + tmux.ShellQuote(script) + " sh"
+}
+
+func TestReviveResumesTheStoredConversationOverAStaleListedRow(t *testing.T) {
+	m := buildModel(t)
+	createSession(t, m, "phoenix", t.TempDir(), "")
+	listed := m.sessionRows()[0]
+	argsFile := filepath.Join(t.TempDir(), "launch-args")
+	tool := m.services.cfg.Tools[listed.Tool]
+	tool.ResumeByIDCommand = launchCaptureCommand(argsFile) + " --resume {id}"
+	m.services.cfg.Tools[listed.Tool] = tool
+	if err := m.services.tmux.Kill(listed.ID); err != nil {
+		t.Fatalf("kill: %v", err)
+	}
+	if result, err := m.services.store.ReportAgentSessionID(listed.ID, listed.Tool, "switched", 0); err != nil || result != store.ReportAdopted {
+		t.Fatalf("report: %v %v", result, err)
+	}
+
+	if err := m.reviveSession(listed); err != nil {
+		t.Fatalf("revive: %v", err)
+	}
+	stored, err := m.services.store.Get(listed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.AgentSessionID != "switched" {
+		t.Fatalf("stored %q, want switched", stored.AgentSessionID)
+	}
+	want := fmt.Sprintf("%d\n--resume\nswitched\n", store.LaunchStamp(stored.AgentLaunchedAt))
+	if args := readWhenWritten(t, argsFile); !strings.HasPrefix(args, want) || stored.AgentLaunchedAt.IsZero() {
+		t.Fatalf("launch = %q, want it to open with %q", args, want)
+	}
+}
+
+func TestRestartStampsTheLaunchItExported(t *testing.T) {
+	m := buildModel(t)
+	createSession(t, m, "phoenix", t.TempDir(), "")
+	sess := m.sessionRows()[0]
+	argsFile := filepath.Join(t.TempDir(), "launch-args")
+	tool := m.services.cfg.Tools[sess.Tool]
+	tool.Command = launchCaptureCommand(argsFile)
+	tool.SessionIDFlag = "--session-id"
+	m.services.cfg.Tools[sess.Tool] = tool
+	if err := m.restartSession(sess); err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	stored, err := m.services.store.Get(sess.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("%d\n--session-id\n%s\n", store.LaunchStamp(stored.AgentLaunchedAt), stored.AgentSessionID)
+	if args := readWhenWritten(t, argsFile); !strings.HasPrefix(args, want) || stored.AgentLaunchedAt.IsZero() {
+		t.Fatalf("launch = %q, want it to open with %q", args, want)
 	}
 }

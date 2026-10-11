@@ -52,27 +52,27 @@ default_status = "idle"
 # Stands in for a CLI sitting on an approval dialog: the input line is drawn
 # under it, and only the rule tells that apart from a resting prompt.
 [tools.dialog]
-command = "printf 'Do you want to proceed?\\n  1. Yes\\n  2. No\\nEnter to confirm\\n❯ ' && cat"
+command = "sh -c \"printf 'Do you want to proceed?\\n  1. Yes\\n  2. No\\nEnter to confirm\\n❯ ' && exec cat\""
 default_status = "idle"
 activity_cutoff = "(?m)^❯"
 rules = [{ state = "waiting", pattern = "Enter to confirm" }]
 
 # Stands in for a dialog that replaces the composer's input line.
 [tools.dialog-hidden-composer]
-command = "printf 'Do you want to proceed?\\n  1. Yes\\n  2. No\\nEnter to confirm\\n' && cat"
+command = "sh -c \"printf 'Do you want to proceed?\\n  1. Yes\\n  2. No\\nEnter to confirm\\n' && exec cat\""
 default_status = "idle"
 activity_cutoff = "(?m)^❯"
 rules = [{ state = "waiting", pattern = "Enter to confirm" }]
 
 [tools.resting]
-command = "printf '❯ ' && cat"
+command = "sh -c \"printf '❯ ' && exec cat\""
 default_status = "idle"
 activity_cutoff = "(?m)^❯"
 
 [tools.picker]
-command = "printf 'COMPOSER ' && cat"
+command = "sh -c \"printf 'COMPOSER ' && exec cat\""
 session_store = "codex"
-resume_picker_command = "printf 'COMPOSER ' && cat"
+resume_picker_command = "sh -c \"printf 'COMPOSER ' && exec cat\""
 resume_picker_keys = "/sessions"
 input_prefix = "COMPOSER"
 default_status = "idle"
@@ -80,10 +80,17 @@ default_status = "idle"
 [tools.picker-exit]
 command = "echo initial"
 session_store = "codex"
-resume_picker_command = "printf 'COMPOSER ' && cat"
+resume_picker_command = "sh -c \"printf 'COMPOSER ' && exec cat\""
 resume_picker_keys = "/sessions"
 input_prefix = "COMPOSER"
 default_status = "idle"
+
+# Prints the conversation it resumes and the launch it was told it is.
+[tools.reporter]
+command = "echo launched launch=$AGENT_MANAGER_LAUNCH"
+resume_by_id_command = "echo resumed {id} launch=$AGENT_MANAGER_LAUNCH"
+default_status = "idle"
+activity_cutoff = "(?m)^\u276f"
 
 [tools.terminal]
 command = ""

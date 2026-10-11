@@ -24,7 +24,7 @@ import tempfile
 import time
 
 from smoke import Sandbox
-from scenarios import (READY_MARKER, agent_pane, capture,
+from scenarios import (READY_MARKER, agent_pane, capture, last_frame,
                        ensure_binary, key,
                        pane_text, profile_dir, select_row, seed_store,
                        spawn_form, start_manager, store_sessions,
@@ -258,7 +258,7 @@ def main():
                 (sandbox.artifacts / 'manager-exit-state.txt').write_text(exit_state.stdout + exit_state.stderr)
                 history = sandbox.tmux('capture-pane', '-p', '-S', '-', '-t', 'scen:0.0', check=False)
                 (sandbox.artifacts / 'manager-history.txt').write_text(history.stdout + history.stderr)
-                (sandbox.artifacts / 'scen-last-frame.txt').write_text(capture(sandbox))
+                (sandbox.artifacts / 'scen-last-frame.txt').write_text(last_frame(sandbox))
                 results[case] = dict(status='failed',
                                      error=str(error) or type(error).__name__,
                                      capture_errors=sandbox.failure_frames(),

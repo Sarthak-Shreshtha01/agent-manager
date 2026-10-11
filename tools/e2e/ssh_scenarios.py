@@ -24,7 +24,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from scenarios import (FAKE_BIN, FAKE_CLI, READY_MARKER, capture, config_fixture_text,
-                       ensure_binary, fake_cli_script, frame, key, preview_of, profile_dir, seed_store)
+                       ensure_binary, fake_cli_script, frame, key, last_frame, preview_of, profile_dir,
+                       seed_store)
 from smoke import Sandbox
 
 CONNECTION = 'box'
@@ -390,7 +391,7 @@ def main():
         scenario(sandbox, remote, binary)
         result = dict(status='passed', seconds=round(time.monotonic()-started, 2))
     except (Exception, KeyboardInterrupt) as error:
-        (sandbox.artifacts / 'scenario-last-frame.txt').write_text(capture(sandbox))
+        (sandbox.artifacts / 'scenario-last-frame.txt').write_text(last_frame(sandbox))
         result = dict(status='failed', error=str(error) or type(error).__name__,
                       seconds=round(time.monotonic()-started, 2))
     finally:
