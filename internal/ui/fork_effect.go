@@ -16,9 +16,10 @@ import (
 // forkRequest freezes a fork dialog submission: the source's manager id,
 // conversation and worktree ownership, the typed name, and the dialog
 // generation it was submitted from. The worker re-reads the source by
-// manager id to validate liveness; a source whose captured identity changed
-// while the fork was queued is refused, and the fork targets the captured
-// identity, not the replacement.
+// manager id to validate liveness; a source restarted or moved while the
+// fork was queued is refused, and the fork targets the captured identity,
+// not the replacement. A conversation the running agent reported switching
+// to is followed.
 type forkRequest struct {
 	childID     string
 	source      store.Session
@@ -78,9 +79,16 @@ func (s effectServices) runFork(request forkRequest) (effectResult, error) {
 	}
 	// The re-read validates liveness, not identity: the fork targets the
 	// source the dialog confirmed. A restart while queued mints a new
-	// conversation, and forking it would open the replacement.
+	// launch, and forking it would open the replacement. A conversation
+	// the agent switched to and reported keeps its launch, and the fork
+	// branches from that one.
+	switched := source.AgentSessionID != request.source.AgentSessionID
+	if switched && source.AgentSessionID != "" && source.AgentLaunchedAt.Equal(request.source.AgentLaunchedAt) {
+		request.source.AgentSessionID = source.AgentSessionID
+		switched = false
+	}
 	if source.Tool != request.source.Tool ||
-		source.AgentSessionID != request.source.AgentSessionID ||
+		switched ||
 		source.Cwd != request.source.Cwd ||
 		source.WorktreeRepo != request.source.WorktreeRepo ||
 		source.WorktreeBranch != request.source.WorktreeBranch {

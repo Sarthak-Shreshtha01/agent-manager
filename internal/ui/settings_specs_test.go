@@ -40,7 +40,12 @@ func TestSettingSpecsCoverEveryKeySettingsWrites(t *testing.T) {
 	m.settings.dialog.baseline = nil
 	m.settings.dialog.baselineHidden = nil
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEsc})
-	m.applyCmd(t, cmd)
+	// Only the save's own effects: a refresh would stamp the poller's
+	// runtime rows, which are not settings.
+	if cmd != nil {
+		m.applyTestMsg(t, cmd())
+	}
+	m.drainEffects(t)
 	after, err := m.services.store.Settings()
 	if err != nil {
 		t.Fatal(err)
