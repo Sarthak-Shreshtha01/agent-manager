@@ -107,8 +107,8 @@ def run(candidate, work, tag, peer=None):
             if not result.get('tool_count') or result.get('tools_error') or result.get('initialize_error') or 'error' in result.get('call', {}) or result.get('call', {}).get('result', {}).get('isError'):
                 raise AssertionError(f'{name} MCP {protocol} failed')
             checks.append(name + ' MCP ' + protocol)
-    for first, second in [(release, candidate), (candidate, release)]:
-        home = work / ('shared-' + first.name)
+    for label, first, second in [('release-first', release, candidate), ('candidate-first', candidate, release)]:
+        home = work / ('shared-' + label)
         initialize(first, home)
         cli(first, home, 'task', 'create', 'first-version task', '--json', caller='beefcafe')
         cli(second, home, 'sessions', caller='beefcafe')
@@ -116,7 +116,7 @@ def run(candidate, work, tag, peer=None):
         tasks = cli(first, home, 'task', 'list', '--json', caller='beefcafe')
         if 'first-version task' not in tasks or 'second-version task' not in tasks:
             raise AssertionError('mixed-version tasks did not roundtrip')
-        checks.append(first.name + ' shared profile task roundtrip')
+        checks.append(label + ' shared profile task roundtrip')
 
     home = work / 'concurrent-tasks'
     initialize(release, home)
