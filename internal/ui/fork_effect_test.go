@@ -408,6 +408,9 @@ func TestForkRefusesASourceThatRestartedWhileQueued(t *testing.T) {
 	if err := m.services.store.SetAgentSessionID(source.ID, "replacement-conversation"); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.services.store.SetAgentLaunchedAt(source.ID, time.Now()); err != nil {
+		t.Fatal(err)
+	}
 	m.applyCmd(t, cmd)
 	if !strings.Contains(m.errBar.text, "changed while the fork was in the queue") {
 		t.Fatalf("err = %q, want the captured-identity refusal", m.errBar.text)

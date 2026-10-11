@@ -252,6 +252,14 @@ func (m *Model) handleSettingsLoaded(msg settingsLoadedMsg) (tea.Model, tea.Cmd)
 		m.settings.cache.applyReadback(msg.result.values, msg.result.hiddenRaw, msg.result.hiddenErr)
 		field := m.settings.dialog.field
 		m.settings.dialog = m.settings.settingsStateFromCache(m.services.cfg)
+		// A manual theme the shell changed meanwhile repaints here, so esc
+		// keeps it instead of writing back the palette cached at startup.
+		if d := &m.settings.dialog; !d.themeAuto && current.Name != d.manualTheme {
+			d.themeIndex = themeIndex(d.manualTheme)
+			applyTheme(themes[d.themeIndex])
+			SyncTerminalColors()
+			follow = m.syncPaneTheme()
+		}
 		m.settings.markSettingsBaseline()
 		m.settings.dialog.field = field
 	case settingsLoadForm:
