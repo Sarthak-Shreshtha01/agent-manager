@@ -1,11 +1,15 @@
 package sessioncmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/YoanWai/agent-manager/internal/conversation"
+	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 )
@@ -222,4 +226,104 @@ func TestATerminalHasNoTurnToEndItselfAfter(t *testing.T) {
 	if _, err := h.sessions.EndAfterTurn("", store.AfterTurnArchive); err == nil || !strings.Contains(err.Error(), "not inside an Agent Manager session") {
 		t.Fatalf("no caller = %v, want the missing caller named", err)
 	}
+}
+
+// The agent switched conversation after it launched; revive brings back the
+// one it reported, and tells the new agent the launch its row is stamped with.
+func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
+	h := newSessionHarness(t)
+	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "switcher", Tool: "reporter"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	waitForSessionOutput(t, h.sessions, h.caller.ID, created.ID, "launched launch=0")
+	if result, err := h.store.ReportAgentSessionID(created.ID, "reporter", "conv-switched", 0); err != nil || result != store.ReportAdopted {
+		t.Fatalf("report: %v %v", result, err)
+	}
+	if _, err := h.sessions.Kill(h.caller.ID, created.ID); err != nil {
+		t.Fatalf("Kill: %v", err)
+	}
+	if _, err := h.sessions.Revive(h.caller.ID, created.ID); err != nil {
+		t.Fatalf("Revive: %v", err)
+	}
+	stored, err := h.store.Get(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitForSessionOutput(t, h.sessions, h.caller.ID, created.ID, fmt.Sprintf("resumed conv-switched launch=%d", store.LaunchStamp(stored.AgentLaunchedAt)))
+}
+
+// Muse names its conversation only in a file it holds open while it runs,
+// and no manager screen may be open to have read it before the kill.
+func TestKillFollowsTheConversationTheAgentHolds(t *testing.T) {
+	h := newSessionHarness(t)
+	held := filepath.Join(t.TempDir(), "muse", "sessions", "conv-held.json")
+	if err := os.MkdirAll(filepath.Dir(held), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h.sessions.loadConfig = testConfigLoader(t, sessionConfig+`
+[tools.holder]
+command = "sh -c 'exec 3>`+held+`; echo holding; exec cat'"
+resume_by_id_command = "echo resumed {id}"
+session_report = "muse"
+default_status = "idle"
+`)
+	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "holder", Tool: "holder"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	waitForSessionOutput(t, h.sessions, h.caller.ID, created.ID, "holding")
+	if _, err := h.sessions.Kill(h.caller.ID, created.ID); err != nil {
+		t.Fatalf("Kill: %v", err)
+	}
+	if got := storedConversation(t, h.store, created.ID); got != "conv-held" {
+		t.Fatalf("after the kill the row is on %q, want conv-held", got)
+	}
+	if _, err := h.sessions.Revive(h.caller.ID, created.ID); err != nil {
+		t.Fatalf("Revive: %v", err)
+	}
+	waitForSessionOutput(t, h.sessions, h.caller.ID, created.ID, "resumed conv-held")
+}
+
+// Grok's log keeps the last conversation each process was on after it has
+// quit, which a revive reads when no manager screen followed the switch.
+func TestReviveReadsTheConversationAQuitAgentLogged(t *testing.T) {
+	h := newSessionHarness(t)
+	grokHome := t.TempDir()
+	t.Setenv("GROK_HOME", grokHome)
+	h.sessions.loadConfig = testConfigLoader(t, sessionConfig+`
+[tools.grokker]
+command = "echo started"
+resume_by_id_command = "echo resumed {id}"
+session_report = "grok"
+default_status = "idle"
+`)
+	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "grokker", Tool: "grokker"})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	waitForSessionOutput(t, h.sessions, h.caller.ID, created.ID, "started")
+	waitForAgentGone(t, h.driver, created.ID)
+	agent, found, err := conversation.ReadAgent(hooks.NewManager(h.sessions.configDir).AgentFile(created.ID))
+	if err != nil || !found {
+		t.Fatalf("agent record = %v, %v", found, err)
+	}
+	stored, err := h.store.Get(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stored.CreatedAt.Before(agent.Recorded) {
+		t.Fatal("the launch ended before its row's creation time")
+	}
+	logLine := fmt.Sprintf(`{"ts":%q,"pid":%d,"sid":"conv-logged","msg":"session.create.done"}`+"\n", agent.Recorded.Add(-time.Millisecond).Format(time.RFC3339Nano), agent.PID)
+	if err := os.MkdirAll(filepath.Join(grokHome, "logs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(grokHome, "logs", "unified.jsonl"), []byte(logLine), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.sessions.Revive(h.caller.ID, created.ID); err != nil {
+		t.Fatalf("Revive: %v", err)
+	}
+	waitForSessionOutput(t, h.sessions, h.caller.ID, created.ID, "resumed conv-logged")
 }

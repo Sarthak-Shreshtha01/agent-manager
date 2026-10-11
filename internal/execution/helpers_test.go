@@ -143,14 +143,14 @@ func buildModel(t *testing.T) *harness {
 			// Stands in for the agent CLIs, which turn on mouse tracking and
 			// scroll themselves instead of leaving history for tmux.
 			"mouse-tool": {
-				Command:       `printf '\033[?1003h\033[?1006h' && cat`,
+				Command:       `sh -c 'printf "\033[?1003h\033[?1006h" && exec cat'`,
 				DefaultStatus: status.Idle,
 			},
 			// Same claim on the mouse without asking for SGR, which is the
 			// one case the reports have to fall back to the original
 			// encoding.
 			"x10-tool": {
-				Command:       `printf '\033[?1003h' && cat`,
+				Command:       `sh -c 'printf "\033[?1003h" && exec cat'`,
 				DefaultStatus: status.Idle,
 			},
 		},
@@ -214,7 +214,7 @@ func (h *harness) spawnSession(toolName, name, dir, group, prompt string, autoNa
 		}
 	}
 	plan := launch.Assemble(toolName, tool, prompt, autoNamed, false)
-	command, env, err := launch.Environment(h.hooks, toolName, tool, plan.Command, id)
+	command, env, err := launch.Environment(h.hooks, toolName, tool, plan.Command, id, dir, time.Time{})
 	if err != nil {
 		return err
 	}

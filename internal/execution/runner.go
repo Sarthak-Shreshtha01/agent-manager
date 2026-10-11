@@ -30,6 +30,7 @@ type Options struct {
 	StatusSources map[string]string
 	SessionStores map[string]string
 	MCPStyles     map[string]string
+	ReportStyles  map[string]string
 	ShellTools    map[string]bool
 	Binaries      ToolBinaries
 	Interval      time.Duration
@@ -62,6 +63,9 @@ type Snapshot struct {
 	// TurnsEnded are the sessions whose archive or kill asked for after
 	// their turn is due: this pass read each at rest after the request.
 	TurnsEnded []string
+	// FollowWarning reports a session whose conversation the pass could not
+	// follow, the first time it fails that way.
+	FollowWarning string
 }
 
 type Result struct {
@@ -86,7 +90,7 @@ func New(deps Dependencies, opts Options) *Runner {
 		store: deps.Store, tmux: deps.TMux, engine: deps.Engine, hooks: deps.Hooks,
 		gitDrv: deps.Git, inboxOwner: inbox, notifyFn: notifyFn, takeFocus: deps.TakeFocus,
 		statusSources: opts.StatusSources, sessionStores: opts.SessionStores,
-		mcpStyles: opts.MCPStyles, shellTools: opts.ShellTools, binaries: opts.Binaries,
+		mcpStyles: opts.MCPStyles, reportStyles: opts.ReportStyles, shellTools: opts.ShellTools, binaries: opts.Binaries,
 		interval: interval, poke: make(chan struct{}, 1), paneHashes: map[string]uint64{},
 		claudeTails: map[string]claudeTailCache{}, quietSince: map[string]quietTimer{},
 		recaptureSeen: map[string]recaptureSighting{},
@@ -94,11 +98,12 @@ func New(deps Dependencies, opts Options) *Runner {
 }
 
 func OptionsFromConfig(cfg config.Config) Options {
-	opts := Options{Interval: config.PollInterval, StatusSources: map[string]string{}, SessionStores: map[string]string{}, MCPStyles: map[string]string{}, ShellTools: map[string]bool{}, Binaries: NewToolBinaries(cfg)}
+	opts := Options{Interval: config.PollInterval, StatusSources: map[string]string{}, SessionStores: map[string]string{}, MCPStyles: map[string]string{}, ReportStyles: map[string]string{}, ShellTools: map[string]bool{}, Binaries: NewToolBinaries(cfg)}
 	for name, tool := range cfg.Tools {
 		opts.StatusSources[name] = tool.StatusSource
 		opts.SessionStores[name] = tool.SessionStore
 		opts.MCPStyles[name] = mcpreg.Style(name, tool.MCP)
+		opts.ReportStyles[name] = tool.SessionReport
 		opts.ShellTools[name] = tool.Shell
 	}
 	return opts

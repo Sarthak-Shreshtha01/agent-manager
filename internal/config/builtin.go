@@ -21,6 +21,7 @@ const builtinTools = `# Rules are matched top-down against the visible pane text
 
 [tools.claude]
 command = "claude"
+session_report = "claude"
 # revive (v) launches a new session with this id, so it can later resume
 # that exact conversation regardless of what else ran in the directory
 session_id_flag = "--session-id"
@@ -87,6 +88,7 @@ rules = [
 
 [tools.opencode]
 command = "opencode"
+session_report = "opencode"
 # opencode mints its own session id; capture it after launch and resume it
 session_store = "opencode"
 resume_by_id_command = "opencode --session {id}"
@@ -141,6 +143,7 @@ rules = [
 
 [tools.codex]
 command = "codex"
+session_report = "codex"
 # codex mints its own session id; capture it after launch and resume it
 session_store = "codex"
 resume_by_id_command = "codex resume {id}"
@@ -190,6 +193,7 @@ rules = [
 
 [tools.muse]
 command = "muse"
+session_report = "muse"
 session_store = "muse"
 resume_by_id_command = "muse resume {id}"
 resume_picker_command = "muse resume"
@@ -218,6 +222,7 @@ rules = [
 
 [tools.grok]
 command = "grok"
+session_report = "grok"
 # runs inline while the manager's control client is attached, and keeps its
 # scrollback through a height shrink
 fits_height = true
@@ -261,6 +266,7 @@ rules = [
 
 [tools.gemini]
 command = "gemini"
+session_report = "gemini"
 # revive (v) launches a new session with this id, so it can later resume
 # that exact conversation regardless of what else ran in the directory
 session_id_flag = "--session-id"
@@ -316,6 +322,7 @@ rules = [
 # Antigravity CLI (agy), Google's successor to Gemini CLI
 [tools.antigravity]
 command = "agy"
+session_report = "antigravity"
 # agy reads a startup prompt only from -p, which exits after one turn, or -i
 prompt_flag = "-i"
 # agy mints its own conversation id; capture it after launch and resume it
@@ -354,6 +361,7 @@ rules = [
 [tools.hermes]
 # The classic REPL exposes stable prompt markers for status and prompt delivery.
 command = "hermes --cli"
+session_report = "hermes"
 # Hermes creates its session id on first input and records it in state.db.
 session_store = "hermes"
 resume_by_id_command = "hermes --cli --resume {id}"
@@ -407,6 +415,7 @@ input_prefix = "(?m)^\\s*(?:\\S+\\s+){0,3}[❯>$#›»→%➜]\\s"
 
 [tools.pi]
 command = "pi"
+session_report = "pi"
 session_id_flag = "--session-id"
 resume_by_id_command = "pi --session {id}"
 fork_command = "pi --fork {id} --session-id {new_id}"
@@ -447,6 +456,7 @@ rules = [
 
 [tools.omp]
 command = "omp"
+session_report = "omp"
 # omp mints its own UUIDv7 and writes the session file once the first
 # reply lands; capture it from ~/.omp/agent/sessions and resume it
 session_store = "omp"
@@ -486,6 +496,7 @@ rules = [
 
 [tools.command-code]
 command = "cmd"
+session_report = "command-code"
 # command-code mints its own session id; capture it after launch and resume it
 session_store = "command-code"
 resume_by_id_command = "cmd --session {id}"

@@ -54,6 +54,9 @@ type refreshMsg struct {
 	// turnsEnded are the sessions whose turn this pass saw end after they
 	// asked to be archived or killed once it did.
 	turnsEnded []string
+	// followWarning reports a session whose conversation the pass could not
+	// follow, the first time it fails that way.
+	followWarning string
 }
 
 // StartPoller launches the background polling loop. It runs outside the
@@ -168,6 +171,9 @@ func (m *Model) routeRefreshMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		}
 		m.startup.booting = false
 		m.ageError()
+		if msg.followWarning != "" {
+			m.reportWarn(msg.followWarning)
+		}
 		var focusExit tea.Cmd
 		if !staleListing {
 			// The focused session can die or vanish under us; fall back to the

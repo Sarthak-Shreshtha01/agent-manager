@@ -26,9 +26,9 @@ type poller struct {
 	options      execution.Options
 }
 
-func newPoller(st *store.Store, driver *tmux.Driver, engine *status.Engine, hookManager *hooks.Manager, gitDriver *git.Driver, statusSources, sessionStores, mcpStyles map[string]string, shellTools map[string]bool, binaries execution.ToolBinaries, interval time.Duration) *poller {
+func newPoller(st *store.Store, driver *tmux.Driver, engine *status.Engine, hookManager *hooks.Manager, gitDriver *git.Driver, statusSources, sessionStores, mcpStyles, reportStyles map[string]string, shellTools map[string]bool, binaries execution.ToolBinaries, interval time.Duration) *poller {
 	deps := execution.Dependencies{Store: st, TMux: driver, Engine: engine, Hooks: hookManager, Git: gitDriver, Notify: postNotification, TakeFocus: takeNotifyFocus}
-	opts := execution.Options{StatusSources: statusSources, SessionStores: sessionStores, MCPStyles: mcpStyles, ShellTools: shellTools, Binaries: binaries, Interval: interval}
+	opts := execution.Options{StatusSources: statusSources, SessionStores: sessionStores, MCPStyles: mcpStyles, ReportStyles: reportStyles, ShellTools: shellTools, Binaries: binaries, Interval: interval}
 	return &poller{runner: execution.New(deps, opts), dependencies: deps, options: opts}
 }
 
@@ -41,7 +41,7 @@ func pollMessage(result execution.Result) tea.Msg {
 		groupWorktrees: s.GroupWorktrees, groupBases: s.GroupBases, archivedGroups: s.ArchivedGroups, snap: s.Snap, snapOK: s.SnapOK,
 		proc: s.Proc, procFor: s.ProcFor, preview: s.Preview, agents: agentStats{count: s.Agents.Count, cpu: s.Agents.CPU, ram: s.Agents.RAM, rss: s.Agents.RSS},
 		queuedMessages: s.QueuedMessages, paneLines: s.PaneLines, panePrompts: s.PanePrompts, panes: s.Panes,
-		tmuxSocket: s.TmuxSocket, leadingManager: s.LeadingManager, focusID: s.FocusID, turnsEnded: s.TurnsEnded}
+		tmuxSocket: s.TmuxSocket, leadingManager: s.LeadingManager, focusID: s.FocusID, turnsEnded: s.TurnsEnded, followWarning: s.FollowWarning}
 }
 
 func (p *poller) refreshOnce() tea.Msg                                { return pollMessage(p.runner.Step()) }

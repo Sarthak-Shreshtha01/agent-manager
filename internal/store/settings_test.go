@@ -56,14 +56,30 @@ func TestSettingsCLIChoicesRoundTrip(t *testing.T) {
 	if err := st.SetHiddenTools(map[string]bool{"grok": true, "codex": true, "pi": false}); err != nil {
 		t.Fatalf("SetHiddenTools: %v", err)
 	}
-	if raw, err := st.Setting(hiddenToolsSetting); err != nil || raw != "codex,grok" {
+	if raw, err := st.Setting(HiddenToolsSetting); err != nil || raw != "codex,grok" {
 		t.Fatalf("stored hidden tools = %q, %v; want the sorted names that are on", raw, err)
 	}
-	if err := st.SetSetting(hiddenToolsSetting, "codex, grok"); err != nil {
+	if err := st.SetSetting(HiddenToolsSetting, "codex, grok"); err != nil {
 		t.Fatalf("SetSetting: %v", err)
 	}
 	hidden, err := st.HiddenTools()
 	if err != nil || len(hidden) != 2 || !hidden["codex"] || !hidden["grok"] {
 		t.Fatalf("hidden tools = %v, %v; want codex and grok", hidden, err)
+	}
+}
+
+func TestSettingsListsEveryStoredRow(t *testing.T) {
+	st := newTestStore(t)
+	for key, value := range map[string]string{"theme": "nord", "notifications": "off"} {
+		if err := st.SetSetting(key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := st.Settings()
+	if err != nil {
+		t.Fatalf("Settings: %v", err)
+	}
+	if rows["theme"] != "nord" || rows["notifications"] != "off" {
+		t.Fatalf("Settings = %v", rows)
 	}
 }

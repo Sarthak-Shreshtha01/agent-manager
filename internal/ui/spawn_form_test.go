@@ -493,11 +493,11 @@ func TestFormPromptComposesWithSettings(t *testing.T) {
 	tool := m.services.cfg.Tools["claude-hooked"]
 	tool.Command = "cat"
 
-	command, _, err := m.buildLaunch("claude", tool, launch.WithPrompt(tool, tool.Command, "fix the bug"), "prompt01")
+	command, _, err := m.buildLaunch("claude", tool, launch.WithPrompt(tool, tool.Command, "fix the bug"), "prompt01", t.TempDir(), time.Time{})
 	if err != nil {
 		t.Fatalf("buildLaunch: %v", err)
 	}
-	if !strings.HasPrefix(command, "cat 'fix the bug' --mcp-config '") || !strings.Contains(command, "--settings '") {
+	if !strings.HasPrefix(command, "sh -c 'export "+hooks.EnvAgentPID+"=$$; ") || !strings.Contains(command, "; exec cat '\\''fix the bug'\\'' --mcp-config '") || !strings.Contains(command, "--settings '") {
 		t.Fatalf("command = %q", command)
 	}
 }
@@ -901,7 +901,7 @@ func TestSendModePromptSurvivesPollerRestart(t *testing.T) {
 	}
 	old := m.poller
 	m.poller = newPoller(m.services.store, m.services.tmux, m.services.engine, m.services.hooks, m.services.gitDrv,
-		old.options.StatusSources, old.options.SessionStores, old.options.MCPStyles, old.options.ShellTools, old.options.Binaries, old.options.Interval)
+		old.options.StatusSources, old.options.SessionStores, old.options.MCPStyles, old.options.ReportStyles, old.options.ShellTools, old.options.Binaries, old.options.Interval)
 	m.applyCmd(t, m.refreshCmd())
 	deadline := time.Now().Add(5 * time.Second)
 	for len(sessionPendingInputs(t, m, sess.ID)) > 0 {
@@ -938,7 +938,7 @@ func TestSendModeReconcilesUncertainPriorDeliveryWithoutResending(t *testing.T) 
 	}
 	old := m.poller
 	m.poller = newPoller(m.services.store, m.services.tmux, m.services.engine, m.services.hooks, m.services.gitDrv,
-		old.options.StatusSources, old.options.SessionStores, old.options.MCPStyles, old.options.ShellTools, old.options.Binaries, old.options.Interval)
+		old.options.StatusSources, old.options.SessionStores, old.options.MCPStyles, old.options.ReportStyles, old.options.ShellTools, old.options.Binaries, old.options.Interval)
 	msg := m.poller.refreshOnce()
 	gotErr, ok := msg.(errMsg)
 	if !ok || !strings.Contains(gotErr.err.Error(), "uncertain prior transport outcome") {
@@ -978,7 +978,7 @@ func sessionHasPendingInput(t *testing.T, m *Model, id, want string) bool {
 func TestBuildLaunchCarriesSessionID(t *testing.T) {
 	m := buildModel(t)
 	plain := m.services.cfg.Tools["claude"]
-	_, env, err := m.buildLaunch("plain", plain, plain.Command, "abcd1234")
+	_, env, err := m.buildLaunch("plain", plain, plain.Command, "abcd1234", t.TempDir(), time.Time{})
 	if err != nil {
 		t.Fatalf("buildLaunch: %v", err)
 	}
@@ -987,7 +987,7 @@ func TestBuildLaunchCarriesSessionID(t *testing.T) {
 	}
 
 	hooked := m.services.cfg.Tools["claude-hooked"]
-	_, env, err = m.buildLaunch("hooked", hooked, hooked.Command, "abcd1234")
+	_, env, err = m.buildLaunch("hooked", hooked, hooked.Command, "abcd1234", t.TempDir(), time.Time{})
 	if err != nil {
 		t.Fatalf("buildLaunch hooked: %v", err)
 	}
