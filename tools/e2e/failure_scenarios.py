@@ -11,7 +11,7 @@ from pathlib import Path
 from smoke import Sandbox
 from scenarios import (READY_MARKER,
                        agent_panes, config_fixture_text, ensure_binary,
-                       fake_cli_script, capture, key, pane_text, profile_dir,
+                       fake_cli_script, capture, key, last_frame, pane_text, profile_dir,
                        seed_store, start_manager, store_sessions)
 
 
@@ -158,7 +158,7 @@ def main():
             exit_state = sandbox.tmux('display-message', '-p', '-t', 'scen:0.0',
                                      '#{pane_dead} #{pane_dead_status} #{pane_dead_signal}', check=False)
             (sandbox.artifacts / 'manager-exit-state.txt').write_text(exit_state.stdout + exit_state.stderr)
-            (sandbox.artifacts / 'scen-last-frame.txt').write_text(capture(sandbox))
+            (sandbox.artifacts / 'scen-last-frame.txt').write_text(last_frame(sandbox))
             sandbox.failure_frames()
         finally:
             cleanup_errors = sandbox.close()

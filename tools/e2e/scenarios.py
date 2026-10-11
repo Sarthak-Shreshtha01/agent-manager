@@ -112,6 +112,12 @@ def capture(sandbox):
     return sandbox.tmux('capture-pane', '-p', '-t', 'scen:0.0').stdout
 
 
+def last_frame(sandbox):
+    """Capture for a failure report; never raises, so the original error survives."""
+    result = sandbox.tmux('capture-pane', '-p', '-t', 'scen:0.0', check=False)
+    return result.stdout + result.stderr
+
+
 def key(sandbox, text):
     sandbox.tmux('send-keys', '-t', 'scen:0.0', text)
 
@@ -280,7 +286,7 @@ def main():
         scenario(sandbox, binary)
         result = dict(status='passed', seconds=round(time.monotonic()-started, 2))
     except (Exception, KeyboardInterrupt) as error:
-        (sandbox.artifacts / 'scenario-last-frame.txt').write_text(capture(sandbox))
+        (sandbox.artifacts / 'scenario-last-frame.txt').write_text(last_frame(sandbox))
         result = dict(status='failed', error=str(error) or type(error).__name__,
                       capture_errors=sandbox.failure_frames(), seconds=round(time.monotonic()-started, 2))
     finally:
