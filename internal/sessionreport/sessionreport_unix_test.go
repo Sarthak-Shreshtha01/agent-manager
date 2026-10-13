@@ -1,5 +1,8 @@
 //go:build !windows
 
+// A Windows launch wires no conversation report (see launch's
+// tracksConversations), so nothing there reaches this package.
+
 package sessionreport
 
 import (

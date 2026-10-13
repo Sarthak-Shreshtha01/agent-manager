@@ -145,7 +145,7 @@ func TestForkBranchesFromTheConversationTheSourceReported(t *testing.T) {
 	}
 	argsFile := filepath.Join(t.TempDir(), "fork-args")
 	tool := m.cfg.Tools[source.Tool]
-	tool.ForkCommand = "printf '%s\\n' {id} > " + tmux.ShellQuote(argsFile) + "; cat"
+	tool.ForkCommand = captureArgsCommand(argsFile, "{id}")
 	m.cfg.Tools[source.Tool] = tool
 
 	m.openFork()

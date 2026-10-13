@@ -379,6 +379,7 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 // A program that owns its screen, or a pane with no history to page,
 // gets the page keys itself.
 func TestFocusPageKeysReachOtherAgents(t *testing.T) {
+	skipPOSIXShell(t)
 	for _, tc := range []struct {
 		name    string
 		command string

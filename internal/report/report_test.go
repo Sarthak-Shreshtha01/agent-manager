@@ -43,7 +43,9 @@ func swapSeams(t *testing.T, fake *fakeCommands) {
 	}
 	goos = "darwin"
 	procVersion = filepath.Join(t.TempDir(), "absent")
-	t.Cleanup(func() { lookPath, runCommand, goos, procVersion, muxVersion = oldLookPath, oldRun, oldGoos, oldProc, oldMux })
+	t.Cleanup(func() {
+		lookPath, runCommand, goos, procVersion, muxVersion = oldLookPath, oldRun, oldGoos, oldProc, oldMux
+	})
 }
 
 func loggedIn() *fakeCommands {

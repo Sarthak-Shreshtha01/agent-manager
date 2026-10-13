@@ -5,6 +5,7 @@ package tmux
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -116,7 +117,7 @@ func TestPsmuxCreateBindsTheSessionServer(t *testing.T) {
 	if !strings.Contains(lines["C-r"], "run-shell") || !strings.Contains(lines["F3"], "run-shell") {
 		t.Fatalf("C-r and F3 should run the request script; root table:\n%s", root)
 	}
-	recorded := strings.Fields(server("show-option", "-gqv", rootKeysOption))
+	recorded := strings.Fields(server("show-options", "-gqv", rootKeysOption))
 	if !slices.Contains(recorded, "C-q") || !slices.Contains(recorded, "C-r") || !slices.Contains(recorded, "F3") {
 		t.Fatalf("recorded root keys = %q", recorded)
 	}
@@ -219,5 +220,36 @@ func TestPsmuxKillRemovesSessionAndScript(t *testing.T) {
 	}
 	if _, err := os.Stat(launchScriptPath(id)); !os.IsNotExist(err) {
 		t.Fatalf("launch script should be removed, stat err = %v", err)
+	}
+}
+
+// A relaunch line past send-keys' 1024 bytes reaches the pane's PowerShell
+// whole, with the session environment set, and its script is gone once it
+// has run.
+func TestPsmuxRunInPaneDeliversALongCommand(t *testing.T) {
+	driver := requireTmux(t)
+	id := psmuxSession(t, driver, "rerun", "Write-Output launched", "launched")
+	marker := filepath.Join(t.TempDir(), "ran")
+	payload := strings.Repeat("x", 1500)
+	command := "[IO.File]::WriteAllText(" + ShellQuote(marker) + ", $env:AGENT_MANAGER_SESSION_ID + ' ' + " + ShellQuote(payload) + ")"
+	if err := driver.RunInPane(id, map[string]string{"AGENT_MANAGER_SESSION_ID": "abc123"}, command); err != nil {
+		t.Fatalf("RunInPane: %v", err)
+	}
+	want := "abc123 " + payload
+	var got string
+	for deadline := time.Now().Add(15 * time.Second); got != want && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		data, _ := os.ReadFile(marker)
+		got = string(data)
+	}
+	if got != want {
+		pane, _ := driver.CapturePane(id)
+		t.Fatalf("the pane wrote %d bytes, want the session env and the %d-byte payload; pane:\n%s", len(got), len(payload), pane)
+	}
+	left, err := filepath.Glob(filepath.Join(os.TempDir(), "am-relaunch-"+id+"*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 0 {
+		t.Fatalf("relaunch scripts left behind: %v", left)
 	}
 }

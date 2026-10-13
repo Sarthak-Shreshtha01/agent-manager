@@ -71,6 +71,7 @@ func TestGuardedMouseCommandFollowsTheLiveFlag(t *testing.T) {
 // on their own commands, whichever branch the guard takes: a capture that
 // receives the guard's spare block paints the focused pane blank.
 func TestGuardedMouseCommandKeepsControlRepliesAligned(t *testing.T) {
+	skipControlMode(t)
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not installed")
 	}
