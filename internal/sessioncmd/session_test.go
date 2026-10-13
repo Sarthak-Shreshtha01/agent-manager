@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -110,6 +111,9 @@ default_status = "idle"
 // CLIs, so a test gets a pane it can predict.
 func testConfigLoader(t *testing.T, doc string) func() (config.Config, error) {
 	t.Helper()
+	if goruntime.GOOS == "windows" {
+		doc = unwrapExecFixtures.Replace(doc)
+	}
 	var declared struct {
 		Tools map[string]config.Tool `toml:"tools"`
 	}
@@ -120,6 +124,11 @@ func testConfigLoader(t *testing.T, doc string) func() (config.Config, error) {
 		return config.Config{Tools: declared.Tools}, nil
 	}
 }
+
+// unwrapExecFixtures drops the sh -c wrapper a POSIX launch needs to exec a
+// two-command fixture whole. A Windows launch types the line into the pane's
+// PowerShell without exec, which runs both commands as written.
+var unwrapExecFixtures = strings.NewReplacer(`sh -c \"`, "", `&& exec cat\"`, "&& cat")
 
 func newSessionHarness(t *testing.T) *sessionHarness {
 	t.Helper()
@@ -468,6 +477,7 @@ func TestSessionsKillKeepsTheScreenAndReviveBringsItBack(t *testing.T) {
 // The agent switched conversation after it launched; revive brings back the
 // one it reported, and tells the new agent the launch its row is stamped with.
 func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
+	skipPOSIXShell(t)
 	h := newSessionHarness(t)
 	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "switcher", Tool: "reporter"})
 	if err != nil {
@@ -493,6 +503,7 @@ func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
 // Muse names its conversation only in a file it holds open while it runs,
 // and no manager screen may be open to have read it before the kill.
 func TestKillFollowsTheConversationTheAgentHolds(t *testing.T) {
+	skipPOSIXShell(t)
 	h := newSessionHarness(t)
 	held := filepath.Join(t.TempDir(), "muse", "sessions", "conv-held.json")
 	if err := os.MkdirAll(filepath.Dir(held), 0o755); err != nil {
@@ -525,6 +536,7 @@ default_status = "idle"
 // Grok's log keeps the last conversation each process was on after it has
 // quit, which a revive reads when no manager screen followed the switch.
 func TestReviveReadsTheConversationAQuitAgentLogged(t *testing.T) {
+	skipUntracked(t)
 	h := newSessionHarness(t)
 	grokHome := t.TempDir()
 	t.Setenv("GROK_HOME", grokHome)

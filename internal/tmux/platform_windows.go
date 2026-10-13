@@ -146,7 +146,7 @@ func (d *Driver) requestAction(id, name string) []string {
 
 // ownedRootBindings reads the keys an earlier run recorded on the server.
 func (d *Driver) ownedRootBindings(id string) ([]string, error) {
-	out, err := d.runIn(id, "show-option", "-gqv", rootKeysOption)
+	out, err := d.runIn(id, "show-options", "-gqv", rootKeysOption)
 	if err != nil {
 		return nil, err
 	}

@@ -759,7 +759,7 @@ func TestRefreshChromeKeepsLabelAndAddsSessionHints(t *testing.T) {
 	if strings.Contains(string(right), "None d") || !strings.Contains(string(right), `Ctrl+q / Ctrl+\ = back`) {
 		t.Fatalf("footer should retain only the direct escapes without prefixes, got %q", right)
 	}
-	length, err := tmuxCmd("show-option", "-t", "am_"+id, "-v", "status-right-length").CombinedOutput()
+	length, err := tmuxCmd("show-options", "-t", "am_"+id, "-v", "status-right-length").CombinedOutput()
 	if err != nil {
 		t.Fatalf("status-right-length: %v", err)
 	}
@@ -1619,7 +1619,7 @@ func ownedRootLines(t *testing.T, server func(args ...string) *exec.Cmd) map[str
 	// tmux bindings carry the session test; psmux's are recorded by key.
 	recorded := map[string]bool{}
 	if runtime.GOOS == "windows" {
-		keys, err := server("show-option", "-gqv", rootKeysOption).CombinedOutput()
+		keys, err := server("show-options", "-gqv", rootKeysOption).CombinedOutput()
 		if err != nil {
 			t.Fatalf("recorded root keys: %v: %s", err, keys)
 		}

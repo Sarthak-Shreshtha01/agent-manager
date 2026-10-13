@@ -275,8 +275,20 @@ func TestEnvironmentCarriesSessionIDAndHooks(t *testing.T) {
 
 // agentLaunch is the line a row's first launch runs its agent with.
 func agentLaunch(manager *hooks.Manager, command string) string {
+	if !tracksConversations {
+		return command
+	}
 	agentFile := manager.AgentFile("abcd1234")
 	return "sh -c " + tmux.ShellQuote("export "+hooks.EnvAgentPID+"=$$; "+conversation.RecordCommand(agentFile, 0)+"; exec "+command) + "; " + conversation.EndedCommand(agentFile)
+}
+
+// skipUntracked skips a test of the conversation wiring a Windows launch
+// leaves out.
+func skipUntracked(t *testing.T) {
+	t.Helper()
+	if !tracksConversations {
+		t.Skip("this platform's launches wire no conversation report")
+	}
 }
 
 // The agent replaces the shell that exported and recorded the pid, so it
@@ -284,6 +296,7 @@ func agentLaunch(manager *hooks.Manager, command string) string {
 // line ran in marks the record once the agent has quit, and a shell-only
 // launch stays a plain shell.
 func TestEnvironmentRunsTheAgentUnderThePIDItExports(t *testing.T) {
+	skipPOSIXShell(t)
 	manager := hooks.NewManager(t.TempDir())
 	probe := config.Tool{Command: "sh -c 'echo $$ $" + hooks.EnvAgentPID + "'", MCP: mcpreg.StyleNone}
 	command, _, err := Environment(manager, "probe", probe, probe.Command, "abcd1234", t.TempDir(), time.Time{})
@@ -341,6 +354,7 @@ func TestEnvironmentNamesTheLaunch(t *testing.T) {
 }
 
 func TestEnvironmentWiresTheSessionReport(t *testing.T) {
+	skipUntracked(t)
 	t.Setenv("OPENCODE_TUI_CONFIG", "")
 	manager := hooks.NewManager(t.TempDir())
 
@@ -386,8 +400,9 @@ func TestEnvironmentReportsClaudeConversationsThroughItsSettings(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read settings: %v", err)
 		}
-		if got := strings.Contains(string(raw), " track-conversation --tool claude --key session_id"); got != tc.want {
-			t.Fatalf("session_report %q: settings report the conversation = %v, want %v:\n%s", tc.report, got, tc.want, raw)
+		want := tc.want && tracksConversations
+		if got := strings.Contains(string(raw), " track-conversation --tool claude --key session_id"); got != want {
+			t.Fatalf("session_report %q: settings report the conversation = %v, want %v:\n%s", tc.report, got, want, raw)
 		}
 		if !strings.Contains(string(raw), `"`+hooks.EnvLaunch+`": "5000000000"`) {
 			t.Fatalf("settings do not carry the launch:\n%s", raw)

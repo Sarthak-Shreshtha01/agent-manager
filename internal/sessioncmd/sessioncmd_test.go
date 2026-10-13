@@ -25,6 +25,15 @@ func skipPOSIXShell(t *testing.T) {
 	}
 }
 
+// skipUntracked skips a test of the agent record a Windows launch does not
+// write: PowerShell has no exec to run the agent under a recorded pid.
+func skipUntracked(t *testing.T) {
+	t.Helper()
+	if goruntime.GOOS == "windows" {
+		t.Skip("this platform's launches record no agent")
+	}
+}
+
 func reviewConfigDir(t *testing.T) string {
 	t.Helper()
 	configDir := t.TempDir()

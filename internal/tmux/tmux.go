@@ -776,12 +776,12 @@ func sanitizeFormat(s string) string {
 // manager outlives the sessions it opens. id names the session the user
 // just detached from; psmux keeps the marker on that session's server.
 func (d *Driver) PendingRequest(id string) (string, error) {
-	out, err := d.command(append(sessionRoute(id), "show-option", "-gqv", requestOption)...).CombinedOutput()
+	out, err := d.command(append(sessionRoute(id), "show-options", "-gqv", requestOption)...).CombinedOutput()
 	if err != nil {
 		if noServer(string(out)) {
 			return "", nil
 		}
-		return "", fmt.Errorf("tmux show-option %s: %w: %s", requestOption, err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("tmux show-options %s: %w: %s", requestOption, err, strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }

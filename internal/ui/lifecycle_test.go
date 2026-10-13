@@ -787,6 +787,9 @@ func argCaptureCommand(argsFile string) string {
 // launchCaptureCommand records the launch the agent was told it belongs to,
 // then its arguments, one per line.
 func launchCaptureCommand(argsFile string) string {
+	if runtime.GOOS == "windows" {
+		return argCaptureCommand(argsFile) + " $env:" + hooks.EnvLaunch
+	}
 	script := `printf '%s\n' "$` + hooks.EnvLaunch + `" "$@" > ` + tmux.ShellQuote(argsFile) + `; cat`
 	return "sh -c " + tmux.ShellQuote(script) + " sh"
 }

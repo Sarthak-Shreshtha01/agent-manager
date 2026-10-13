@@ -218,6 +218,7 @@ type focusArrival struct {
 
 func startFocusArrivalWatch(t *testing.T) (*tmux.Driver, string, <-chan focusArrival, *focusWatch) {
 	t.Helper()
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "timing" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
