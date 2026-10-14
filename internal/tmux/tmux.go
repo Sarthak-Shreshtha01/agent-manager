@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -650,7 +651,21 @@ func (d *Driver) RefreshChrome(id string) error {
 // SendText delivers text into the session's pane and presses Enter, so the
 // agent inside receives it as a user message.
 func (d *Driver) SendText(id, text string) error {
-	return d.pasteAndEnter(PaneTarget(id), text)
+	return d.pasteAndEnter(PaneTarget(id), text, nil)
+}
+
+// ErrUnsubmitted reports a paste still sitting in the composer after every
+// Enter SubmitText pressed for it.
+var ErrUnsubmitted = errors.New("the pasted text is still in the composer after Enter")
+
+// SubmitText is SendText for a caller that can read the session's composer:
+// drafted reports whether it holds text, and must report false before the
+// paste. A composer it cannot read proves no submit, so its error is
+// returned rather than taken for an empty composer. A tool may draw the paste as a collapsed placeholder rather than
+// its text, and may swallow the Enter after it, so the composer filling is
+// taken as the echo and the composer emptying as the submit.
+func (d *Driver) SubmitText(id, text string, drafted func() (bool, error)) error {
+	return d.pasteAndEnter(PaneTarget(id), text, drafted)
 }
 
 // SendKeys delivers exact tmux key names to a session. Keeping each key as
@@ -678,11 +693,18 @@ const (
 	echoPoll = 25 * time.Millisecond
 )
 
+// An agent clears its composer within a frame of reading the Enter; one that
+// still holds the paste a second later dropped it, and gets it again.
+const (
+	submitWait  = time.Second
+	submitTries = 3
+)
+
 // pasteAndEnter holds the Enter until the pane has drawn the paste. Both
 // writes reach one pty, and a pane too busy to read between them takes the
 // carriage return as part of the bracketed paste rather than as a submit,
 // stranding the message in the composer.
-func (d *Driver) pasteAndEnter(target, text string) error {
+func (d *Driver) pasteAndEnter(target, text string, drafted func() (bool, error)) error {
 	before, baseline := d.capturePlain(target)
 	if err := d.paste(target, text); err != nil {
 		return err
@@ -692,15 +714,56 @@ func (d *Driver) pasteAndEnter(target, text string) error {
 		// so the pane gets the whole window to draw it rather than a match.
 		time.Sleep(echoWait)
 	} else {
-		d.awaitPasteEcho(target, before, text)
+		d.awaitPasteEcho(target, before, text, drafted)
 	}
-	_, err := d.run("send-keys", "-t", target, "Enter")
-	return err
+	if _, err := d.run("send-keys", "-t", target, "Enter"); err != nil {
+		return err
+	}
+	if drafted == nil {
+		return nil
+	}
+	return d.confirmSubmit(target, drafted)
+}
+
+// confirmSubmit presses Enter again while the composer still holds the
+// paste, a bounded number of times, and reports a paste no Enter submitted.
+func (d *Driver) confirmSubmit(target string, drafted func() (bool, error)) error {
+	for try := 1; ; try++ {
+		cleared, err := composerCleared(drafted)
+		if err != nil || cleared {
+			return err
+		}
+		if try == submitTries {
+			return ErrUnsubmitted
+		}
+		if _, err := d.run("send-keys", "-t", target, "Enter"); err != nil {
+			return err
+		}
+	}
+}
+
+func composerCleared(drafted func() (bool, error)) (bool, error) {
+	deadline := time.Now().Add(submitWait)
+	for {
+		typed, err := drafted()
+		if err != nil {
+			return false, err
+		}
+		if !typed {
+			return true, nil
+		}
+		if time.Now().After(deadline) {
+			return false, nil
+		}
+		time.Sleep(echoPoll)
+	}
 }
 
 // A pane that draws the paste some other way, as a collapsed placeholder or
-// not at all, is released at the cap and submits the way it did before.
-func (d *Driver) awaitPasteEcho(target, before, text string) {
+// not at all, is released at the cap and submits the way it did before,
+// unless the caller can see its composer fill. A composer read that fails
+// here only costs the early release; confirmSubmit is what reports it.
+func (d *Driver) awaitPasteEcho(target, before, text string, drafted func() (bool, error)) {
 	opening := MessageOpening(text)
 	if opening == "" {
 		return
@@ -710,6 +773,11 @@ func (d *Driver) awaitPasteEcho(target, before, text string) {
 	for {
 		if pane, err := d.capturePlain(target); err == nil && strings.Count(pane, opening) > was {
 			return
+		}
+		if drafted != nil {
+			if typed, err := drafted(); err == nil && typed {
+				return
+			}
 		}
 		if time.Now().After(deadline) {
 			return
