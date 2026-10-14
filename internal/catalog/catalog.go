@@ -121,6 +121,7 @@ func Fetch(ctx context.Context, kind, command, dir string) (Catalog, error) {
 // starts leave with it.
 type process struct {
 	cmd      *exec.Cmd
+	tree     tree
 	stdin    io.WriteCloser
 	lines    chan []byte
 	quit     chan struct{}
@@ -157,7 +158,7 @@ func start(command, dir string, server bool, env ...string) (*process, error) {
 	cmd := exec.Command(fields[0], fields[1:]...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
-	startProcessGroup(cmd)
+	prepareTree(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -172,7 +173,13 @@ func start(command, dir string, server bool, env ...string) (*process, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	proc := &process{cmd: cmd, stdin: stdin, lines: make(chan []byte, 64), quit: make(chan struct{}), exited: make(chan struct{})}
+	tree, err := adoptTree(cmd)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return nil, err
+	}
+	proc := &process{cmd: cmd, tree: tree, stdin: stdin, lines: make(chan []byte, 64), quit: make(chan struct{}), exited: make(chan struct{})}
 	running.Lock()
 	running.procs[proc] = struct{}{}
 	running.Unlock()
@@ -222,12 +229,13 @@ func (p *process) stop() {
 	p.stopOnce.Do(func() {
 		close(p.quit)
 		_ = p.stdin.Close()
-		termGroup(p.cmd.Process.Pid)
+		p.tree.term()
 		select {
 		case <-p.exited:
 		case <-time.After(2 * time.Second):
-			killGroup(p.cmd.Process.Pid)
+			p.tree.kill()
 		}
+		p.tree.close()
 		running.Lock()
 		delete(running.procs, p)
 		running.Unlock()

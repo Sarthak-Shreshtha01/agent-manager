@@ -7,18 +7,28 @@ import (
 	"syscall"
 )
 
-// startProcessGroup puts a server's children in the server's own process
-// group, so stop reaches a forked child too.
-func startProcessGroup(cmd *exec.Cmd) {
+// tree is a server's process group, named by its leader's pid.
+type tree int
+
+// prepareTree puts a server's children in the server's own process group,
+// so stop reaches a forked child too.
+func prepareTree(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
-// termGroup asks the whole process group to stop.
-func termGroup(pid int) {
-	_ = syscall.Kill(-pid, syscall.SIGTERM)
+// adoptTree names the group the started server leads.
+func adoptTree(cmd *exec.Cmd) (tree, error) {
+	return tree(cmd.Process.Pid), nil
 }
 
-// killGroup kills the whole process group.
-func killGroup(pid int) {
-	_ = syscall.Kill(-pid, syscall.SIGKILL)
+// term asks the whole process group to stop.
+func (t tree) term() {
+	_ = syscall.Kill(-int(t), syscall.SIGTERM)
 }
+
+// kill kills the whole process group.
+func (t tree) kill() {
+	_ = syscall.Kill(-int(t), syscall.SIGKILL)
+}
+
+func (tree) close() {}

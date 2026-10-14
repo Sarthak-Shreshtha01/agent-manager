@@ -79,6 +79,14 @@ func serveLines(reply func(fakeRequest) any) error {
 	return in.Err()
 }
 
+// writePid publishes pid at path whole, so a reader never sees half of it.
+func writePid(path string, pid int) error {
+	if err := os.WriteFile(path+".tmp", []byte(strconv.Itoa(pid)), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(path+".tmp", path)
+}
+
 func result(request fakeRequest, value any) map[string]any {
 	return map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": value}
 }
@@ -97,16 +105,22 @@ func runFake(name string) error {
 		if err := child.Start(); err != nil {
 			return err
 		}
-		pidFile := os.Getenv("CATALOG_CHILD_PID")
-		if err := os.WriteFile(pidFile+".tmp", []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
-			return err
-		}
-		if err := os.Rename(pidFile+".tmp", pidFile); err != nil {
+		if err := writePid(os.Getenv("CATALOG_CHILD_PID"), child.Process.Pid); err != nil {
 			return err
 		}
 		time.Sleep(time.Hour)
 	case "stubborn-child":
 		signal.Ignore(syscall.SIGTERM)
+		time.Sleep(time.Hour)
+	case "catalog-host":
+		// Stands in for a manager that dies without stopping its servers.
+		proc, err := start(os.Args[0], os.TempDir(), true, "CATALOG_FAKE=stubborn")
+		if err != nil {
+			return err
+		}
+		if err := writePid(os.Getenv("CATALOG_SERVER_PID"), proc.cmd.Process.Pid); err != nil {
+			return err
+		}
 		time.Sleep(time.Hour)
 	case "claude":
 		parts := fixture("claude_initialize.json")

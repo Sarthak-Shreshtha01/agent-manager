@@ -189,16 +189,7 @@ func TestStopAllKillsAChildThatIgnoresTheStop(t *testing.T) {
 		_, err := Fetch(context.Background(), "codex", os.Args[0], t.TempDir())
 		done <- err
 	}()
-	var child int
-	for deadline := time.Now().Add(10 * time.Second); child == 0; {
-		if time.Now().After(deadline) {
-			t.Fatal("the child never started")
-		}
-		if raw, err := os.ReadFile(pidFile); err == nil {
-			child, _ = strconv.Atoi(strings.TrimSpace(string(raw)))
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	child := waitPid(t, pidFile)
 	StopAll()
 	<-done
 	for deadline := time.Now().Add(2 * time.Second); processAlive(child); {
@@ -206,6 +197,23 @@ func TestStopAllKillsAChildThatIgnoresTheStop(t *testing.T) {
 			t.Fatalf("child %d outlived StopAll", child)
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// waitPid reads the pid a fake publishes at path once it is there.
+func waitPid(t *testing.T, path string) int {
+	t.Helper()
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		if raw, err := os.ReadFile(path); err == nil {
+			pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return pid
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no pid at %s", path)
+		}
 	}
 }
 
