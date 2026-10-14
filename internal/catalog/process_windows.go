@@ -3,21 +3,19 @@
 package catalog
 
 import (
-	"os"
 	"os/exec"
+	"strconv"
 )
 
-// startProcessGroup is a no-op on Windows: there is no process group to
-// detach into, and the manager's own job already covers the tree.
+// startProcessGroup is a no-op on Windows: killGroup finds a server's
+// children by their parent pid, so they need no group of their own.
 func startProcessGroup(*exec.Cmd) {}
 
-// termGroup has no group to signal on Windows; stop closes the process's
-// stdin, which the server and any child it launched read.
+// termGroup has no signal to send on Windows; the stdin stop closes is
+// the polite ask.
 func termGroup(int) {}
 
-// killGroup kills the server itself, which Windows has no group signal for.
+// killGroup kills the server and every process under it.
 func killGroup(pid int) {
-	if p, err := os.FindProcess(pid); err == nil {
-		_ = p.Kill()
-	}
+	_ = exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(pid)).Run()
 }

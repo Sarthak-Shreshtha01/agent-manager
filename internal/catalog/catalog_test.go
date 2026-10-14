@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -145,9 +145,6 @@ func TestAReaderThatFailsSaysWhy(t *testing.T) {
 // A caller leaving mid-answer stops the CLI it asked, which its own process
 // group keeps out of reach of the terminal's signals.
 func TestStopAllEndsACLIMidAnswer(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("no process-group signal probe on windows")
-	}
 	t.Setenv("CATALOG_FAKE", "silent")
 	done := make(chan error, 1)
 	go func() {
@@ -177,6 +174,38 @@ func TestStopAllEndsACLIMidAnswer(t *testing.T) {
 	}
 	if processAlive(pid) {
 		t.Fatalf("process %d outlived StopAll", pid)
+	}
+}
+
+// A server that ignores the polite stop, and a child it forked that ignores
+// it too, both end within the grace period: stop kills the whole tree, not
+// only the process it started.
+func TestStopAllKillsAChildThatIgnoresTheStop(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	t.Setenv("CATALOG_FAKE", "stubborn")
+	t.Setenv("CATALOG_CHILD_PID", pidFile)
+	done := make(chan error, 1)
+	go func() {
+		_, err := Fetch(context.Background(), "codex", os.Args[0], t.TempDir())
+		done <- err
+	}()
+	var child int
+	for deadline := time.Now().Add(10 * time.Second); child == 0; {
+		if time.Now().After(deadline) {
+			t.Fatal("the child never started")
+		}
+		if raw, err := os.ReadFile(pidFile); err == nil {
+			child, _ = strconv.Atoi(strings.TrimSpace(string(raw)))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	StopAll()
+	<-done
+	for deadline := time.Now().Add(2 * time.Second); processAlive(child); {
+		if time.Now().After(deadline) {
+			t.Fatalf("child %d outlived StopAll", child)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

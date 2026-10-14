@@ -7,8 +7,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -85,6 +89,24 @@ func runFake(name string) error {
 		os.Exit(3)
 	case "silent":
 		// A bare select{} trips the runtime's deadlock check and exits.
+		time.Sleep(time.Hour)
+	case "stubborn":
+		signal.Ignore(syscall.SIGTERM)
+		child := exec.Command(os.Args[0])
+		child.Env = append(os.Environ(), "CATALOG_FAKE=stubborn-child")
+		if err := child.Start(); err != nil {
+			return err
+		}
+		pidFile := os.Getenv("CATALOG_CHILD_PID")
+		if err := os.WriteFile(pidFile+".tmp", []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
+			return err
+		}
+		if err := os.Rename(pidFile+".tmp", pidFile); err != nil {
+			return err
+		}
+		time.Sleep(time.Hour)
+	case "stubborn-child":
+		signal.Ignore(syscall.SIGTERM)
 		time.Sleep(time.Hour)
 	case "claude":
 		parts := fixture("claude_initialize.json")
