@@ -136,10 +136,10 @@ func (m *Model) pathSuggestionField(target pathSuggestionTarget) (string, bool) 
 		}
 		return m.groupForm.path.Value(), true
 	case pathSuggestionRename:
-		if m.mode != modeRename || !m.rename.isGroup {
+		if m.mode != modeRename || !m.rename.IsGroup() {
 			return "", false
 		}
-		return m.rename.dir.Value(), true
+		return m.rename.Dir(), true
 	}
 	return "", false
 }
@@ -250,8 +250,7 @@ func (m *Model) applyPathSuggestion() tea.Cmd {
 		target = pathSuggestionGroup
 	case modeRename:
 		path = m.rename.paths.selected() + string(filepath.Separator)
-		m.rename.dir.SetValue(path)
-		m.rename.dir.CursorEnd()
+		m.rename.SetDir(path)
 		target = pathSuggestionRename
 	}
 	completion := m.requestPathSuggestions(target, path)

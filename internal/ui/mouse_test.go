@@ -1413,7 +1413,7 @@ func TestMessagesLegendOpensNoticesByMouseAndKey(t *testing.T) {
 				if m = leftPress(m, x, y); m.mode != modeNotices {
 					t.Fatalf("click on messages should open notices, mode=%v", m.mode)
 				}
-				m.notices.handleKey(m, key("esc"))
+				m.handleNoticesKey(key("esc"))
 				msg := key(binding)
 				if binding == "alt+m" {
 					msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}, Alt: true}
@@ -1422,9 +1422,9 @@ func TestMessagesLegendOpensNoticesByMouseAndKey(t *testing.T) {
 				if m.mode != modeNotices {
 					t.Fatalf("%s should open notices, mode=%v", binding, m.mode)
 				}
-				m.notices.handleKey(m, key("esc"))
-				for _, n := range m.notices.active(m) {
-					m.dismissNotice(n.id)
+				m.handleNoticesKey(key("esc"))
+				for _, n := range m.activeNotices() {
+					m.dismissNotice(n.ID)
 				}
 				preparedView(m)
 				if footer := ansi.Strip(m.viewFooter()); strings.Contains(footer, "unread") {

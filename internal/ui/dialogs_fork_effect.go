@@ -6,12 +6,20 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/agentsession"
+	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/google/uuid"
 )
+
+// forkSessionFileResolver resolves a source conversation's on-disk session
+// file for tools whose fork loads a file instead of an id (gemini), keyed by
+// the tool's session_store. A variable so tests substitute a fixture without
+// touching the real store.
+var forkSessionFileResolver = agentsession.SessionFile
 
 // forkRequest freezes a fork dialog submission: the source's manager id,
 // conversation and worktree ownership, the typed name, and the dialog
@@ -198,7 +206,7 @@ func (m *Model) applyForkEffect(request forkRequest, result forkEffectResult, er
 	// A completion must not replace a newer dialog or hand its keyboard
 	// outcome to a dialog the user has since opened, including one reopened
 	// on the same source.
-	stillOpen := m.mode == modeFork && m.fork.gen == request.gen && strings.ReplaceAll(strings.TrimSpace(m.fork.name.Value()), "/", "-") == request.name
+	stillOpen := m.mode == modeFork && m.fork.Gen() == request.gen && m.fork.Name() == request.name
 	if err == nil {
 		if stillOpen {
 			m.mode = modeList
@@ -220,4 +228,35 @@ func (m *Model) applyForkEffect(request forkRequest, result forkEffectResult, er
 		m.launchHint.fix.effectRetry = request
 	}
 	return nil
+}
+
+func validateForkSource(toolName string, tool config.Tool, source store.Session) error {
+	// A shell has no fork_command either, but saying so names a config
+	// field for a row that was never going to have a conversation.
+	if tool.Shell {
+		return fmt.Errorf("%s is a shell, not an agent - there is no conversation to fork", source.Name)
+	}
+	if tool.ForkCommand == "" {
+		return fmt.Errorf("tool %s has no fork_command", toolName)
+	}
+	usesSessionFile := strings.Contains(tool.ForkCommand, "{session_file}")
+	if !strings.Contains(tool.ForkCommand, "{id}") && !usesSessionFile && tool.ForkKeys == "" {
+		return fmt.Errorf("tool %s fork_command must reference the source via {id} or {session_file}", toolName)
+	}
+	if usesSessionFile && !agentsession.SupportsSessionFile(tool.SessionStore) {
+		return fmt.Errorf("tool %s fork_command uses {session_file}, which needs session_store = \"gemini\"", toolName)
+	}
+	if source.AgentSessionID == "" {
+		return fmt.Errorf("%s has no captured conversation id", source.Name)
+	}
+	return nil
+}
+
+func expandForkCommand(template, sourceID, newID, name, sessionFile string) string {
+	return strings.NewReplacer(
+		"{id}", tmux.ShellQuote(sourceID),
+		"{new_id}", tmux.ShellQuote(newID),
+		"{name}", tmux.ShellQuote(name),
+		"{session_file}", tmux.ShellQuote(sessionFile),
+	).Replace(template)
 }

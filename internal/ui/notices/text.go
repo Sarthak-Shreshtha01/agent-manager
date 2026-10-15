@@ -1,4 +1,4 @@
-package ui
+package notices
 
 import (
 	"strings"
@@ -151,11 +151,11 @@ func appendRun(line []textRun, text string, accent bool) []textRun {
 	return append(line, textRun{text: text, accent: accent})
 }
 
-func renderRuns(line []textRun, base lipgloss.Style) string {
+func renderRuns(line []textRun, base, accent lipgloss.Style) string {
 	var rendered strings.Builder
 	for _, run := range line {
 		if run.accent {
-			rendered.WriteString(keyStyle.Render(run.text))
+			rendered.WriteString(accent.Render(run.text))
 		} else {
 			rendered.WriteString(base.Render(run.text))
 		}

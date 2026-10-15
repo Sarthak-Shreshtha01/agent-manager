@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/sysstat"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
@@ -176,5 +177,95 @@ func TestDiskBytes(t *testing.T) {
 		if got := diskBytes(tc.bytes); got != tc.want {
 			t.Errorf("diskBytes(%d) = %q, want %q", tc.bytes, got, tc.want)
 		}
+	}
+}
+
+func TestRailFootOnlyShowsComputerStats(t *testing.T) {
+	for _, full := range []bool{false, true} {
+		for _, width := range []int{34, 70, 120} {
+			m := footModel(t)
+			m.prefs.fullLayout = full
+			foot := strings.Join(m.railFootLines(width), "\n")
+			if !strings.Contains(ansi.Strip(foot), "cpu") || strings.Contains(ansi.Strip(foot), "messages") {
+				t.Fatalf("full=%v width=%d: stats foot contains messages or loses readings:\n%s", full, width, ansi.Strip(foot))
+			}
+			for _, n := range m.activeNotices() {
+				m.dismissNotice(n.ID)
+			}
+			if got := strings.Join(m.railFootLines(width), "\n"); got != foot {
+				t.Fatalf("full=%v width=%d: notices changed the stats foot", full, width)
+			}
+		}
+	}
+}
+
+func TestRailFootLinesFitWidth(t *testing.T) {
+	m := footModel(t)
+	m.update.latest = "v0.9.9"
+	m.update.url = "https://example.com"
+	for _, width := range []int{40, 55, 70} {
+		for _, line := range m.railFootLines(width) {
+			if got := lipgloss.Width(line); got > width {
+				t.Fatalf("width %d: line overflows at %d: %q", width, got, ansi.Strip(line))
+			}
+		}
+	}
+}
+
+// Full screen condenses the machine readings to one line.
+func TestFullLayoutFootLine(t *testing.T) {
+	m := shotModel()
+	m.prefs.fullLayout = true
+	foot := ansi.Strip(strings.Join(m.railFootLines(m.layout.width-1), "\n"))
+	for _, want := range []string{"cpu 22%", "mem 75%", "net"} {
+		if !strings.Contains(foot, want) {
+			t.Errorf("condensed foot line misses %q:\n%s", want, foot)
+		}
+	}
+	if strings.Contains(foot, "messages") {
+		t.Fatalf("no notices should mean no messages count:\n%s", foot)
+	}
+	if lines := m.railFootLines(m.layout.width - 1); len(lines) != 1 {
+		t.Fatalf("full screen foot should be one line, got %d", len(lines))
+	}
+}
+
+func TestLayoutsCanHideStats(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		full  bool
+		width int
+	}{
+		{name: "split", width: 36},
+		{name: "full", full: true, width: 119},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := footModel(t)
+			m.layout.width, m.layout.height = 120, 34
+			m.prefs.fullLayout = tc.full
+			m.prefs.hideStats = true
+			if foot := m.railFootLines(tc.width); len(foot) > 0 {
+				t.Fatalf("hidden stats still paint %d lines:\n%s", len(foot), ansi.Strip(strings.Join(foot, "\n")))
+			}
+			rail := m.railLines(tc.width, m.listBodyHeight())
+			if len(rail) != m.listBodyHeight() {
+				t.Fatalf("footerless rail = %d rows, body is %d", len(rail), m.listBodyHeight())
+			}
+			for _, line := range rail {
+				if line.rule {
+					t.Fatal("hidden stats left their separator behind")
+				}
+			}
+		})
+	}
+}
+
+func TestFullFootDiskAvailable(t *testing.T) {
+	m := &Model{workspace: workspace{snap: sysstat.Snapshot{
+		DiskOK: true, DiskPercent: 66, DiskAvailable: 167_950_000_000,
+	}}}
+	line := ansi.Strip(strings.Join(m.fullFootLine(200), "\n"))
+	if !strings.Contains(line, "disk 66% 167.9GB available") {
+		t.Fatalf("disk reading = %q", line)
 	}
 }

@@ -14,6 +14,8 @@ Under `internal/`:
 - `ui`: the Bubble Tea program. One `Model` routes messages, runs effects, composes the frame.
 - `ui/help`, `ui/review`, `ui/focus`, `ui/rail`, `ui/settings`: feature packages with private models.
 - `ui/spawn`, `ui/quick`: the New Session form with its model choice, and the quick bar; the root keeps their prompt box and runs their spawn.
+- `ui/dialogs`: the confirm, rename, move, fork and launch fix dialogs.
+- `ui/notices`: the messages panel, its notice list and release-note rendering.
 - `ui/focus/watch`: the focused pane's watcher: control-mode client, polled fallback, pushed frames.
 - `ui/theme`: the built-in palettes and color math, a leaf any UI package may import.
 - `ui/presentation`: pure text helpers shared by `ui` and its feature packages.
@@ -41,14 +43,14 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
 - **Dependency boundaries.** `go run ./tools/architecture/check-ui-boundaries`
   lists each package's transitive production imports and fails on any
   other package of this module. Allowed, besides itself:
-  `ui/help` and `ui/rail` import `keybind` and `ui/presentation`; `ui/settings`
-  imports `keybind`, `ui/presentation` and `ui/theme`; `ui/review`
-  imports `diff/model`, `git/value` and `ui/presentation`; `ui/spawn`
-  imports `catalog/value` and `ui/presentation`; `ui/quick` imports those and
-  `ui/spawn`; `diff/model` imports `git/value`; `ui/focus/watch` imports `tmux`
-  (with its `deps` and `keybind`); `ui/focus`, `ui/theme`, `git/value`,
-  `catalog/value` and `ui/presentation` import nothing from the module. Test
-  imports are not checked.
+  `ui/help`, `ui/rail` and `ui/notices` import `keybind` and
+  `ui/presentation`; `ui/settings` imports `keybind`, `ui/presentation` and
+  `ui/theme`; `ui/review` imports `diff/model`, `git/value` and
+  `ui/presentation`; `ui/spawn` imports `catalog/value` and `ui/presentation`;
+  `ui/quick` imports those and `ui/spawn`; `diff/model` imports `git/value`;
+  `ui/focus/watch` imports `tmux` (with its `deps` and `keybind`); `ui/focus`,
+  `ui/dialogs`, `ui/theme`, `git/value`, `catalog/value` and `ui/presentation`
+  import nothing from the module. Test imports are not checked.
 - **File names.** `go run ./tools/architecture/check-file-names`. Every
   non-test file in `internal/ui` starts with a feature name from the
   `features` map in the tool (plus `keys.go`, `mouse.go`, `updates.go`,
@@ -79,9 +81,10 @@ dispatch; it changes no state.
 
 **Features own state behind narrow hosts, and large ones get child packages.**
 A feature is a type with its state, keys and view, and it reaches the root
-only through a small host interface it declares (`renameDialog`, and the rest in `internal/ui`). A feature moves to a
+only through a small host interface it declares (`groupFormDialog`,
+`pathComplete`, and the rest in `internal/ui`). A feature moves to a
 child package when its inputs and outcomes are narrow enough to enforce with
-`check-ui-boundaries`: Help, Review, Focus, Rail, Settings, Spawn and Quick. The child gets copied
+`check-ui-boundaries`: Help, Review, Focus, Rail, Settings, Spawn, Quick, Dialogs and Notices. The child gets copied
 values and returns typed requests; root adapters run the store, tmux and git
 work. There is no shared event bus or effect interpreter, because it would hide
 who owns what. Line counts and field counts do not prove a boundary; the checks

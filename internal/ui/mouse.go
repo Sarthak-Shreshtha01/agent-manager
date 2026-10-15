@@ -3,6 +3,7 @@ package ui
 import (
 	"time"
 
+	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -151,7 +152,7 @@ func (m *Model) handleMousePress(msg tea.MouseMsg, ctx uirail.MouseContext) (tea
 		return m, nil
 	}
 	if m.notices.noticeHit.contains(msg.X, msg.Y) && !m.rail.Searching() {
-		m.notices.open(m, "")
+		m.openNotices("")
 		return m, nil
 	}
 	if hit, ok := m.quick.hitAt(msg.X, msg.Y); ok {
@@ -181,9 +182,9 @@ func (m *Model) handleMouseWheel(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	case modeNotices:
 		switch msg.Button {
 		case tea.MouseButtonWheelUp:
-			m.notices.scroll(m, m.notices.active(m), -noticeWheelRows)
+			m.scrollNotices(-uinotices.WheelRows)
 		case tea.MouseButtonWheelDown:
-			m.notices.scroll(m, m.notices.active(m), noticeWheelRows)
+			m.scrollNotices(uinotices.WheelRows)
 		}
 	}
 	return m, nil
