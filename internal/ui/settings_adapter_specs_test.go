@@ -24,6 +24,20 @@ func specByKey(t *testing.T) map[string]store.SettingSpec {
 	return byKey
 }
 
+// The dialog spells the keys the store reads the same way.
+func TestSettingKeysMatchTheStore(t *testing.T) {
+	for got, want := range map[string]string{
+		defaultToolSetting:  store.DefaultToolSetting,
+		coordinationSetting: store.CoordinationSetting,
+		editorSetting:       store.EditorSetting,
+		hiddenToolsSetting:  store.HiddenToolsSetting,
+	} {
+		if got != want {
+			t.Errorf("settings key %q, store reads %q", got, want)
+		}
+	}
+}
+
 // Every key the modal writes is one the shell can set, with a value the
 // shell would accept, so the two fronts never drift apart.
 func TestSettingSpecsCoverEveryKeySettingsWrites(t *testing.T) {
@@ -33,12 +47,12 @@ func TestSettingSpecsCoverEveryKeySettingsWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.applyCmd(t, m.openSettings())
-	m.settings.openCLIPicker(m)
-	m.settings.handleCLIPickerKey(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m.openSettingsCLIPicker(t)
+	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEsc})
 	// A save writes only the rows that changed; with no baseline every row
 	// counts as changed, as on a fresh profile's first save.
-	m.settings.dialog.baseline = nil
-	m.settings.dialog.baselineHidden = nil
+	m.settings.dialog.Baseline = nil
+	m.settings.dialog.BaselineHidden = nil
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEsc})
 	// Only the save's own effects: a refresh would stamp the poller's
 	// runtime rows, which are not settings.
@@ -133,14 +147,14 @@ func TestOpenSettingsReadsWhatTheShellChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.applyCmd(t, m.openSettings())
-	if themes[m.settings.dialog.themeIndex].Name != "nord" {
-		t.Fatalf("Settings opened on %q, want the shell's nord", themes[m.settings.dialog.themeIndex].Name)
+	if themes[m.settings.dialog.ThemeIndex].Name != "nord" {
+		t.Fatalf("Settings opened on %q, want the shell's nord", themes[m.settings.dialog.ThemeIndex].Name)
 	}
 	if current.Name != "nord" {
 		t.Fatalf("the palette stayed %q after Settings read nord", current.Name)
 	}
-	if m.settings.dialog.editor.line() != "code -n" {
-		t.Fatalf("editor row opened on %q", m.settings.dialog.editor.line())
+	if m.settings.dialog.Editor.Line() != "code -n" {
+		t.Fatalf("editor row opened on %q", m.settings.dialog.Editor.Line())
 	}
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEsc})
 	m.applyCmd(t, cmd)

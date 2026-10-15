@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -20,14 +21,6 @@ type settingsRequest struct {
 
 func (settingsRequest) effectRequest() {}
 
-// settingValue is one store write in persist order. proactive writes the
-// coordination setting through the typed store call.
-type settingValue struct {
-	key       string
-	value     string
-	proactive bool
-}
-
 // settingsEffectResult reports what the worker durably committed. On a
 // partial failure, restored carries the read-back of the committed keys
 // with a per-key read error: a failed read must not be presented as the
@@ -41,14 +34,6 @@ type settingsEffectResult struct {
 }
 
 func (settingsEffectResult) effectResult() {}
-
-// restoredValue is one committed key's read-back; err means the read
-// failed and the dialog keeps its current state for that key.
-type restoredValue struct {
-	key   string
-	value string
-	err   error
-}
 
 type settingsLoadTarget uint8
 
@@ -109,7 +94,7 @@ func readSettingKeys(reader settingsValueReader, keys []string) []restoredValue 
 	values := make([]restoredValue, 0, len(keys))
 	for _, key := range keys {
 		value, err := reader.get(key)
-		values = append(values, restoredValue{key: key, value: value, err: err})
+		values = append(values, restoredValue{Key: key, Value: value, Err: err})
 	}
 	return values
 }
@@ -120,10 +105,10 @@ func loadSettingsWithReader(reader settingsValueReader) (settingsLoadResult, err
 	failed := 0
 	var first error
 	for _, value := range values {
-		if value.err != nil {
+		if value.Err != nil {
 			failed++
 			if first == nil {
-				first = fmt.Errorf("%s: %w", value.key, value.err)
+				first = fmt.Errorf("%s: %w", value.Key, value.Err)
 			}
 		}
 	}
@@ -159,10 +144,10 @@ func runSettingsWithWriter(request settingsRequest, writer settingWriter) (effec
 	}
 	for _, value := range request.values {
 		var err error
-		if value.proactive {
-			err = writer.setProactive(value.value == "on")
+		if value.Proactive {
+			err = writer.setProactive(value.Value == "on")
 		} else {
-			err = writer.set(value.key, value.value)
+			err = writer.set(value.Key, value.Value)
 		}
 		if err != nil {
 			result.restored, result.restoredHidden, result.hiddenErr = settingsReadback(writer)
@@ -185,28 +170,35 @@ func runSettingsWithWriter(request settingsRequest, writer settingWriter) (effec
 // failure, with a per-key read error, so completion never presents a
 // failed read as the committed value.
 func settingsReadback(writer settingsValueReader) ([]restoredValue, string, error) {
-	keys := []string{
-		"default_tool", themeSetting, themeAutoSetting, diffLayoutSetting,
-		quickCloseSetting, focusKeySetting, arrowStepSetting, listDensitySetting,
-		sessionLayoutSetting, hideHeaderSetting, hideStatsSetting, mouseSetting,
-		worktreeSetting, notificationsSetting, notifyFinishedSetting,
-		backgroundSetting, baseFetchSetting, editorSetting,
-	}
-	values := make([]restoredValue, 0, len(keys)+1)
-	for _, key := range keys {
+	values := make([]restoredValue, 0, len(uisettings.ReadbackKeys)+1)
+	for _, key := range uisettings.ReadbackKeys {
 		value, err := writer.get(key)
-		values = append(values, restoredValue{key: key, value: value, err: err})
+		values = append(values, restoredValue{Key: key, Value: value, Err: err})
 	}
-	// coordinationSetting lives in the store package; the value is the
-	// proactive marker SetProactiveCoordination writes.
-	coordValue, coordErr := writer.get("coordination")
+	// The stored coordination value is the proactive marker
+	// SetProactiveCoordination writes; the dialog reads it as on or off.
+	coordValue, coordErr := writer.get(coordinationSetting)
 	coord := "off"
 	if coordErr == nil && coordValue == "proactive" {
 		coord = "on"
 	}
-	values = append(values, restoredValue{key: "coordination", value: coord, err: coordErr})
+	values = append(values, restoredValue{Key: coordinationSetting, Value: coord, Err: coordErr})
 	hidden, hiddenErr := writer.get(hiddenToolsSetting)
 	return values, hidden, hiddenErr
+}
+
+// settingsCache mirrors the store's settings so frames and the dialog read
+// them without a store call.
+type settingsCache struct {
+	values map[string]string
+	hidden map[string]bool
+	// editors is the last PATH probe, kept so a dialog rebuilt from a
+	// later load still lists what was found.
+	editors *editorsProbedMsg
+}
+
+func (c settingsCache) value(key string) string {
+	return c.values[key]
 }
 
 func (c *settingsCache) ensureValues() {
@@ -218,7 +210,7 @@ func (c *settingsCache) ensureValues() {
 func (c *settingsCache) applyValues(values []settingValue) {
 	c.ensureValues()
 	for _, value := range values {
-		c.values[value.key] = value.value
+		c.values[value.Key] = value.Value
 	}
 }
 
@@ -232,12 +224,12 @@ func (c *settingsCache) applyHidden(names []string) {
 func (c *settingsCache) applyReadback(values []restoredValue, hiddenRaw string, hiddenErr error) {
 	c.ensureValues()
 	for _, value := range values {
-		if value.err == nil {
-			c.values[value.key] = value.value
+		if value.Err == nil {
+			c.values[value.Key] = value.Value
 		}
 	}
 	if hiddenErr == nil {
-		c.hidden = parseHiddenTools(hiddenRaw)
+		c.hidden = uisettings.ParseHidden(hiddenRaw)
 	}
 }
 
@@ -246,22 +238,22 @@ func (m *Model) handleSettingsLoaded(msg settingsLoadedMsg) (tea.Model, tea.Cmd)
 	switch msg.request.target {
 	case settingsLoadDialog:
 		if msg.request.generation != m.settings.gen || m.mode != modeSettings ||
-			m.settings.dialog.dirty || m.settings.dialog.cliPicker || m.settings.dialog.keyPicker || m.settings.pending > 0 {
+			m.settings.dialog.Busy() || m.settings.pending > 0 {
 			return m, nil
 		}
 		m.settings.cache.applyReadback(msg.result.values, msg.result.hiddenRaw, msg.result.hiddenErr)
-		field := m.settings.dialog.field
-		m.settings.dialog = m.settings.settingsStateFromCache(m.services.cfg)
+		field := m.settings.dialog.Field
+		m.settings.dialog = m.settings.stateFromCache(m.services.cfg)
 		// A manual theme the shell changed meanwhile repaints here, so esc
 		// keeps it instead of writing back the palette cached at startup.
-		if d := &m.settings.dialog; !d.themeAuto && current.Name != d.manualTheme {
-			d.themeIndex = themeIndex(d.manualTheme)
-			applyTheme(themes[d.themeIndex])
+		if d := &m.settings.dialog; !d.ThemeAuto && current.Name != d.ManualTheme {
+			d.ShowTheme(d.ManualTheme)
+			applyTheme(themes[d.ThemeIndex])
 			SyncTerminalColors()
 			follow = m.syncPaneTheme()
 		}
-		m.settings.markSettingsBaseline()
-		m.settings.dialog.field = field
+		m.settings.dialog.MarkBaseline()
+		m.settings.dialog.Field = field
 	case settingsLoadForm:
 		if m.mode != modeForm || uint64(m.form.prompt.gen) != msg.request.generation ||
 			m.form.defaultsTouched || m.settings.pending > 0 {
@@ -312,7 +304,7 @@ func (m *Model) applySettingsEffect(job *effectJob, result settingsEffectResult,
 				m.reportErr(m.errBar.text + "; " + note)
 			}
 			if !stale {
-				m.settings.restoreSettingsDialog(result.restored, result.restoredHidden, result.hiddenErr)
+				m.settings.dialog.Restore(result.restored, result.restoredHidden, result.hiddenErr, m.settings.cache.editors)
 			}
 		}
 	}
@@ -323,7 +315,7 @@ func (m *Model) applySettingsEffect(job *effectJob, result settingsEffectResult,
 		}
 		committed := make([]restoredValue, 0, len(request.values))
 		for _, value := range request.values {
-			committed = append(committed, restoredValue{key: value.key, value: value.value})
+			committed = append(committed, restoredValue{Key: value.Key, Value: value.Value})
 		}
 		m.reconcileSettingsPrefs(committed)
 	}
@@ -338,123 +330,35 @@ func (m *Model) applySettingsEffect(job *effectJob, result settingsEffectResult,
 func (m *Model) reconcileSettingsPrefs(restored []restoredValue) string {
 	failed := 0
 	for _, value := range restored {
-		if value.err != nil {
+		if value.Err != nil {
 			failed++
 			continue
 		}
-		switch value.key {
+		switch value.Key {
 		case focusKeySetting:
-			m.prefs.focusOnEnter = value.value == "focus"
+			m.prefs.focusOnEnter = value.Value == "focus"
 		case arrowStepSetting:
-			m.prefs.arrowStep = value.value == "on"
+			m.prefs.arrowStep = value.Value == "on"
 		case listDensitySetting:
-			m.prefs.comfortableRows = value.value == "comfortable"
+			m.prefs.comfortableRows = value.Value == "comfortable"
 		case sessionLayoutSetting:
-			m.prefs.fullLayout = value.value == sessionLayoutValue(true)
+			m.prefs.fullLayout = value.Value == uisettings.SessionLayoutValue(true)
 		case hideHeaderSetting:
-			m.prefs.hideHeader = value.value == "on"
+			m.prefs.hideHeader = value.Value == "on"
 		case hideStatsSetting:
-			m.prefs.hideStats = value.value == "on"
+			m.prefs.hideStats = value.Value == "on"
 		case mouseSetting:
-			m.prefs.mouseDisabled = value.value == "off"
+			m.prefs.mouseDisabled = value.Value == "off"
 		case backgroundSetting:
-			m.prefs.terminalBackground = value.value == "terminal"
+			m.prefs.terminalBackground = value.Value == "terminal"
 		case baseFetchSetting:
-			m.prefs.baseFetchOff = value.value == "off"
+			m.prefs.baseFetchOff = value.Value == "off"
 		case editorSetting:
-			m.services.editor = value.value
+			m.services.editor = value.Value
 		}
 	}
 	if failed == 0 {
 		return ""
 	}
 	return fmt.Sprintf("%d committed-value reads failed; the prefs keep their current state for them", failed)
-}
-
-// restoreSettingsDialog applies committed store values back to a live
-// dialog after a partial failure, so the dialog shows what persisted.
-// Keys whose read failed keep their current state.
-func (s *settingsFeature) restoreSettingsDialog(restored []restoredValue, hiddenRaw string, hiddenErr error) {
-	for _, value := range restored {
-		if value.err != nil {
-			continue
-		}
-		switch value.key {
-		case "default_tool":
-			for i, name := range s.dialog.toolNames {
-				if name == value.value {
-					s.dialog.toolIndex = i
-					break
-				}
-			}
-		case themeSetting:
-			s.dialog.themeIndex = themeIndex(value.value)
-			if !s.dialog.themeAuto {
-				s.dialog.manualTheme = value.value
-			}
-		case themeAutoSetting:
-			s.dialog.themeAuto = value.value == "on"
-		case diffLayoutSetting:
-			s.dialog.layoutSplit = value.value == "split"
-		case quickCloseSetting:
-			s.dialog.quickCloseSend = value.value == "close"
-		case focusKeySetting:
-			s.dialog.enterFocuses = value.value == "focus"
-		case arrowStepSetting:
-			s.dialog.arrowStep = value.value == "on"
-		case listDensitySetting:
-			s.dialog.comfortableRows = value.value == "comfortable"
-		case sessionLayoutSetting:
-			s.dialog.fullLayout = value.value == sessionLayoutValue(true)
-		case hideHeaderSetting:
-			s.dialog.hideHeader = value.value == "on"
-		case hideStatsSetting:
-			s.dialog.hideStats = value.value == "on"
-		case mouseSetting:
-			s.dialog.mouseDisabled = value.value == "off"
-		case worktreeSetting:
-			s.dialog.worktreeDefault = value.value == "on"
-		case notificationsSetting:
-			s.dialog.notifications = value.value == "on"
-		case notifyFinishedSetting:
-			s.dialog.notifyFinished = value.value == "on"
-		case "coordination":
-			s.dialog.proactive = value.value == "on"
-		case backgroundSetting:
-			s.dialog.terminalBackground = value.value == "terminal"
-		case baseFetchSetting:
-			s.dialog.baseFetch = value.value != "off"
-		case editorSetting:
-			s.dialog.editor = s.cachedEditorRow()
-		}
-	}
-	// An empty committed hidden state is a real state: it clears the
-	// dialog's map. Only a failed read leaves the old map in place.
-	if hiddenErr == nil {
-		s.dialog.cliHidden = parseHiddenTools(hiddenRaw)
-		if s.dialog.cliHidden == nil {
-			s.dialog.cliHidden = map[string]bool{}
-		}
-	}
-	// The restored keys now show the store, so they match the baseline;
-	// a key whose read failed leaves it, so the next save writes it.
-	if s.dialog.baseline == nil {
-		s.dialog.baseline = make(map[string]string)
-	}
-	shown := make(map[string]string)
-	for _, value := range s.captureSettingValues() {
-		shown[value.key] = value.value
-	}
-	for _, value := range restored {
-		if value.err != nil {
-			delete(s.dialog.baseline, value.key)
-		} else if v, ok := shown[value.key]; ok {
-			s.dialog.baseline[value.key] = v
-		}
-	}
-	s.dialog.baselineHidden = nil
-	if hiddenErr == nil {
-		raw := strings.Join(s.hiddenToolList(), ",")
-		s.dialog.baselineHidden = &raw
-	}
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/systheme"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"testing"
 )
 
@@ -39,15 +40,15 @@ func TestThemeAutoPersistsWithoutClobberingManualTheme(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, m.openSettings()())
-	if m.settings.dialog.themeAuto {
+	if m.settings.dialog.ThemeAuto {
 		t.Fatal("theme auto should default off")
 	}
-	m.settings.dialog.field = settingsFieldThemeAuto
-	m.settings.cycleSetting(m, 1)
-	if !m.settings.dialog.themeAuto {
+	m.settings.dialog.Field = uisettings.FieldThemeAuto
+	m.cycleSetting(1)
+	if !m.settings.dialog.ThemeAuto {
 		t.Fatal("toggle should enable theme auto")
 	}
-	m.applyCmd(t, m.settings.captureSettingsSave(m, true, false))
+	m.applyCmd(t, m.captureSettingsSave(true, false))
 	if got, _ := m.services.store.Setting(themeSetting); got != "nord" {
 		t.Fatalf("manual theme clobbered by auto: %q", got)
 	}
@@ -69,19 +70,19 @@ func TestManualThemeCycleDisablesAuto(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, m.openSettings()())
-	if !m.settings.dialog.themeAuto {
+	if !m.settings.dialog.ThemeAuto {
 		t.Fatal("open should reflect the persisted auto toggle")
 	}
-	m.settings.dialog.field = settingsFieldTheme
-	m.settings.cycleSetting(m, 1)
-	if m.settings.dialog.themeAuto {
+	m.settings.dialog.Field = uisettings.FieldTheme
+	m.cycleSetting(1)
+	if m.settings.dialog.ThemeAuto {
 		t.Fatal("stepping the theme by hand should turn auto off")
 	}
-	m.applyCmd(t, m.settings.captureSettingsSave(m, true, false))
+	m.applyCmd(t, m.captureSettingsSave(true, false))
 	if got, _ := m.services.store.Setting(themeAutoSetting); got != "off" {
 		t.Fatalf("theme_auto should persist off after a manual step: %q", got)
 	}
-	if got, _ := m.services.store.Setting(themeSetting); got != themes[m.settings.dialog.themeIndex].Name {
+	if got, _ := m.services.store.Setting(themeSetting); got != themes[m.settings.dialog.ThemeIndex].Name {
 		t.Fatalf("manual step not persisted: %q", got)
 	}
 }
