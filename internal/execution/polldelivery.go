@@ -101,7 +101,10 @@ func (p *Runner) maybeSendPendingInput(sess store.Session, pane string, agentAli
 	return delivered, nil
 }
 
-const automaticDeliveryTimeout = 5 * time.Second
+// automaticDeliveryTimeout bounds one automatic delivery: the guard, the
+// paste and the submit check. A variable so tests on a loaded psmux runner
+// can give the transport room; nothing else changes it.
+var automaticDeliveryTimeout = 5 * time.Second
 
 func classifyDelivery(result tmux.SendResult, sendErr error) store.DeliveryOutcome {
 	if sendErr == nil {

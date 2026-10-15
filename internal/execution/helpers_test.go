@@ -63,6 +63,12 @@ func runTests(m *testing.M) int {
 		return 1
 	}
 	defer cleanup()
+	// psmux under a loaded CI runner can take longer than the production
+	// budget to paste and confirm a submit; a run out of time reports the
+	// transport uncertain, which is not what the delivery tests check.
+	if runtime.GOOS == "windows" {
+		automaticDeliveryTimeout = 20 * time.Second
+	}
 	tmuxCmd("kill-server").Run()
 	if _, err := exec.LookPath(tmux.Binary); err == nil {
 		if out, err := tmuxCmd("new-session", "-d", "-s", "anchor").CombinedOutput(); err != nil {
