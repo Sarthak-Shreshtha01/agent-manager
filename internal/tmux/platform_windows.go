@@ -29,17 +29,25 @@ const Binary = "psmux"
 // one (earlier winget builds, 3.3.x, misbehave and print no psmux version).
 const psmuxMinimum = "3.4.0"
 
-// checkVersion refuses a psmux older than the floor. Cached: tmux.New runs
-// on every subcommand and from the poller, and one probe per process is
-// enough.
+// checkVersion refuses a psmux older than the floor. A pass is cached, since
+// tmux.New runs on every subcommand and from the poller; a failure is not,
+// so a probe that timed out once does not refuse every later driver.
 var (
-	versionOnce sync.Once
-	versionErr  error
+	versionMu     sync.Mutex
+	versionPassed bool
 )
 
 func checkVersion(bin string) error {
-	versionOnce.Do(func() { versionErr = probePsmuxVersion(bin) })
-	return versionErr
+	versionMu.Lock()
+	defer versionMu.Unlock()
+	if versionPassed {
+		return nil
+	}
+	if err := probePsmuxVersion(bin); err != nil {
+		return err
+	}
+	versionPassed = true
+	return nil
 }
 
 // probePsmuxVersion asks psmux -V, which prints a tmux compatibility line
