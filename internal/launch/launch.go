@@ -180,6 +180,9 @@ func ReviveCommand(tool config.Tool, agentSessionID string) string {
 // and their status-file path, plus a clean slate from any earlier files under
 // the same id.
 func Environment(manager *hooks.Manager, toolName string, tool config.Tool, baseCommand, id, cwd string, launchedAt time.Time) (string, map[string]string, error) {
+	if err := config.CheckSupported(toolName); err != nil {
+		return "", nil, err
+	}
 	if err := config.CheckInstalled(baseCommand); err != nil {
 		return "", nil, err
 	}
