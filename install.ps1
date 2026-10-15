@@ -127,7 +127,8 @@
 		}
 		if (Get-Command pwsh -ErrorAction SilentlyContinue) {
 			# ToString prints the bare version; the object formats as a table.
-			$text = & pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>$null | Select-Object -First 1
+			# Cutting the pipeline short leaves 5.1's LASTEXITCODE at -1.
+			$text = @(& pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>$null)[0]
 			$minimum = [version]'7.3'
 			$parsed = $null
 			if (-not $text -or -not [version]::TryParse(($text -split '-')[0], [ref]$parsed)) { $parsed = $null }
