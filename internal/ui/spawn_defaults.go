@@ -246,22 +246,6 @@ func (m *Model) spawnBaseLabel(dir, group string) string {
 	return label
 }
 
-// worktreeUnavailable is what the worktree toggle reads when the target
-// directory cannot host one.
-const worktreeUnavailable = "unavailable (not a git repo)"
-
-// worktreeLookupTTL bounds how long a directory's repo answer is reused.
-// The quick bar stays open across prompts, so a directory git-initialised
-// meanwhile has to be seen without closing it, while a frame that repaints
-// on every keystroke must not shell out to git each time.
-const worktreeLookupTTL = 2 * time.Second
-
-// forgetWorktreeCapability drops the memo so the next look is a fresh one.
-// Opening the form or the quick bar calls it.
-func (m *Model) forgetWorktreeCapability() {
-	m.ledger.worktreeRepos = nil
-}
-
 func (m *Model) cachedHiddenTools() map[string]bool {
 	return m.settings.cachedHiddenTools(m.services.cfg)
 }

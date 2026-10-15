@@ -44,7 +44,7 @@ var features = map[string]string{
 	"review":       "the Review adapter",
 	"session":      "session lifecycle: launch, attach, kill, revive, archive, delete, restart, editor",
 	"settings":     "the Settings adapter, its store lane and the stored preference readers",
-	"spawn":        "the New Session form adapter, spawn defaults, group base and fetch, catalog reads, spawn effect, preflight and worktree probe",
+	"spawn":        "the New Session form adapter, its group picker, request, defaults, group base and fetch, catalog reads, spawn effect, preflight and worktree probe",
 	"startup":      "startup greeting and banner",
 	"status":       "the status bar and toasts",
 	"terminal":     "terminal handoff, link opening and link pages",
