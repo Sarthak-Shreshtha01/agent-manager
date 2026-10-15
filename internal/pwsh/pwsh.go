@@ -3,12 +3,15 @@
 package pwsh
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf16"
 )
 
@@ -39,43 +42,57 @@ func EncodedCommand(script string) string {
 	return base64.StdEncoding.EncodeToString(raw)
 }
 
-// Path finds PowerShell 7 (pwsh), falling back to Windows PowerShell.
+// Path finds PowerShell 7.3 or newer (pwsh). Windows PowerShell 5.1 and
+// pwsh before 7.3 hand a native program an argument holding a double quote
+// without escaping it, so a prompt like `x " --flag " y` would reach the
+// agent CLI as several arguments, the flag among them. A checked path is
+// kept; a failure is not, so installing pwsh needs no restart.
 func Path() (string, error) {
-	if path, err := exec.LookPath("pwsh"); err == nil {
-		return path, nil
+	pathMu.Lock()
+	defer pathMu.Unlock()
+	if checkedPath != "" {
+		return checkedPath, nil
 	}
-	if path, err := exec.LookPath("powershell"); err == nil {
-		return path, nil
-	}
-	return "", errors.New("PowerShell not found on PATH: install PowerShell 7 (winget install Microsoft.PowerShell)")
-}
-
-// VersionWarning asks the PowerShell at shell for its version and returns a
-// warning when it predates 7.3, empty otherwise. Before 7.3, PowerShell
-// hands a native program an argument holding a double quote without
-// escaping it, so a prompt like `x " --flag " y` reaches the agent CLI as
-// several arguments. The shell still runs; the user decides.
-func VersionWarning(shell string) string {
-	// ToString prints the bare version; the object itself formats as a
-	// table whose header and line breaks would end up in the warning.
-	out, err := exec.Command(shell, "-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()").Output()
+	path, err := exec.LookPath("pwsh")
 	if err != nil {
-		return fmt.Sprintf("could not read the PowerShell version (%v); prompts containing \" may reach agent CLIs split before PowerShell 7.3: winget install Microsoft.PowerShell", err)
+		return "", errors.New("agent-manager needs PowerShell 7.3 or newer (pwsh), which is missing; install it with: winget install Microsoft.PowerShell")
 	}
-	return versionWarning(strings.TrimSpace(string(out)))
+	version, err := readVersion(path)
+	if err != nil {
+		return "", fmt.Errorf("reading the version of %s: %w", path, err)
+	}
+	if err := checkVersion(version); err != nil {
+		return "", err
+	}
+	checkedPath = path
+	return path, nil
 }
 
-// versionWarning judges a version as $PSVersionTable.PSVersion.ToString()
-// prints it: 7.4.1, 5.1.26100.2161, 7.5.0-preview.3.
-func versionWarning(version string) string {
+var (
+	pathMu      sync.Mutex
+	checkedPath string
+)
+
+func readVersion(shell string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// ToString prints the bare version; the object itself formats as a
+	// table with a header.
+	out, err := exec.CommandContext(ctx, shell, "-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()").Output()
+	return strings.TrimSpace(string(out)), err
+}
+
+// checkVersion judges a version as $PSVersionTable.PSVersion.ToString()
+// prints it: 7.4.1, 7.5.0-preview.3.
+func checkVersion(version string) error {
 	major, minor, ok := majorMinor(version)
 	if !ok {
-		return fmt.Sprintf("could not read the PowerShell version from %s; prompts containing \" may reach agent CLIs split before PowerShell 7.3: winget install Microsoft.PowerShell", strconv.Quote(version))
+		return fmt.Errorf("could not read the PowerShell version from %s; agent-manager needs PowerShell 7.3 or newer: winget install Microsoft.PowerShell", strconv.Quote(version))
 	}
 	if major > 7 || major == 7 && minor >= 3 {
-		return ""
+		return nil
 	}
-	return fmt.Sprintf("PowerShell %d.%d splits a prompt containing \" into several arguments to the agent CLI; install PowerShell 7.3 or newer: winget install Microsoft.PowerShell", major, minor)
+	return fmt.Errorf("PowerShell %d.%d is too old; agent-manager needs 7.3 or newer, which passes a prompt holding \" to the agent CLI whole; upgrade it with: winget upgrade Microsoft.PowerShell", major, minor)
 }
 
 // majorMinor reads the first two dot-separated numbers of a version.

@@ -23,12 +23,12 @@ func TestEncodedCommandIsUTF16LEBase64(t *testing.T) {
 }
 
 // Only a PowerShell from 7.3 on passes a quoted argument to a native
-// program whole, so everything before it warns, and the warning names the
-// version found without the formatting PowerShell prints around it.
-func TestVersionWarningStartsAt73(t *testing.T) {
+// program whole, so everything before it is refused, and the refusal names
+// the version found without the formatting PowerShell prints around it.
+func TestCheckVersionStartsAt73(t *testing.T) {
 	for _, tc := range []struct {
 		version string
-		warns   bool
+		refused bool
 	}{
 		{"5.1.26100.2161", true},
 		{"7.2.24", true},
@@ -38,12 +38,12 @@ func TestVersionWarningStartsAt73(t *testing.T) {
 		{"", true},
 		{"Major  Minor", true},
 	} {
-		got := versionWarning(tc.version)
-		if (got != "") != tc.warns {
-			t.Errorf("versionWarning(%q) = %q, want warning %v", tc.version, got, tc.warns)
+		err := checkVersion(tc.version)
+		if (err != nil) != tc.refused {
+			t.Errorf("checkVersion(%q) = %v, want refused %v", tc.version, err, tc.refused)
 		}
 	}
-	if got := versionWarning("5.1.26100.2161"); !strings.HasPrefix(got, "PowerShell 5.1 splits") {
-		t.Errorf("versionWarning(5.1) = %q, want it to name 5.1", got)
+	if err := checkVersion("7.2.24"); err == nil || !strings.HasPrefix(err.Error(), "PowerShell 7.2 is too old") {
+		t.Errorf("checkVersion(7.2) = %v, want it to name 7.2", err)
 	}
 }

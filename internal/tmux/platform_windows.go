@@ -394,8 +394,7 @@ func exportLines(env map[string]string) string {
 // a double quote inside an argument it passes to a native program, but its
 // default mode drops back to the old unescaped form for .cmd and .bat
 // files, the shims npm installs a CLI behind, so a prompt holding `"` would
-// still split into several arguments there. Earlier versions only see a
-// variable being set.
+// still split into several arguments there.
 const standardArgumentPassing = "$PSNativeCommandArgumentPassing = 'Standard'\n"
 
 func launchScriptPath(id string) string {

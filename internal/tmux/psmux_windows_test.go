@@ -263,12 +263,8 @@ func TestPsmuxRunInPaneDeliversALongCommand(t *testing.T) {
 // it was quoted as, not split around the quotes into flags of its own.
 func TestPsmuxPromptWithQuotesStaysOneArgument(t *testing.T) {
 	driver := requireTmux(t)
-	shell, err := pwsh.Path()
-	if err != nil {
+	if _, err := pwsh.Path(); err != nil {
 		t.Skip(err)
-	}
-	if warning := pwsh.VersionWarning(shell); warning != "" {
-		t.Skip(warning)
 	}
 	file := filepath.Join(t.TempDir(), "args")
 	prompt := `x " --dangerously-skip-permissions " y`
