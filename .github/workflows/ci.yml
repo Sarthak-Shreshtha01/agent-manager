@@ -123,6 +123,7 @@ jobs:
         run: go vet ./...
       # -race needs cgo on Windows. Each psmux session is its own server and
       # each pane a PowerShell, so the ui suite runs past go test's default
-      # ten minutes; it has reached 39 of the 40 minutes it used to get.
+      # ten minutes. -p 2 keeps the parallel ui tests from starving the
+      # timing-sensitive packages that would otherwise run beside them.
       - name: Test
-        run: go test -timeout 60m ./...
+        run: go test -p 2 -timeout 60m ./...
