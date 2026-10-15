@@ -96,3 +96,28 @@ func (m *Model) handleBrowserOpen(msg browserOpenMsg) {
 	}
 	m.reportErr(fmt.Sprintf("could not open %s: %v; copying URL: %v", msg.target, msg.err, msg.copyErr))
 }
+
+var openURL = func(url string) error {
+	if runtime.GOOS == "windows" {
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	}
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "open"
+	}
+	return exec.Command(opener, url).Start()
+}
+
+type linkOpenErrMsg struct{ err error }
+
+func openLinkCmd(url string) tea.Cmd {
+	return func() tea.Msg {
+		if remoteTerminal() {
+			return linkPageMsg{url: url}
+		}
+		if err := openURL(url); err != nil {
+			return linkOpenErrMsg{err: fmt.Errorf("open link: %w", err)}
+		}
+		return nil
+	}
+}

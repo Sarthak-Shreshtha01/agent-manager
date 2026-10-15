@@ -36,7 +36,7 @@ var features = map[string]string{
 	"input":        "raw input forwarded to panes",
 	"launchhint":   "the launch fix dialog and CLI install",
 	"model":        "the root Model, its services and shared host methods",
-	"notices":      "the notices adapter, release and feed checks, self-update and link opening",
+	"notices":      "the notices adapter, release and feed checks and self-update",
 	"pathcomplete": "directory completion for path fields",
 	"preview":      "the session preview",
 	"quick":        "the quick bar adapter and its send effect",
@@ -47,7 +47,7 @@ var features = map[string]string{
 	"spawn":        "the New Session form adapter, spawn defaults, group base and fetch, catalog reads, spawn effect, preflight and worktree probe",
 	"startup":      "startup greeting and banner",
 	"status":       "the status bar and toasts",
-	"terminal":     "terminal handoff and link pages",
+	"terminal":     "terminal handoff, link opening and link pages",
 	"theme":        "live styles, surfaces and the stored theme",
 	"workspace":    "polling, refresh and what the last poll returned",
 }

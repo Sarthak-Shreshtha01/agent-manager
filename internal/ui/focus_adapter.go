@@ -1,9 +1,6 @@
 package ui
 
 import (
-	"fmt"
-	"os/exec"
-	"runtime"
 	"unicode/utf8"
 
 	"github.com/YoanWai/agent-manager/internal/clipboard"
@@ -310,31 +307,6 @@ func (m *Model) paneCaretRow() int {
 		parks = m.services.engine.ParksItsCaret(sess.Tool)
 	}
 	return m.focus.pane.CaretRow(m.workspace.preview, parks)
-}
-
-var openURL = func(url string) error {
-	if runtime.GOOS == "windows" {
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	}
-	opener := "xdg-open"
-	if runtime.GOOS == "darwin" {
-		opener = "open"
-	}
-	return exec.Command(opener, url).Start()
-}
-
-type linkOpenErrMsg struct{ err error }
-
-func openLinkCmd(url string) tea.Cmd {
-	return func() tea.Msg {
-		if remoteTerminal() {
-			return linkPageMsg{url: url}
-		}
-		if err := openURL(url); err != nil {
-			return linkOpenErrMsg{err: fmt.Errorf("open link: %w", err)}
-		}
-		return nil
-	}
 }
 
 type focusScrollMsg struct {
