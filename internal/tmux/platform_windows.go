@@ -310,9 +310,7 @@ func (d *Driver) startSession(id, cwd string, width, height int, scriptPath stri
 		if err != nil {
 			return err
 		}
-		scriptQuoted := pwsh.Quote(scriptPath)
-		args = append(args, "--", shell, "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass",
-			"-Command", "$PSNativeCommandArgumentPassing = 'Standard'; & " + scriptQuoted)
+		args = append(args, "--", shell, "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
 	}
 	if _, err := d.run(args...); err != nil {
 		return err
@@ -359,7 +357,7 @@ func (d *Driver) RunInPane(id string, env map[string]string, command string) err
 		return fmt.Errorf("relaunch script: %w", err)
 	}
 	path := script.Name()
-	_, err = script.Write(pwsh.ScriptFile("Remove-Item -LiteralPath $PSCommandPath\n" + command + "\n"))
+	_, err = script.Write(pwsh.ScriptFile("Remove-Item -LiteralPath $PSCommandPath\n" + standardArgumentPassing + command + "\n"))
 	if closeErr := script.Close(); err == nil {
 		err = closeErr
 	}
@@ -384,6 +382,14 @@ func exportLines(env map[string]string) string {
 	return lines.String()
 }
 
+// standardArgumentPassing opens every pane script. PowerShell 7.3+ escapes
+// a double quote inside an argument it passes to a native program, but its
+// default mode drops back to the old unescaped form for .cmd and .bat
+// files, the shims npm installs a CLI behind, so a prompt holding `"` would
+// still split into several arguments there. Earlier versions only see a
+// variable being set.
+const standardArgumentPassing = "$PSNativeCommandArgumentPassing = 'Standard'\n"
+
 func launchScriptPath(id string) string {
 	return filepath.Join(os.TempDir(), "am-launch-"+id+".ps1")
 }
@@ -397,7 +403,7 @@ func writeLaunchScript(id string, env map[string]string, command, colorFgBg stri
 	if colorFgBg != "" {
 		header = "$env:COLORFGBG = " + ShellQuote(colorFgBg) + "\n"
 	}
-	body := "$PSNativeCommandArgumentPassing = 'Standard'\n" + header + exportLines(env) + command + "\n" +
+	body := standardArgumentPassing + header + exportLines(env) + command + "\n" +
 		"Write-Host " + ShellQuote(relaunchHint) + "\n"
 	if err := os.WriteFile(path, pwsh.ScriptFile(body), 0o600); err != nil {
 		return "", fmt.Errorf("launch script: %w", err)

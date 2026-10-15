@@ -3,65 +3,68 @@
 package tmux
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/YoanWai/agent-manager/internal/pwsh"
 )
 
 // psmuxSession creates a managed session running command and waits for its
 // pane to show want.
 func psmuxSession(t *testing.T, driver *Driver, prefix, command, want string) string {
 	t.Helper()
-	id := driver.NewSessionID()
-	cwd := t.TempDir()
-	if _, err := driver.Create(id, cwd, 0, 0, command, nil); err != nil {
+	id := prefixedID(prefix)
+	if err := driver.Create(id, paneDir(), command, nil, 100, 30); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
-
-	got, err := driver.CapturePane(id)
-	if err != nil {
-		t.Fatalf("CapturePane: %v", err)
-	}
-	if !strings.Contains(got, want) {
-		t.Fatalf("pane output %q does not contain %q", got, want)
+	if want != "" {
+		waitForPaneLine(t, driver, id, want)
 	}
 	return id
+}
+
+// prefixedID names a test session: prefix plus the time, unique per run.
+func prefixedID(prefix string) string {
+	return prefix + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 }
 
 // waitForPaneLine waits for a pane line that is exactly want, so a typed
 // command echoing its own text does not count as its output.
 func waitForPaneLine(t *testing.T, driver *Driver, id, want string) {
 	t.Helper()
-	var got string
-	for deadline := time.Now().Add(10 * time.Second); got != want && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
-		lines, err := driver.Plain(id, 1, 100)
-		if err != nil {
-			t.Fatalf("Plain: %v", err)
+	var pane string
+	for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		var err error
+		if pane, err = driver.CapturePane(id); err != nil {
+			t.Fatalf("CapturePane: %v", err)
 		}
-		if len(lines) > 0 {
-			got = stripANSI(lines[len(lines)-1])
+		for _, line := range strings.Split(stripANSI(pane), "\n") {
+			if strings.TrimSpace(line) == want {
+				return
+			}
 		}
 	}
-	if got != want {
-		t.Fatalf("pane output %q does not contain %q", got, want)
-	}
+	t.Fatalf("pane never showed %q:\n%s", want, pane)
 }
 
 func stripANSI(s string) string {
-	var out bytes.Buffer
-	inEscape := false
-	for _, r := range s {
-		switch {
-		case r == '\x1b':
-			inEscape = true
-		case r == 'm' && inEscape:
-			inEscape = false
-		case !inEscape:
-			out.WriteRune(r)
+	var out strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != 0x1b {
+			out.WriteByte(s[i])
+			continue
+		}
+		if i+1 < len(s) && s[i+1] == '[' {
+			i += 2
+			for i < len(s) && (s[i] < 0x40 || s[i] > 0x7e) {
+				i++
+			}
 		}
 	}
 	return out.String()
@@ -71,15 +74,13 @@ func stripANSI(s string) string {
 // the pane listing finds it without list-panes -f.
 func TestPsmuxCreateRunsTheLaunchScript(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "script", "Write-Output launched", "launched")
-
-	// Verify the launch script ran by checking its output
-	pane, err := driver.CapturePane(id)
+	id := psmuxSession(t, driver, "ready", "Write-Output agent-ready", "agent-ready")
+	panes, err := driver.Panes()
 	if err != nil {
-		t.Fatalf("CapturePane: %v", err)
+		t.Fatalf("Panes: %v", err)
 	}
-	if !strings.Contains(pane, "launched") {
-		t.Fatalf("pane did not show launched: %s", pane)
+	if panes[id].PID <= 0 {
+		t.Fatalf("Panes should map %q to a pane pid, got %v", id, panes)
 	}
 }
 
@@ -87,11 +88,11 @@ func TestPsmuxCreateRunsTheLaunchScript(t *testing.T) {
 // a prompt.
 func TestPsmuxSendTextReachesThePaneShell(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "send", "Write-Output ready", "ready")
-	if err := driver.SendKeys(id, "Write-Output typed", "Enter"); err != nil {
-		t.Fatalf("SendKeys: %v", err)
+	id := psmuxSession(t, driver, "type", "Write-Output launched", "launched")
+	if err := driver.SendText(id, "Write-Output ('x'+'y')"); err != nil {
+		t.Fatalf("SendText: %v", err)
 	}
-	waitForPaneLine(t, driver, id, "typed")
+	waitForPaneLine(t, driver, id, "xy")
 }
 
 // Bindings live on each session's own server, and Create puts them there:
@@ -99,18 +100,31 @@ func TestPsmuxSendTextReachesThePaneShell(t *testing.T) {
 // the marker and detaches, and the keys recorded for the next run.
 func TestPsmuxCreateBindsTheSessionServer(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "bind", "Write-Output bound", "bound")
-	// Test bindings by simulating key presses
-	if err := driver.SendKeys(id, "d", "Enter"); err != nil {
-		t.Fatalf("SendKeys: %v", err)
+	id := psmuxSession(t, driver, "keys", "", "")
+	server := func(args ...string) string {
+		t.Helper()
+		out, err := tmuxCmd(append(sessionRoute(id), args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %v: %s", args, err, out)
+		}
+		return string(out)
 	}
-	// The session should be detached
-	panes, err := driver.Plain(id, 0, 0)
-	if err != nil {
-		t.Fatalf("Plain: %v", err)
+	root := server("list-keys", "-T", "root")
+	lines := map[string]string{}
+	for _, line := range strings.Split(root, "\n") {
+		if fields := strings.Fields(line); len(fields) >= 4 {
+			lines[fields[3]] = line
+		}
 	}
-	if len(panes) == 0 {
-		t.Fatal("no panes returned after detach")
+	if !strings.HasSuffix(strings.TrimSpace(lines["C-q"]), " detach-client") {
+		t.Fatalf("C-q should detach; root table:\n%s", root)
+	}
+	if !strings.Contains(lines["C-r"], "run-shell") || !strings.Contains(lines["F3"], "run-shell") {
+		t.Fatalf("C-r and F3 should run the request script; root table:\n%s", root)
+	}
+	recorded := strings.Fields(server("show-options", "-gqv", rootKeysOption))
+	if !slices.Contains(recorded, "C-q") || !slices.Contains(recorded, "C-r") || !slices.Contains(recorded, "F3") {
+		t.Fatalf("recorded root keys = %q", recorded)
 	}
 }
 
@@ -118,14 +132,17 @@ func TestPsmuxCreateBindsTheSessionServer(t *testing.T) {
 // through PowerShell, the shell psmux's run-shell uses.
 func TestPsmuxRequestScriptLeavesTheMarker(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "marker", "Write-Output ready", "ready")
-	// Test marker creation via request key
-	marker := filepath.Join(t.TempDir(), "request-marker")
-	if err := driver.SendKeys(id, "Write-Output "+marker, "Enter"); err != nil {
-		t.Fatalf("SendKeys: %v", err)
+	id := psmuxSession(t, driver, "script", "", "")
+	action := driver.requestAction(id, RequestEditor)
+	shell, err := pwsh.Path()
+	if err != nil {
+		t.Skip(err)
 	}
-	if _, err := os.Stat(marker); os.IsNotExist(err) {
-		t.Fatalf("marker file %s was not created", marker)
+	if out, err := exec.Command(shell, "-NoProfile", "-Command", action[1]).CombinedOutput(); err != nil {
+		t.Fatalf("request script: %v: %s", err, out)
+	}
+	if got, err := driver.PendingRequest(id); err != nil || got != RequestEditor {
+		t.Fatalf("PendingRequest = %q, %v; want %q", got, err, RequestEditor)
 	}
 }
 
@@ -133,22 +150,18 @@ func TestPsmuxRequestScriptLeavesTheMarker(t *testing.T) {
 // user detached from.
 func TestPsmuxRequestMarkerIsPerSession(t *testing.T) {
 	driver := requireTmux(t)
-	id1 := psmuxSession(t, driver, "marker1", "Write-Output ready1", "ready1")
-	id2 := psmuxSession(t, driver, "marker2", "Write-Output ready2", "ready2")
-	marker1 := filepath.Join(t.TempDir(), "marker1")
-	marker2 := filepath.Join(t.TempDir(), "marker2")
-	if err := driver.SendKeys(id1, "Write-Output "+marker1, "Enter"); err != nil {
-		t.Fatalf("SendKeys: %v", err)
+	id := psmuxSession(t, driver, "req", "", "")
+	if out, err := tmuxCmd(append(sessionRoute(id), "set-option", "-g", requestOption, RequestReview)...).CombinedOutput(); err != nil {
+		t.Fatalf("set marker: %v: %s", err, out)
 	}
-	if err := driver.SendKeys(id2, "Write-Output "+marker2, "Enter"); err != nil {
-		t.Fatalf("SendKeys: %v", err)
+	if got, err := driver.PendingRequest(id); err != nil || got != RequestReview {
+		t.Fatalf("PendingRequest = %q, %v; want %q", got, err, RequestReview)
 	}
-	// Verify both markers exist
-	if _, err := os.Stat(marker1); os.IsNotExist(err) {
-		t.Fatalf("marker1 file %s was not created", marker1)
+	if err := driver.ClearRequest(id); err != nil {
+		t.Fatalf("ClearRequest: %v", err)
 	}
-	if _, err := os.Stat(marker2); os.IsNotExist(err) {
-		t.Fatalf("marker2 file %s was not created", marker2)
+	if got, err := driver.PendingRequest(id); err != nil || got != "" {
+		t.Fatalf("PendingRequest after clear = %q, %v; want empty", got, err)
 	}
 }
 
@@ -157,14 +170,21 @@ func TestPsmuxRequestMarkerIsPerSession(t *testing.T) {
 // that limit shows.
 func TestPsmuxControlModeAnswersCommands(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "control", "Write-Output ready", "ready")
-	// Test that control mode commands still work
-	panes, err := driver.Plain(id, 0, 0)
-	if err != nil {
-		t.Fatalf("Plain: %v", err)
+	id := psmuxSession(t, driver, "ctl", "", "")
+	if _, err := driver.OpenControl(id); err == nil {
+		t.Fatal("OpenControl should refuse psmux's control client")
 	}
-	if len(panes) == 0 {
-		t.Fatal("no panes returned")
+	control, err := driver.openControl(id)
+	if err != nil {
+		t.Fatalf("openControl: %v", err)
+	}
+	defer control.Close()
+	got, err := control.Command("display-message -p '#{session_name}'")
+	if err != nil {
+		t.Fatalf("Command: %v", err)
+	}
+	if strings.TrimSpace(got) != "am_"+id {
+		t.Fatalf("session name over control = %q, want am_%s", got, id)
 	}
 }
 
@@ -172,32 +192,39 @@ func TestPsmuxControlModeAnswersCommands(t *testing.T) {
 // session, and a pid from any other server answers empty.
 func TestPsmuxSessionOfPaneUsesTheServerPid(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "session", "Write-Output ready", "ready")
-	// Get the pane's $TMUX value
-	tmuxEnv := os.Getenv("TMUX")
-	if tmuxEnv == "" {
-		t.Skip("not running inside a tmux session")
-	}
-	sessionID, err := driver.SessionOfPane(tmuxEnv, "0")
+	id := psmuxSession(t, driver, "pane", "", "")
+	out, err := tmuxCmd("display-message", "-p", "-t", PaneTarget(id), "#{pid} #{pane_id}").CombinedOutput()
 	if err != nil {
-		t.Fatalf("SessionOfPane: %v", err)
+		t.Fatalf("display-message: %v: %s", err, out)
 	}
-	if sessionID != id {
-		t.Fatalf("SessionOfPane returned %q, want %q", sessionID, id)
+	pid, pane, _ := strings.Cut(strings.TrimSpace(string(out)), " ")
+	env := "/tmp/psmux-" + pid + "/" + testSocket + ",1,0"
+	if got, err := driver.SessionOfPane(env, pane); err != nil || got != id {
+		t.Fatalf("SessionOfPane = %q, %v; want %q", got, err, id)
+	}
+	if got, err := driver.SessionOfPane("/tmp/psmux-1"+pid+"/"+testSocket+",1,0", pane); err != nil || got != "" {
+		t.Fatalf("a stale server pid resolved to %q, %v", got, err)
+	}
+	if got, err := driver.SessionOfPane("/tmp/psmux-"+pid+"/elsewhere,1,0", pane); err != nil || got != "" {
+		t.Fatalf("another namespace resolved to %q, %v", got, err)
 	}
 }
 
 // Kill takes the session's server down and its launch script with it.
 func TestPsmuxKillRemovesSessionAndScript(t *testing.T) {
 	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "kill", "Write-Output ready", "ready")
-	scriptPath := filepath.Join(os.TempDir(), "am-launch-"+id+".ps1")
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		t.Fatalf("launch script %s does not exist before Kill", scriptPath)
+	id := psmuxSession(t, driver, "kill", "Write-Output started", "started")
+	if _, err := os.Stat(launchScriptPath(id)); err != nil {
+		t.Fatalf("launch script: %v", err)
 	}
-	driver.Kill(id)
-	if _, err := os.Stat(scriptPath); err == nil {
-		t.Fatalf("launch script %s still exists after Kill", scriptPath)
+	if err := driver.Kill(id); err != nil {
+		t.Fatalf("Kill: %v", err)
+	}
+	if driver.Exists(id) {
+		t.Fatal("session should be gone after Kill")
+	}
+	if _, err := os.Stat(launchScriptPath(id)); !os.IsNotExist(err) {
+		t.Fatalf("launch script should be removed, stat err = %v", err)
 	}
 }
 
@@ -232,59 +259,31 @@ func TestPsmuxRunInPaneDeliversALongCommand(t *testing.T) {
 	}
 }
 
-// captureArgsFixturePath returns the path to the capture-args test fixture.
-func captureArgsFixturePath() (string, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return "", err
-	}
-	return exe, nil
-}
-
-// TestPsmuxPromptWithQuotes verifies that prompts containing double quotes
-// are not split by PowerShell 7.3+.
-func TestPsmuxPromptWithQuotes(t *testing.T) {
+// A prompt holding double quotes reaches the agent CLI as the one argument
+// it was quoted as, not split around the quotes into flags of its own.
+func TestPsmuxPromptWithQuotesStaysOneArgument(t *testing.T) {
 	driver := requireTmux(t)
-	id := driver.NewSessionID()
-	cwd := t.TempDir()
-
-	// Create a simple script that captures its arguments
-	captureScript := filepath.Join(cwd, "capture-args.ps1")
-	argCapture := filepath.Join(cwd, "args.txt")
-	scriptContent := `
-param($arg1, $arg2, $arg3)
-@($arg1, $arg2, $arg3) | Out-File -FilePath "` + argCapture + `"
-`
-	if err := os.WriteFile(captureScript, []byte(scriptContent), 0600); err != nil {
-		t.Fatalf("write capture script: %v", err)
+	shell, err := pwsh.Path()
+	if err != nil {
+		t.Skip(err)
 	}
-
-	// Launch with a prompt containing double quotes
-	prompt := `x " --flag " y`
-	command := "powershell -File " + ShellQuote(captureScript) + " " + prompt
-	if _, err := driver.Create(id, cwd, 0, 0, command, nil); err != nil {
+	if warning := pwsh.VersionWarning(shell); warning != "" {
+		t.Skip(warning)
+	}
+	file := filepath.Join(t.TempDir(), "args")
+	prompt := `x " --dangerously-skip-permissions " y`
+	command := "& " + ShellQuote(os.Args[0]) + " " + ShellQuote(prompt)
+	id := prefixedID("quotes")
+	if err := driver.Create(id, paneDir(), command, map[string]string{argsFileEnv: file}, 100, 30); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
-
-	// Wait for the script to run
-	var got string
-	for deadline := time.Now().Add(10 * time.Second); got == "" && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
-		data, _ := os.ReadFile(argCapture)
-		got = string(data)
+	var got []byte
+	for deadline := time.Now().Add(15 * time.Second); got == nil && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		got, _ = os.ReadFile(file)
 	}
-
-	// Verify the prompt was received as a single argument
-	if got != "x \" --flag \" y\n" {
-		t.Errorf("args = %q, want %q (prompt should be one argument)", got, "x \" --flag \" y\n")
-	}
-
-	// Also verify by capturing the pane output
-	pane, err := driver.CapturePane(id)
-	if err != nil {
-		t.Fatalf("CapturePane: %v", err)
-	}
-	if !strings.Contains(pane, "x \" --flag \" y") {
-		t.Errorf("pane output does not contain expected prompt: %s", pane)
+	if string(got) != prompt {
+		pane, _ := driver.CapturePane(id)
+		t.Fatalf("the agent got arguments %q, want the one argument %q; pane:\n%s", strings.Split(string(got), "\n"), prompt, pane)
 	}
 }

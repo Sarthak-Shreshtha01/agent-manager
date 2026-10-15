@@ -1,15 +1,15 @@
 package pwsh
 
 import (
-	"os"
+	"strings"
 	"testing"
 )
 
 // PowerShell closes a verbatim string on any of the typographic single
 // quotes too, so each must be doubled to stay literal.
 func TestQuoteDoublesEverySingleQuoteForm(t *testing.T) {
-	got := Quote("it's 'x'")
-	if want := "'it''s ''x'''"; got != want {
+	got := Quote("it's ‘x’")
+	if want := "'it''s ‘‘x’’'"; got != want {
 		t.Fatalf("Quote = %q, want %q", got, want)
 	}
 }
@@ -22,9 +22,28 @@ func TestEncodedCommandIsUTF16LEBase64(t *testing.T) {
 	}
 }
 
-// TestPathRequiresPowerShell73 verifies that Path() requires pwsh ≥ 7.3.
-func TestPathRequiresPowerShell73(t *testing.T) {
-	// This test verifies that Path() fails when pwsh < 7.3 or succeeds when pwsh ≥ 7.3.
-	// The actual version check is in pwsh.Path(), which calls versionCommand().
-	// We rely on the versionCommand() function being tested implicitly via Path().
+// Only a PowerShell from 7.3 on passes a quoted argument to a native
+// program whole, so everything before it warns, and the warning names the
+// version found without the formatting PowerShell prints around it.
+func TestVersionWarningStartsAt73(t *testing.T) {
+	for _, tc := range []struct {
+		version string
+		warns   bool
+	}{
+		{"5.1.26100.2161", true},
+		{"7.2.24", true},
+		{"7.3.0", false},
+		{"7.5.0-preview.3", false},
+		{"8.0.0", false},
+		{"", true},
+		{"Major  Minor", true},
+	} {
+		got := versionWarning(tc.version)
+		if (got != "") != tc.warns {
+			t.Errorf("versionWarning(%q) = %q, want warning %v", tc.version, got, tc.warns)
+		}
+	}
+	if got := versionWarning("5.1.26100.2161"); !strings.HasPrefix(got, "PowerShell 5.1 splits") {
+		t.Errorf("versionWarning(5.1) = %q, want it to name 5.1", got)
+	}
 }

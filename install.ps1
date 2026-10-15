@@ -126,18 +126,13 @@
 			}
 		}
 		if (Get-Command pwsh -ErrorAction SilentlyContinue) {
-			$version = $null
-			foreach ($line in (& pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion' 2>$null)) {
-				if ($line -match '^(\d+)\.(\d+)') {
-					$version = "$($matches[1]).$($matches[2])"
-					break
-				}
-			}
+			# ToString prints the bare version; the object formats as a table.
+			$text = & pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>$null | Select-Object -First 1
 			$minimum = [version]'7.3'
 			$parsed = $null
-			if ($version -and -not [version]::TryParse($version, [ref]$parsed)) { $parsed = $null }
+			if (-not $text -or -not [version]::TryParse(($text -split '-')[0], [ref]$parsed)) { $parsed = $null }
 			if (-not $parsed -or $parsed -lt $minimum) {
-				Write-Host "agent-manager needs PowerShell 7.3 or newer; install with winget install Microsoft.PowerShell" -ForegroundColor Yellow
+				Write-Host "PowerShell before 7.3 splits a prompt containing `" into several arguments to agent CLIs; upgrade it with: winget install Microsoft.PowerShell" -ForegroundColor Yellow
 			}
 		}
 	}
