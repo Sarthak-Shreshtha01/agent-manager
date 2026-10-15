@@ -58,9 +58,7 @@ func Trees(rootPIDs []int) map[int]ProcStat {
 				walk(child.PID, childCreated)
 			}
 		}
-		// A root that cannot be sampled leaves no entry, as a pid ps does
-		// not list leaves none on Unix: a reading with its own process
-		// missing would stand for the tree while describing only part of it.
+		// An unreadable root gets no entry, as on Unix, not a partial one.
 		created, ok := sampleProcess(root, 0, &stat)
 		if !ok {
 			continue

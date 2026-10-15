@@ -91,10 +91,8 @@ tmux silently falls back to the default socket. The directory must exist
 before tmux starts, for the same reason. Never run `tmux kill-server` or
 `kill-session` against the default socket; kill stray processes by PID.
 
-On Windows the suite needs psmux 3.4.0 or newer, PowerShell 7.3 or newer,
-and `cat`, `echo`, `printf` and `true` from Git for Windows' `usr\bin` on
-`PATH`. Run `go test -timeout 40m ./...` there. `-race` needs cgo on
-Windows, so the Ubuntu CI job carries the race suite.
+On Windows, see Checks in [CONTRIBUTING.md](.github/CONTRIBUTING.md) for
+what the suite needs.
 
 Before finishing: `gofmt -l .` prints nothing, `go vet ./...` is clean.
 
