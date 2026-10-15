@@ -46,6 +46,9 @@ func TestGuardedMouseCommandFollowsTheLiveFlag(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = driver.Kill(sessID) })
 	waitForMouseFlag(t, driver, sessID, "1")
+	// The flag is up once the escape is printed, before cat runs to echo
+	// a report; on Windows the shell takes a moment to start it.
+	waitForDriverPaneChild(t, driver, sessID, "cat")
 
 	_, args := guardedMouseCommand(sessID, "\x1b[<64;7;3M")
 	if err := driver.SendCommand(args...); err != nil {

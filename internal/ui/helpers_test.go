@@ -449,15 +449,35 @@ func createSessionOn(t *testing.T, m *Model, name, tool, dir string) {
 	m.applyCmd(t, cmd)
 }
 
+// waitForPreview refreshes until the selected session's pane has drawn:
+// psmux's PowerShell takes a moment to start, and a blank pane paints no
+// box to click.
+func waitForPreview(t *testing.T, m *Model) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for !paneBooted(m.preview) {
+		if time.Now().After(deadline) {
+			t.Fatal("the selected pane never drew")
+		}
+		time.Sleep(50 * time.Millisecond)
+		m.applyCmd(t, m.refreshCmd())
+	}
+}
+
 // waitForPaneChild waits for a pane to run a named program, which is a
 // step past waitForAgent: a shell counts as busy from the moment it forks,
 // before the child has exec'd the program it was asked for.
 func waitForPaneChild(t *testing.T, m *Model, sessID, name string) {
 	t.Helper()
+	waitForDriverPaneChild(t, m.tmux, sessID, name)
+}
+
+func waitForDriverPaneChild(t *testing.T, driver *tmux.Driver, sessID, name string) {
+	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	var children []string
 	for time.Now().Before(deadline) {
-		if pid, err := m.tmux.PanePID(sessID); err == nil {
+		if pid, err := driver.PanePID(sessID); err == nil {
 			children = sysstat.Trees([]int{pid})[pid].Children
 			for _, child := range children {
 				if filepath.Base(child) == name {
