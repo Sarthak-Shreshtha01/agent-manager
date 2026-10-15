@@ -406,7 +406,7 @@ The values come from the session and the agent, so quote them (`"$AM_BODY"`) and
 agent-manager settings set notify_command 'curl -fsS -H "Title: $AM_TITLE" -H "Tags: $AM_NOTIFY_KIND" -d "$AM_BODY" https://ntfy.sh/your-private-topic'
 ```
 
-On Windows the manager runs the command through PowerShell instead, the shell its panes run, so the variables read as `$env:AM_BODY` and the command is PowerShell:
+On Windows the manager runs the command through PowerShell instead, the shell its panes run, so the variables read as `$env:AM_BODY` and the command is PowerShell. Set it from PowerShell 7.3 or later: Windows PowerShell 5.1 drops the inner double quotes before `agent-manager` receives them.
 
 ```powershell
 agent-manager settings set notify_command 'curl.exe -fsS -H "Title: $env:AM_TITLE" -H "Tags: $env:AM_NOTIFY_KIND" -d "$env:AM_BODY" https://ntfy.sh/your-private-topic'
