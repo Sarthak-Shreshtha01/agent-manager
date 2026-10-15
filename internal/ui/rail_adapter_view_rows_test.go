@@ -5,6 +5,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
@@ -268,7 +269,7 @@ func TestRootRowRefusesGroupEdits(t *testing.T) {
 // Root's rollup counts top-level sessions, not the whole tree.
 func TestRootRollupCountsUngroupedOnly(t *testing.T) {
 	m := shotModel()
-	counts := m.groupStatusCounts(rootGroup)
+	counts := uirail.GroupStatusCounts(m.railAgents(), rootGroup)
 	total := 0
 	for _, n := range counts {
 		total += n

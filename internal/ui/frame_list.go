@@ -10,7 +10,6 @@ const (
 	railGutter    = 2
 	contentGutter = 2
 	railInset     = railGutter - 1
-	shellGlyph    = "❯"
 )
 
 func (m *Model) viewListFrame() string {
@@ -98,77 +97,4 @@ func (m *Model) viewFullListFrame() string {
 		frame = append(frame, paint(line, m.layout.width, backdropHex()))
 	}
 	return m.overlayTopRight(strings.Join(frame, "\n"), m.statusToast(), m.listChromeRows()+1)
-}
-
-func (m *Model) prepareRailFrame(width, height int) {
-	footText := m.railFootLines(width)
-	foot := make([]uirail.Line, len(footText))
-	for i, line := range footText {
-		foot[i].Text = line
-	}
-	rename := uirail.Rename{}
-	if m.mode == modeRename {
-		if m.rename.isGroup {
-			rename.Target = uirail.Selection{Kind: uirail.GroupRow, Group: m.rename.path}
-		} else {
-			rename.Target = uirail.Selection{Kind: uirail.SessionRow, SessionID: m.rename.sessID}
-			if session, ok := m.sessionByID(m.rename.sessID); ok {
-				rename.Target.Group = session.Group
-			}
-		}
-		fieldWidth := width - 4
-		for _, row := range m.rail.Rows() {
-			if row.Selection == rename.Target {
-				fieldWidth -= 3 * row.Depth
-				break
-			}
-		}
-		if fieldWidth >= 5 {
-			m.rename.input.Width = fieldWidth
-		}
-		rename.View = textInputView(m.rename.input)
-	}
-	ctx := uirail.RenderContext{
-		Width:           width,
-		Height:          max(height, 0),
-		TerminalWidth:   m.layout.width,
-		TerminalHeight:  m.layout.height,
-		BodyOriginY:     m.listChromeRows(),
-		Theme:           m.railTheme(),
-		ListKeys:        m.services.listKeys,
-		ComfortableRows: m.prefs.comfortableRows,
-		MouseDisabled:   m.prefs.mouseDisabled,
-		Focused:         m.mode == modeFocus,
-		EnterFocuses:    m.enterFocuses(),
-		StartupPhase:    m.startup.startupPhase,
-		CursorMarker:    cursorAnchorMarker,
-		Rename:          rename,
-		Foot:            foot,
-	}
-	m.layout.displayedRail = m.rail.Render(ctx, m.layout.displayedRail)
-}
-
-func (m *Model) railTheme() uirail.Theme {
-	return uirail.Theme{
-		Bg: current.Bg, Surface: current.Surface, Overlay: current.Overlay, Border: current.Border,
-		Bright: current.Bright, Text: current.Text, Dim: current.Dim, Subtle: current.Subtle,
-		Accent: current.Accent, Accent2: current.Accent2,
-		Working: current.Working, Waiting: current.Waiting, Finished: current.Finished,
-		Errored: current.Errored, Idle: current.Idle,
-	}
-}
-
-func railContentLines(lines []uirail.Line) []contentLine {
-	out := make([]contentLine, len(lines))
-	for i, line := range lines {
-		out[i] = contentLine{text: line.Text, tone: line.Tone, rule: line.Rule, raw: line.Raw}
-	}
-	return out
-}
-
-func (m *Model) overlayRowMenu(frame string) string { return m.layout.displayedRail.Overlay(frame) }
-
-func (m *Model) railLines(width, height int) []contentLine {
-	m.prepareRailFrame(width, height)
-	return railContentLines(m.layout.displayedRail.Lines)
 }

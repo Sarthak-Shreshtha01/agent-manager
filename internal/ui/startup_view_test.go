@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/charmbracelet/x/ansi"
 	"slices"
 	"strings"
@@ -21,7 +22,7 @@ func TestStartingSessionGlyphMovesOnTheStartupTick(t *testing.T) {
 		if first == second {
 			t.Fatalf("starting %s glyph stayed on %q", tool, first)
 		}
-		if second == shellGlyph {
+		if second == uirail.ShellGlyph {
 			t.Fatal("starting shell used the resting shell glyph")
 		}
 	}

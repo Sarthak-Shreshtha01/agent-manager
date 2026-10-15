@@ -94,7 +94,7 @@ func menuSections(sections ...[]menuItem) []menuItem {
 
 func (m Model) groupLiveAndDead(group string) (live, dead bool) {
 	for _, session := range m.snapshot.Sessions {
-		if session.Archived != m.showArchived || !inGroupSubtree(session.Group, group) {
+		if session.Archived != m.showArchived || !InGroupSubtree(session.Group, group) {
 			continue
 		}
 		if session.Status == "dead" {
