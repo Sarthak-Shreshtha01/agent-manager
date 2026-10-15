@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +27,56 @@ import (
 func buildModel(t *testing.T) *Model {
 	t.Helper()
 	return buildModelWithStorePath(t, filepath.Join(t.TempDir(), "state.db"))
+}
+
+// storeTemplate is the database a fresh store.Open leaves behind in an empty
+// directory. Running every schema migration costs a test about half a second
+// under -race, so openTestStore copies this file instead.
+var storeTemplate []byte
+
+func prepareStoreTemplate() (func(), error) {
+	dir, err := os.MkdirTemp("", "amuitest-store-")
+	if err != nil {
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	remove := func() { os.RemoveAll(dir) }
+	path := filepath.Join(dir, "state.db")
+	st, err := store.Open(path)
+	if err != nil {
+		remove()
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	if err := st.Close(); err != nil {
+		remove()
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	// A closed store has folded its WAL back into the file; one left
+	// behind means the file alone is not the whole database.
+	if _, err := os.Stat(path + "-wal"); err == nil {
+		remove()
+		return nil, fmt.Errorf("store template: %s-wal outlived Close", path)
+	}
+	if storeTemplate, err = os.ReadFile(path); err != nil {
+		remove()
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	return remove, nil
+}
+
+// openTestStore opens a store at path, seeding a path that holds nothing yet
+// with the migrated template, which is what Open would have built there.
+func openTestStore(t *testing.T, path string) *store.Store {
+	t.Helper()
+	if _, err := os.Stat(path); os.IsNotExist(err) && storeTemplate != nil {
+		if err := os.WriteFile(path, storeTemplate, 0o600); err != nil {
+			t.Fatalf("seed store: %v", err)
+		}
+	}
+	st, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("store open: %v", err)
+	}
+	return st
 }
 
 func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
@@ -155,10 +206,7 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 			cfg.Tools[name] = tool
 		}
 	}
-	st, err := store.Open(dbPath)
-	if err != nil {
-		t.Fatalf("store open: %v", err)
-	}
+	st := openTestStore(t, dbPath)
 	t.Cleanup(func() { st.Close() })
 
 	driver, err := tmux.NewWithSocket(testSocket)
@@ -357,9 +405,9 @@ func pickGroup(t *testing.T, m *Model, path string) {
 func createSession(t *testing.T, m *Model, name, dir, group string) {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(dir)
-	m.form.toolIndex = 0
+	m.form.SetName(name)
+	m.form.SetDir(dir)
+	setFormTool(m, 0)
 	pickGroup(t, m, group)
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
@@ -402,10 +450,10 @@ func seedRepo(t *testing.T) string {
 func createWorktreeSession(t *testing.T, m *Model, name, repo string) store.Session {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(repo)
-	m.form.toolIndex = 0
-	m.form.worktree = true
+	m.form.SetName(name)
+	m.form.SetDir(repo)
+	setFormTool(m, 0)
+	m.form.SeedWorktree(true)
 	pickGroup(t, m, "")
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
@@ -445,13 +493,29 @@ func sessionNames(m *Model) []string {
 	return names
 }
 
+// shellSettle is how long a pane must stay empty before waitForAgent takes
+// it as left with only its shell. The agent exiting hands the pane to a
+// fresh interactive shell, whose startup files can fork for a while; one
+// empty sample taken before that lands says nothing about the samples a
+// revive takes next, and AgentRunning counts those forks as an agent.
+const shellSettle = 500 * time.Millisecond
+
 // waitForAgent waits for a session's pane to hold an agent, or to be left
-// with only its shell.
+// with only its shell and stay that way for shellSettle.
 func waitForAgent(t *testing.T, m *Model, sessID string, want bool) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
+	var emptySince time.Time
 	for time.Now().Before(deadline) {
-		if running, err := sessioncmd.AgentRunning(m.services.tmux, sessID); err == nil && running == want {
+		running, err := sessioncmd.AgentRunning(m.services.tmux, sessID)
+		switch {
+		case err != nil || running != want:
+			emptySince = time.Time{}
+		case want:
+			return
+		case emptySince.IsZero():
+			emptySince = time.Now()
+		case time.Since(emptySince) >= shellSettle:
 			return
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -465,12 +529,13 @@ func waitForAgent(t *testing.T, m *Model, sessID string, want bool) {
 func createSessionOn(t *testing.T, m *Model, name, tool, dir string) {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(dir)
+	m.form.SetName(name)
+	m.form.SetDir(dir)
 	picked := false
 	for i, candidate := range m.services.cfg.AgentToolNames() {
 		if candidate == tool {
-			m.form.toolIndex, picked = i, true
+			setFormTool(m, i)
+			picked = true
 		}
 	}
 	if !picked {

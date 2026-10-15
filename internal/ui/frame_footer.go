@@ -22,13 +22,7 @@ func (m *Model) viewFooter() string {
 		}})
 	}
 	if m.mode == modeRename {
-		pairs := [][2]string{{"↵", "save"}, {"esc", "cancel"}}
-		if m.rename.isGroup {
-			pairs = [][2]string{{"tab", "name / path"}, {"↵", "save"}, {"esc", "cancel"}}
-		} else if tool := m.rename.tool(); tool != "" {
-			pairs = [][2]string{{"tab", "tool: " + tool}, {"↵", "save"}, {"esc", "cancel"}}
-		}
-		return m.transientFooter(legendSection{title: "Rename", pairs: pairs})
+		return m.transientFooter(legendSection{title: "Rename", pairs: m.rename.Hints()})
 	}
 	// Focused, the keyboard belongs to the agent: the tier says so in its
 	// title, carries the few keys the manager keeps, and drops the app-wide
@@ -102,7 +96,7 @@ func (m *Model) listGlyph(actions ...string) string {
 }
 
 func (m *Model) messagesAlert() (glyph, label string) {
-	if len(m.notices.active(m)) == 0 {
+	if len(m.activeNotices()) == 0 {
 		return "", ""
 	}
 	glyph = m.listGlyph(keybind.Messages)

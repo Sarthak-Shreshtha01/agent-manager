@@ -2,10 +2,15 @@ package ui
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/feed"
+	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
 	"github.com/YoanWai/agent-manager/internal/update"
 	tea "github.com/charmbracelet/bubbletea"
+	"os"
+	"os/exec"
 	"time"
 )
 
@@ -18,8 +23,8 @@ type updateInfo struct {
 	latest         string
 	url            string
 	releases       []update.Release
-	available      update.ReleaseRange
-	installed      update.ReleaseRange
+	available      uinotices.ReleaseRange
+	installed      uinotices.ReleaseRange
 	checked        bool
 	refreshing     bool
 	refreshPending int
@@ -153,7 +158,7 @@ func (m *Model) routeNoticesMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case updateAppliedMsg:
 		m.update.applying = false
 		if len(msg.result.Releases) > 0 {
-			m.notices.keepSelection(m, func() {
+			m.keepNoticeSelection(func() {
 				m.update.latest = msg.result.Latest
 				m.update.url = msg.result.URL
 				m.update.releases = msg.result.Releases
@@ -166,7 +171,7 @@ func (m *Model) routeNoticesMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			return routed(m, nil)
 		}
 		if msg.upToDate {
-			m.notices.keepSelection(m, func() {
+			m.keepNoticeSelection(func() {
 				m.update.latest = ""
 				m.update.url = ""
 				if len(msg.result.Releases) == 0 {
@@ -197,4 +202,79 @@ func (m *Model) routeNoticesMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return routed(m, nil)
 	}
 	return nil, nil, false
+}
+
+// RestartPath is the binary main execs into after the program exits;
+// empty when no self-update happened this run.
+func (m *Model) RestartPath() string { return m.update.restartPath }
+
+// applyUpdate is the self-update seam: tests swap it for a fake instead
+// of downloading a release.
+var applyUpdate = update.Apply
+
+// refreshUpdatesForApply makes u resolve the newest release at action time,
+// even when several releases landed after the notice was first cached.
+var refreshUpdatesForApply = update.Refresh
+
+// detectManager is the install-source seam: tests swap it to steer u
+// between the in-place swap and a delegated package manager.
+var detectManager = update.DetectManager
+
+// applyUpdateCmd routes u by install source. A package-manager install
+// hands the terminal to that manager's upgrade command; a direct install
+// downloads the latest release off the event loop and swaps the running
+// binary. Both report the path to restart into.
+func (m *Model) applyUpdateCmd() tea.Cmd {
+	execPath, err := os.Executable()
+	if err != nil {
+		return func() tea.Msg { return updateAppliedMsg{err: err} }
+	}
+	manager := detectManager(execPath)
+	if manager.Advice != "" {
+		return func() tea.Msg { return updateAppliedMsg{err: errors.New(manager.Advice)} }
+	}
+	if manager.Delegated() {
+		return delegatedUpdateCmd(manager, execPath)
+	}
+	return func() tea.Msg {
+		dir, err := config.Dir()
+		if err != nil {
+			return updateAppliedMsg{err: err}
+		}
+		result, err := refreshUpdatesForApply(context.Background(), dir, m.update.version)
+		if err != nil {
+			return updateAppliedMsg{result: result, err: err}
+		}
+		if result.Latest == "" {
+			return updateAppliedMsg{result: result, upToDate: true}
+		}
+		if err := applyUpdate(context.Background(), result.Latest, execPath); err != nil {
+			return updateAppliedMsg{result: result, err: err}
+		}
+		return updateAppliedMsg{path: execPath, result: result}
+	}
+}
+
+// delegatedUpdateCmd suspends the TUI and runs the manager's upgrade
+// command on the real terminal, so its progress output and any password
+// prompt work as in a plain shell.
+func delegatedUpdateCmd(manager update.Manager, execPath string) tea.Cmd {
+	command := exec.Command(manager.Command[0], manager.Command[1:]...)
+	return execTerminalProcess(command, func(err error) tea.Msg {
+		return delegatedUpdateResult(manager, execPath, err)
+	})
+}
+
+func delegatedUpdateResult(manager update.Manager, execPath string, err error) updateAppliedMsg {
+	if err != nil {
+		return updateAppliedMsg{err: fmt.Errorf("%s: %w", manager.String(), err)}
+	}
+	return updateAppliedMsg{path: update.RestartTarget(execPath)}
+}
+
+func (m *Model) finishNoticeRefresh() {
+	if m.update.refreshPending > 0 {
+		m.update.refreshPending--
+	}
+	m.update.refreshing = m.update.refreshPending > 0
 }

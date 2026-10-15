@@ -16,6 +16,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -201,18 +202,18 @@ func TestCursorBlinks(t *testing.T) {
 func TestSettingsSwapsFocusKey(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if !m.settings.dialog.enterFocuses {
+	if !m.settings.dialog.EnterFocuses {
 		t.Fatal("settings should open with enter focusing")
 	}
 	card := ansi.Strip(m.viewSettings())
 	if !strings.Contains(card, "session keys") {
 		t.Fatalf("settings card has no session keys row:\n%s", card)
 	}
-	for i := 0; i < settingsFieldFocusKey; i++ {
+	for i := 0; i < uisettings.FieldFocusKey; i++ {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	if m.settings.dialog.field != settingsFieldFocusKey {
-		t.Fatalf("stepping down should reach the session keys field, got %d", m.settings.dialog.field)
+	if m.settings.dialog.Field != uisettings.FieldFocusKey {
+		t.Fatalf("stepping down should reach the session keys field, got %d", m.settings.dialog.Field)
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	if !strings.Contains(ansi.Strip(m.viewSettings()), "attach") {
@@ -243,8 +244,8 @@ func TestSwappedKeysRouteActions(t *testing.T) {
 
 	// Swap through the settings screen, the same path a user takes.
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldFocusKey
-	m.settings.cycleSetting(m, 1)
+	m.settings.dialog.Field = uisettings.FieldFocusKey
+	m.cycleSetting(1)
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
 	if chosen, err := m.services.store.Setting(focusKeySetting); err != nil || chosen != "attach" {
@@ -328,7 +329,7 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 	// they take the forked send-keys path.
 	if runtime.GOOS != "windows" {
 		deadline := time.Now().Add(5 * time.Second)
-		for !m.focus.runtime.watch.serving(sess.ID) {
+		for !m.focus.runtime.watch.Serving(sess.ID) {
 			if time.Now().After(deadline) {
 				t.Fatal("focus control client never became ready")
 			}
@@ -1122,23 +1123,22 @@ func TestCaretAtInputStartNeedsCurrentPane(t *testing.T) {
 
 // Keys counted to a polled pane land after the frame the mirror holds, so
 // that frame's caret cannot put Left at the prompt head: a Left typed right
-// behind a word would leave focus instead of moving through it.
+// behind a word would leave focus instead of moving through it. The root
+// asks the watcher whether the frame's write count is the one it counted;
+// the counting itself is the watcher's and is tested there.
 func TestCaretAtInputStartWaitsForQueuedKeys(t *testing.T) {
 	m := caretModel(t, paneCursor{x: 2, y: 0, ok: true}, "❯")
-	watch := newFocusWatch(nil, func(tea.Msg) {})
-	m.focus.runtime.watch = watch
+	m.focus.runtime.watch = newFocusWatch(nil, func(tea.Msg) {})
 	if !m.caretAtInputStart("s1", "claude") {
 		t.Fatal("test setup: the empty prompt's caret is not at its head")
 	}
-	watch.mu.Lock()
-	watch.queued = 1
-	watch.mu.Unlock()
-	if m.caretAtInputStart("s1", "claude") {
-		t.Fatal("a frame taken before a queued key decided the caret")
-	}
 	updateFocusPane(m, "s1", func(update *uifocus.PaneUpdate) { update.Writes = 1 })
+	if m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame whose write count the watcher does not hold decided the caret")
+	}
+	updateFocusPane(m, "s1", func(update *uifocus.PaneUpdate) { update.Writes = 0 })
 	if !m.caretAtInputStart("s1", "claude") {
-		t.Fatal("a frame showing every queued key did not decide the caret")
+		t.Fatal("a frame showing every counted key did not decide the caret")
 	}
 }
 
@@ -1235,8 +1235,8 @@ func TestArrowStepSettingDisablesThePair(t *testing.T) {
 	m.selectSessionRow(t, "optout")
 
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldArrowStep
-	m.settings.cycleSetting(m, 1)
+	m.settings.dialog.Field = uisettings.FieldArrowStep
+	m.cycleSetting(1)
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
 	if chosen, err := m.services.store.Setting(arrowStepSetting); err != nil || chosen != "off" {
@@ -1668,6 +1668,7 @@ func TestFocusModeRemappedReviewAndEditorKeys(t *testing.T) {
 // and without the client the typed text only shows on the poll cadence,
 // a second or more after each key.
 func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
+	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "retype", t.TempDir(), "")
 	m.selectSessionRow(t, "retype")
@@ -1682,11 +1683,27 @@ func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
 
 	m.focus.runtime.watch = newFocusWatch(m.services.tmux, func(tea.Msg) {})
 	t.Cleanup(m.focus.runtime.watch.Close)
-	m.focus.runtime.watch.mu.Lock()
-	m.focus.runtime.watch.failedID, m.focus.runtime.watch.failedAt = sess.ID, time.Now()
-	m.focus.runtime.watch.mu.Unlock()
-	m.focus.runtime.watch.setFocus(sess.ID)
-	if m.focus.runtime.watch.watching() != "" {
+	m.focus.runtime.watch.SetFocus(sess.ID)
+	deadline := time.Now().Add(5 * time.Second)
+	for !m.focus.runtime.watch.Serving(sess.ID) {
+		if time.Now().After(deadline) {
+			t.Fatal("control client never served the session")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// Detaching the control client is a client dying under the watcher,
+	// which puts the session in failure backoff.
+	if out, err := tmuxCmd("detach-client", "-s", "am_"+sess.ID).CombinedOutput(); err != nil {
+		t.Fatalf("detach-client: %v: %s", err, out)
+	}
+	for m.focus.runtime.watch.Watching() == sess.ID {
+		if time.Now().After(deadline) {
+			t.Fatal("the dead client never released its claim")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	m.focus.runtime.watch.SetFocus(sess.ID)
+	if m.focus.runtime.watch.Watching() != "" {
 		t.Fatal("backoff did not hold before the keystroke")
 	}
 
@@ -1696,8 +1713,8 @@ func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
 	if m.errBar.text != "" {
 		t.Fatalf("forwarding set err: %q", m.errBar.text)
 	}
-	if m.focus.runtime.watch.watching() != sess.ID {
-		t.Fatalf("keystroke left the watcher on %q, want %q", m.focus.runtime.watch.watching(), sess.ID)
+	if m.focus.runtime.watch.Watching() != sess.ID {
+		t.Fatalf("keystroke left the watcher on %q, want %q", m.focus.runtime.watch.Watching(), sess.ID)
 	}
 }
 

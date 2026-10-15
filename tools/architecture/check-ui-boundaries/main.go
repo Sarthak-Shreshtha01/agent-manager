@@ -16,17 +16,25 @@ type boundary struct {
 }
 
 var (
-	helpBoundary    = boundary{"Help", "/internal/ui/help", []string{"/internal/ui/help", "/internal/keybind", "/internal/ui/presentation"}}
-	diffBoundary    = boundary{"Diff model", "/internal/diff/model", []string{"/internal/diff/model", "/internal/git/value"}}
-	reviewBoundary  = boundary{"Review", "/internal/ui/review", []string{"/internal/ui/review", "/internal/diff/model", "/internal/git/value", "/internal/ui/presentation"}}
-	focusBoundary   = boundary{"Focus", "/internal/ui/focus", []string{"/internal/ui/focus"}}
-	railBoundary    = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation"}}
-	valueBoundary   = boundary{"Git values", "/internal/git/value", []string{"/internal/git/value"}}
-	presentBoundary = boundary{"Presentation", "/internal/ui/presentation", []string{"/internal/ui/presentation"}}
+	helpBoundary     = boundary{"Help", "/internal/ui/help", []string{"/internal/ui/help", "/internal/keybind", "/internal/ui/presentation"}}
+	diffBoundary     = boundary{"Diff model", "/internal/diff/model", []string{"/internal/diff/model", "/internal/git/value"}}
+	reviewBoundary   = boundary{"Review", "/internal/ui/review", []string{"/internal/ui/review", "/internal/diff/model", "/internal/git/value", "/internal/ui/presentation"}}
+	focusBoundary    = boundary{"Focus", "/internal/ui/focus", []string{"/internal/ui/focus"}}
+	watchBoundary    = boundary{"Focus watch", "/internal/ui/focus/watch", []string{"/internal/ui/focus/watch", "/internal/tmux", "/internal/deps", "/internal/keybind"}}
+	railBoundary     = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation"}}
+	settingsBoundary = boundary{"Settings", "/internal/ui/settings", []string{"/internal/ui/settings", "/internal/keybind", "/internal/ui/presentation", "/internal/ui/theme"}}
+	themeBoundary    = boundary{"Theme", "/internal/ui/theme", []string{"/internal/ui/theme"}}
+	spawnBoundary    = boundary{"Spawn", "/internal/ui/spawn", []string{"/internal/ui/spawn", "/internal/catalog/value", "/internal/ui/presentation"}}
+	quickBoundary    = boundary{"Quick", "/internal/ui/quick", []string{"/internal/ui/quick", "/internal/ui/spawn", "/internal/catalog/value", "/internal/ui/presentation"}}
+	dialogsBoundary  = boundary{"Dialogs", "/internal/ui/dialogs", []string{"/internal/ui/dialogs"}}
+	noticesBoundary  = boundary{"Notices", "/internal/ui/notices", []string{"/internal/ui/notices", "/internal/keybind", "/internal/ui/presentation"}}
+	valueBoundary    = boundary{"Git values", "/internal/git/value", []string{"/internal/git/value"}}
+	catalogBoundary  = boundary{"Catalog values", "/internal/catalog/value", []string{"/internal/catalog/value"}}
+	presentBoundary  = boundary{"Presentation", "/internal/ui/presentation", []string{"/internal/ui/presentation"}}
 )
 
 func main() {
-	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, railBoundary, diffBoundary, valueBoundary, presentBoundary} {
+	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, watchBoundary, railBoundary, settingsBoundary, themeBoundary, spawnBoundary, quickBoundary, dialogsBoundary, noticesBoundary, diffBoundary, valueBoundary, catalogBoundary, presentBoundary} {
 		if err := checkBoundary(feature); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

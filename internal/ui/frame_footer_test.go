@@ -356,7 +356,7 @@ func TestQuickPromptFooterKeys(t *testing.T) {
 	m := shotModel()
 	m.quick.active = true
 	m.quick.input = textarea.New()
-	m.quick.toolNames = []string{"claude"}
+	m.quick.SetTools([]string{"claude"}, 0)
 
 	footerOne := m.viewFooter()
 	if strings.Contains(footerOne, "shift+tab") || strings.Contains(footerOne, "previous tool") {
@@ -366,7 +366,7 @@ func TestQuickPromptFooterKeys(t *testing.T) {
 		t.Errorf("one tool enabled, missing tab pair: %q", footerOne)
 	}
 
-	m.quick.toolNames = []string{"claude", "codex"}
+	m.quick.SetTools([]string{"claude", "codex"}, 0)
 	footerTwo := m.viewFooter()
 	if !strings.Contains(footerTwo, "shift+tab") || !strings.Contains(footerTwo, "previous tool") {
 		t.Errorf("two tools enabled, missing shift+tab pair: %q", footerTwo)

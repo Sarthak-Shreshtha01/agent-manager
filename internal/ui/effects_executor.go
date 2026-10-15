@@ -11,6 +11,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/tmux"
+	focuswatch "github.com/YoanWai/agent-manager/internal/ui/focus/watch"
 )
 
 type effectServices struct {
@@ -27,7 +28,7 @@ type effectServices struct {
 	store                 *store.Store
 	driver                *tmux.Driver
 	runner                *execution.Runner
-	watch                 *focusWatch
+	watch                 *focuswatch.Watcher
 	gitDrv                *git.Driver
 	quickSessionExists    func(*tmux.Driver, string) (bool, error)
 	quickSendText         func(*tmux.Driver, string, string) (tmux.SendResult, error)

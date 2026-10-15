@@ -9,6 +9,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -223,7 +224,7 @@ func (m *Model) remoteRowLegend() legendSection {
 // remoteQuickFacts aims the quick bar's target row at a connection: a
 // remote session it answers, or the connection or remote group it spawns
 // into, with the worktree left to the host until picked.
-func (m *Model) remoteQuickFacts(facts *quickFacts) {
+func (m *Model) remoteQuickFacts(facts *uiquick.Facts) {
 	selection, _ := m.rail.Selected()
 	row, ok := m.ssh.row(selection)
 	if !ok {
@@ -231,14 +232,14 @@ func (m *Model) remoteQuickFacts(facts *quickFacts) {
 	}
 	host := subtleStyle.Render(" on ") + lipgloss.NewStyle().Foreground(colorRemote).Render(row.host)
 	if row.kind == uirail.SessionRow {
-		facts.remote = lipgloss.NewStyle().Foreground(colorBright).Bold(true).Render(escapeControlsInline(row.name)) + host
+		facts.Remote = lipgloss.NewStyle().Foreground(colorBright).Bold(true).Render(escapeControlsInline(row.name)) + host
 		return
 	}
-	facts.remote = lipgloss.NewStyle().Foreground(colorAccent2).Render(escapeControlsInline(displayGroup(row.group))) + host
-	facts.remoteSpawn = true
-	facts.worktreeKnown, facts.worktreeCapable = true, true
-	facts.worktreeOn = m.quick.worktreeTouched && m.quick.worktree
-	facts.worktreeInherit = !m.quick.worktreeTouched
+	facts.Remote = lipgloss.NewStyle().Foreground(colorAccent2).Render(escapeControlsInline(displayGroup(row.group))) + host
+	facts.RemoteSpawn = true
+	facts.WorktreeKnown, facts.WorktreeCapable = true, true
+	facts.WorktreeOn = m.quick.WorktreeTouched() && m.quick.Worktree()
+	facts.WorktreeInherit = !m.quick.WorktreeTouched()
 }
 
 func countNoun(n int, noun string) string {

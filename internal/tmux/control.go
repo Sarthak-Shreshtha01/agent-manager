@@ -98,7 +98,7 @@ var ErrControlUnavailable = errors.New("control mode is not used with " + Binary
 // commands. Where the multiplexer's control client cannot be relied
 // on it fails with ErrControlUnavailable.
 func (d *Driver) OpenControl(id string) (*Control, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), CommandTimeout)
 	defer cancel()
 	return d.OpenControlContext(ctx, id)
 }
@@ -390,7 +390,7 @@ func (c *Control) CloseContext(ctx context.Context) error {
 		if ctx.Err() == nil {
 			return gateErr
 		}
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), CommandTimeout)
 		var cleanupErr error
 		release, cleanupErr = enterGateContext(cleanupCtx, c.socket, false)
 		cleanupCancel()

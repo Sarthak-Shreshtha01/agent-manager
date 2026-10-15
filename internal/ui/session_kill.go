@@ -98,7 +98,7 @@ func (m *Model) sessionWindowProjectedLive(id string) bool {
 // the client going away then is the plan, not a loss to report.
 func (m *Model) unwatch(id string) {
 	if m.focus.runtime.watch != nil {
-		m.focus.runtime.watch.unwatch(id)
+		m.focus.runtime.watch.Unwatch(id)
 	}
 }
 
@@ -111,5 +111,5 @@ func (m *Model) watchedSession() string {
 	if m.focus.runtime.watch == nil {
 		return ""
 	}
-	return m.focus.runtime.watch.watching()
+	return m.focus.runtime.watch.Watching()
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -121,7 +122,7 @@ func TestHostTextCannotDriveTheTerminal(t *testing.T) {
 	m.rail.Focus(uirail.Selection{Kind: uirail.GroupRow, Group: group, Host: "box"})
 	frame("a remote group")
 	m.openForm()
-	m.form.focus = fieldGroup
+	m.form.FocusField(m.spawnHost(), spawn.FieldGroup)
 	frame("the New Session form")
 	m.mode = modeList
 

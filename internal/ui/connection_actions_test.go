@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -30,7 +32,8 @@ func (m *Model) answerRemote(t *testing.T, fake *fakeSSH, cmd tea.Cmd, key strin
 	if calls := fake.taken(); len(calls) != 0 {
 		t.Fatalf("calls before the answer = %q", calls)
 	}
-	return m.confirm.handleKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
+	_, answer := m.handleConfirmKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
+	return answer
 }
 
 func (m *Model) remoteIdle() bool {
@@ -204,10 +207,10 @@ func TestQuickBarSpawnsInARemoteGroup(t *testing.T) {
 	m.rail.Focus(boxGroup)
 	m.openQuickMode()
 	m.quick.input.SetValue("build it")
-	m.runQuickRequest(quickRequest{toggle: true})
+	m.runQuickRequest(uiquick.Request{Toggle: true})
 	_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.runRemoteCmd(t, cmd)
-	want := []string{"spawn", "--json", "--prompt=build it", "--tool=" + m.quick.tool(), "--group=web", "--worktree=true"}
+	want := []string{"spawn", "--json", "--prompt=build it", "--tool=" + m.quick.Tool(), "--group=web", "--worktree=true"}
 	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], want) {
 		t.Fatalf("calls = %q, want %q", calls, want)
 	}
@@ -221,13 +224,13 @@ func TestNewSessionFormSpawnsOnTheConnection(t *testing.T) {
 	m := connectedModel(t, fake)
 	m.rail.Focus(boxGroup)
 	m.openForm()
-	if m.mode != modeForm || !m.form.remote.on() || m.form.groupPath() != "web" || m.form.dir.Value() != "" {
-		t.Fatalf("form = mode %v remote %+v group %q dir %q", m.mode, m.form.remote, m.form.groupPath(), m.form.dir.Value())
+	if m.mode != modeForm || !m.form.remote.on() || m.form.groupPath() != "web" || m.form.Dir() != "" {
+		t.Fatalf("form = mode %v remote %+v group %q dir %q", m.mode, m.form.remote, m.form.groupPath(), m.form.Dir())
 	}
-	if cmd := m.runFormRequest(formRequest{probe: true}, nil); cmd != nil {
+	if cmd := m.runFormRequest(spawn.FormRequest{Probe: true}, nil); cmd != nil {
 		t.Fatal("the form probed a local directory for a remote spawn")
 	}
-	m.form.name.SetValue("job")
+	m.form.SetName("job")
 	_, cmd := m.submitForm()
 	m.runRemoteCmd(t, cmd)
 	calls := fake.taken()
@@ -294,7 +297,7 @@ func TestQuickBarFollowsAMoveTheUserMakes(t *testing.T) {
 	m.rail.Focus(boxSession("s1"))
 	m.openQuickMode()
 	m.quick.input.SetValue("hello there")
-	m.runQuickRequest(quickRequest{move: 1})
+	m.runQuickRequest(uiquick.Request{Move: 1})
 	if selection, _ := m.rail.Selected(); selection.SessionID != "s2" {
 		t.Fatalf("selection = %+v, want s2 below s1", selection)
 	}

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/store"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -169,9 +171,16 @@ func TestKeptSearchTakesNoCrossLevelMoves(t *testing.T) {
 func tallRail(t *testing.T) *Model {
 	t.Helper()
 	m := buildModel(t)
+	dir := t.TempDir()
+	// Autoscroll needs only more rows than the rail is tall; stored rows
+	// paint that tree without forty tmux sessions behind it.
 	for i := 0; i < 40; i++ {
-		createSession(t, m, fmt.Sprintf("s%02d", i), t.TempDir(), "")
+		sess := store.Session{ID: fmt.Sprintf("tall%02d", i), Name: fmt.Sprintf("s%02d", i), Tool: "claude", Cwd: dir, Status: status.Idle}
+		if err := m.services.store.CreateSession(sess); err != nil {
+			t.Fatalf("create %s: %v", sess.Name, err)
+		}
 	}
+	m.applyCmd(t, m.refreshCmd())
 	m.selectSessionRow(t, "s00")
 	return m
 }

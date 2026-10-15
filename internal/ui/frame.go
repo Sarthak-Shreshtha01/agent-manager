@@ -45,15 +45,15 @@ func (m *Model) renderFrame() string {
 	case modeHelp:
 		frame = m.viewHelp()
 	case modeConfirmDelete:
-		frame = m.confirm.view(m)
+		frame = m.viewConfirm()
 	case modeLaunchHint:
 		frame = m.launchHint.view(m)
 	case modeSettings:
 		frame = m.viewSettings()
 	case modeFork:
-		frame = m.fork.view(m)
+		frame = m.viewFork()
 	case modeMove:
-		frame = m.move.view(m)
+		frame = m.viewMove()
 	case modeRepoPick:
 		frame = m.viewRepoPick()
 	case modeGroupForm:
@@ -63,7 +63,7 @@ func (m *Model) renderFrame() string {
 	case modeDiff:
 		frame = m.viewDiffFull()
 	case modeNotices:
-		frame = m.centerOnBackdrop(m.notices.view(m))
+		frame = m.centerOnBackdrop(m.viewNotices())
 	default:
 		frame = m.overlayRowMenu(m.titleTopRowWithUpdate(m.viewListFrame()))
 	}

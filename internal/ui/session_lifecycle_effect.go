@@ -56,7 +56,7 @@ func (s effectServices) runLifecycle(request lifecycleRequest) (effectResult, er
 	reflowErr := s.reflow(ids, func() {
 		if s.watch != nil && (target.action == actionArchive || target.action == actionDelete || target.action == actionKill || target.action == actionRestart) {
 			for _, id := range ids {
-				s.watch.unwatch(id)
+				s.watch.Unwatch(id)
 			}
 		}
 		switch target.action {
@@ -269,7 +269,7 @@ func (m *Model) applyLifecycleEffect(request lifecycleRequest, result lifecycleE
 		}
 	}
 	if len(result.launches) > 0 && m.focus.runtime.watch != nil {
-		m.focus.runtime.watch.retryNow()
+		m.focus.runtime.watch.RetryNow()
 	}
 	m.rewatchSurvivor(request.watched, result.survivor)
 	m.rebuildRows()

@@ -1,5 +1,7 @@
 package focus
 
+import "strings"
+
 const scrollStep = 3
 
 // RegionRequest asks the root watcher adapter for one scrollback viewport.
@@ -65,4 +67,13 @@ func (m *Model) ApplyRegion(result RegionResult, currentSessionID string, curren
 		return RegionOutcome{}
 	}
 	return RegionOutcome{Apply: true, Preview: result.Preview}
+}
+
+// BottomWindow is the rows-high window offset rows up from the bottom of a
+// history capture, in the capture's shape.
+func BottomWindow(capture string, rows, offset int) string {
+	lines := strings.Split(strings.TrimSuffix(capture, "\n"), "\n")
+	end := max(len(lines)-offset, 0)
+	start := max(end-rows, 0)
+	return strings.Join(lines[start:end], "\n") + "\n"
 }

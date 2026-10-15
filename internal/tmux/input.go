@@ -22,7 +22,7 @@ func (d *Driver) SendText(id, text string) error {
 // transport phase began. Callers that own retry policy use the phase to avoid
 // resending text that may already have reached the pane.
 func (d *Driver) SendTextResult(id, text string) (SendResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), CommandTimeout)
 	defer cancel()
 	return d.SendTextContext(ctx, id, text)
 }
@@ -126,7 +126,7 @@ func (d *Driver) SendKeys(id string, keys ...string) error {
 // keystrokes would turn every newline into an Enter press and submit the
 // agent's prompt mid-paste.
 func (d *Driver) Paste(id, text string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), CommandTimeout)
 	defer cancel()
 	return d.PasteContext(ctx, id, text)
 }
@@ -333,7 +333,7 @@ func (d *Driver) pasteContext(ctx context.Context, id, text string) (SendResult,
 // send-keys commands from fixed tokens and hex codes, so whitespace
 // splitting is exact; nothing quoted ever rides through here.
 func (d *Driver) SendRaw(command string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), CommandTimeout)
 	defer cancel()
 	return d.SendRawContext(ctx, command)
 }

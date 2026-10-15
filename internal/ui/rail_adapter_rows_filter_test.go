@@ -432,7 +432,7 @@ func TestForkClearsStatusFilter(t *testing.T) {
 	m.services.cfg.Tools[source.Tool] = tool
 
 	m.openFork()
-	m.fork.name.SetValue("fork-under-filter")
+	m.fork.SetName("fork-under-filter")
 	updated, cmd := m.handleForkKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(*Model)
 	m.applyCmd(t, cmd)

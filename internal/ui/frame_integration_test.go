@@ -1,6 +1,7 @@
 package ui
 
 import (
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -26,10 +27,10 @@ func TestSessionLayoutDefaultsToSplit(t *testing.T) {
 func TestSettingsTogglesSessionLayout(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if m.settings.dialog.fullLayout {
+	if m.settings.dialog.FullLayout {
 		t.Fatal("settings should open on split by default")
 	}
-	for m.settings.dialog.field != settingsFieldSessionLayout {
+	for m.settings.dialog.Field != uisettings.FieldSessionLayout {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
@@ -50,13 +51,13 @@ func TestSettingsToggleChromeIndependently(t *testing.T) {
 		hideHeader bool
 		hideStats  bool
 	}{
-		{name: "header only", field: settingsFieldHeader, hideHeader: true},
-		{name: "stats only", field: settingsFieldStats, hideStats: true},
+		{name: "header only", field: uisettings.FieldHeader, hideHeader: true},
+		{name: "stats only", field: uisettings.FieldStats, hideStats: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := buildModel(t)
 			m.openSettings()
-			if m.settings.dialog.hideHeader || m.settings.dialog.hideStats {
+			if m.settings.dialog.HideHeader || m.settings.dialog.HideStats {
 				t.Fatal("header and stats should show by default")
 			}
 			settings := ansi.Strip(m.viewSettings())
@@ -66,7 +67,7 @@ func TestSettingsToggleChromeIndependently(t *testing.T) {
 				}
 			}
 
-			for m.settings.dialog.field != tc.field {
+			for m.settings.dialog.Field != tc.field {
 				m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 			}
 			m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})

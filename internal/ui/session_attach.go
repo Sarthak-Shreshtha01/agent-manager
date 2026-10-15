@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"strings"
 )
@@ -67,10 +69,14 @@ func (m *Model) copyReplySelected() (tea.Model, tea.Cmd) {
 	}
 	engine, driver := m.services.engine, m.services.tmux
 	return m, func() tea.Msg {
-		if !driver.Exists(sess.ID) {
+		// No caller context reaches a command, so one Driver call's bound
+		// covers the probe and the capture together.
+		ctx, cancel := context.WithTimeout(context.Background(), tmux.CommandTimeout)
+		defer cancel()
+		if !driver.ExistsContext(ctx, sess.ID) {
 			return errMsg{errors.New(deadSessionHint)}
 		}
-		pane, err := driver.CapturePaneHistory(sess.ID, quoteHistoryLines)
+		pane, err := driver.CapturePaneHistoryContext(ctx, sess.ID, quoteHistoryLines)
 		if err != nil {
 			return errMsg{err}
 		}

@@ -178,7 +178,7 @@ func (m *Model) groupStatusBreakdown(group string) string {
 }
 
 func (m *Model) renamingGroup(group string) bool {
-	return m.mode == modeRename && m.rename.isGroup && m.rename.path == group
+	return m.mode == modeRename && m.rename.IsGroup() && m.rename.Path() == group
 }
 
 // Root features read group paths the way Rail does.
@@ -234,11 +234,11 @@ func (m *Model) prepareRailFrame(width, height int) {
 	}
 	rename := uirail.Rename{}
 	if m.mode == modeRename {
-		if m.rename.isGroup {
-			rename.Target = uirail.Selection{Kind: uirail.GroupRow, Group: m.rename.path}
+		if m.rename.IsGroup() {
+			rename.Target = uirail.Selection{Kind: uirail.GroupRow, Group: m.rename.Path()}
 		} else {
-			rename.Target = uirail.Selection{Kind: uirail.SessionRow, SessionID: m.rename.sessID}
-			if session, ok := m.sessionByID(m.rename.sessID); ok {
+			rename.Target = uirail.Selection{Kind: uirail.SessionRow, SessionID: m.rename.SessionID()}
+			if session, ok := m.sessionByID(m.rename.SessionID()); ok {
 				rename.Target.Group = session.Group
 			}
 		}
@@ -249,10 +249,7 @@ func (m *Model) prepareRailFrame(width, height int) {
 				break
 			}
 		}
-		if fieldWidth >= 5 {
-			m.rename.input.Width = fieldWidth
-		}
-		rename.View = textInputView(m.rename.input)
+		rename.View = textInputView(m.rename.NameField(fieldWidth))
 	}
 	ctx := uirail.RenderContext{
 		Width:           width,
@@ -457,7 +454,7 @@ func (m *Model) runRailIntent(intent uirail.Intent) (tea.Model, tea.Cmd) {
 	case uirail.NewGroup:
 		m.openGroupForm()
 	case uirail.Fork:
-		m.fork.open(m)
+		m.openFork()
 	case uirail.Revive:
 		return m.reviveSelected()
 	case uirail.MarkIdle:
@@ -495,7 +492,7 @@ func (m *Model) runRailIntent(intent uirail.Intent) (tea.Model, tea.Cmd) {
 	case uirail.MoveToGroup:
 		m.openMove()
 	case uirail.OpenMessages:
-		m.notices.open(m, "")
+		m.openNotices("")
 	case uirail.OpenHelp:
 		m.openHelp()
 	case uirail.OpenReview:

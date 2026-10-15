@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/termseq"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
+	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -47,7 +49,7 @@ func sameColor(a, b color.Color) bool {
 }
 
 func hexColor(hex string) color.Color {
-	r, g, b := hexRGB(hex)
+	r, g, b := uitheme.HexRGB(hex)
 	return color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 0xff}
 }
 
@@ -182,7 +184,7 @@ func TestColorlessTerminalLeavesTheFrameAsDrawn(t *testing.T) {
 func TestBackgroundSettingAppliesLiveAndPersists(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	for m.settings.dialog.field != settingsFieldBackground {
+	for m.settings.dialog.Field != uisettings.FieldBackground {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	if row := settingsRow(t, m, "background"); !strings.Contains(row, "theme") {
@@ -203,7 +205,7 @@ func TestBackgroundSettingAppliesLiveAndPersists(t *testing.T) {
 	}
 
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldBackground
+	m.settings.dialog.Field = uisettings.FieldBackground
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyLeft})
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)

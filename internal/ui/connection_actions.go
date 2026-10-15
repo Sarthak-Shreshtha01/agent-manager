@@ -6,7 +6,10 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
+	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -108,7 +111,10 @@ func (m *Model) remoteSessionIntent(kind uirail.ActionKind, row remoteRow) (tea.
 
 // remoteConfirm is the act and question a remote lifecycle call asks, the
 // way the same call on a local row does.
-var remoteConfirm = map[remoteOp]struct{ action, verb, consequence string }{
+var remoteConfirm = map[remoteOp]struct {
+	action            uidialogs.ConfirmAction
+	verb, consequence string
+}{
 	remoteKill:          {actionKill, "kill", " frees its RAM there, v revives it."},
 	remoteCloseTerminal: {actionKill, "close terminal", ""},
 	remoteRevive:        {actionRevive, "revive", ""},
@@ -202,7 +208,7 @@ func (m *Model) runRemoteAttach(msg remoteAttachReadyMsg) tea.Cmd {
 // connection: a remote agent gets the prompt as a message, a connection or
 // remote group gets a new agent.
 func (m *Model) remoteQuickKey(msg tea.KeyMsg) (tea.Cmd, bool) {
-	if msg.Type != tea.KeyEnter || m.quick.picking != pickNone {
+	if msg.Type != tea.KeyEnter || m.quick.Picking() != uiquick.PickNone {
 		return nil, false
 	}
 	selection, _ := m.rail.Selected()
@@ -243,9 +249,9 @@ func (m *Model) remoteQuickKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	}
 	group := row.group
 	request.op = remoteSpawn
-	request.spawn = sessioncmd.CreateSessionOptions{Tool: q.tool(), Group: &group, Prompt: text}
-	if q.worktreeTouched {
-		worktree := q.worktree
+	request.spawn = sessioncmd.CreateSessionOptions{Tool: q.Tool(), Group: &group, Prompt: text}
+	if q.WorktreeTouched() {
+		worktree := q.Worktree()
 		request.spawn.Worktree = &worktree
 	}
 	return m.queueRemote(request), true
@@ -291,24 +297,24 @@ func (m *Model) remoteTarget() (formRemote, bool) {
 // remoteFormSpawn turns the New Session form's spawn into the remote
 // call: the tool, name, directory, prompt, choice and an explicit worktree
 // pick go to the host, which resolves the rest.
-func (m *Model) remoteFormSpawn(spawn spawnRequest) tea.Cmd {
-	if len(spawn.images) > 0 {
+func (m *Model) remoteFormSpawn(req spawnRequest) tea.Cmd {
+	if len(req.images) > 0 {
 		m.reportErr(uirail.RemoteRefusal("pasted images"))
 		return nil
 	}
 	target := m.form.remote
 	opts := sessioncmd.CreateSessionOptions{
-		Tool: spawn.toolName, Group: &target.group, Directory: strings.TrimSpace(spawn.rawDir), Prompt: spawn.prompt,
-		Model: spawn.choice.Model, Effort: spawn.choice.Effort, Profile: spawn.choice.Profile,
+		Tool: req.toolName, Group: &target.group, Directory: strings.TrimSpace(req.rawDir), Prompt: req.prompt,
+		Model: req.choice.Model, Effort: req.choice.Effort, Profile: req.choice.Profile,
 	}
-	if !spawn.autoNamed {
-		opts.Name = spawn.name
+	if !req.autoNamed {
+		opts.Name = req.name
 	}
-	if !m.form.worktreeAuto {
-		worktree := spawn.wantWorktree
+	if !m.form.WorktreeAuto() {
+		worktree := req.wantWorktree
 		opts.Worktree = &worktree
 	}
-	return m.queueRemote(remoteRequest{op: remoteSpawn, host: target.host, spawn: opts, composerGen: spawn.composerGen, fromForm: true})
+	return m.queueRemote(remoteRequest{op: remoteSpawn, host: target.host, spawn: opts, composerGen: req.composerGen, fromForm: true})
 }
 
 // formRemote is the connection and group a New Session form spawns into.
@@ -323,28 +329,27 @@ func (d *formDialog) aimRemote(target formRemote) {
 	d.remote = target
 	d.groups = []groupOption{{path: target.group}}
 	d.groupIndex = 0
-	d.dir.SetValue("")
-	d.dir.Placeholder = "the group's directory on " + target.host
-	d.dirAuto = false
-	d.worktree = false
+	d.TakePath("")
+	d.SetDirPlaceholder("the group's directory on " + target.host)
+	d.SeedWorktree(false)
 }
 
 // remoteFormRequest takes the form requests that differ on a connection:
 // the group is fixed, nothing is probed locally, and the spawn goes to the
 // host.
-func (m *Model) remoteFormRequest(request formRequest) (tea.Cmd, bool) {
+func (m *Model) remoteFormRequest(request spawn.FormRequest) (tea.Cmd, bool) {
 	if !m.form.remote.on() {
 		return nil, false
 	}
 	switch {
-	case request.group != 0, request.probe:
+	case request.Group != 0, request.PickGroup, request.Probe:
 		return nil, true
-	case request.toggle:
-		m.form.setWorktree(m.form.worktreeAuto || !m.form.worktree)
+	case request.Toggle:
+		m.form.SetWorktree(m.form.WorktreeAuto() || !m.form.Worktree())
 		return nil, true
-	case request.spawn != nil:
+	case request.Spawn != nil:
 		m.clearErr()
-		return m.remoteFormSpawn(*request.spawn), true
+		return m.remoteFormSpawn(m.formSpawnRequest(*request.Spawn)), true
 	}
 	return nil, false
 }

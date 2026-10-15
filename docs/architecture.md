@@ -12,15 +12,20 @@ Under `internal/`:
 - `cli`, `mcpserver`: translate shell and MCP requests into `sessioncmd` commands.
 - `execution`: UI-free poller and runner: capture, delivery, mailbox, status, notifications.
 - `ui`: the Bubble Tea program. One `Model` routes messages, runs effects, composes the frame.
-- `ui/help`, `ui/review`, `ui/focus`, `ui/rail`: feature packages with private models.
+- `ui/help`, `ui/review`, `ui/focus`, `ui/rail`, `ui/settings`: feature packages with private models.
 - `ui` `connection_*.go`: SSH connections: the dialog, remote rows, polling, preview and routed actions. See [SSH connections](ssh-connections.md).
 - `remote`: drives another host's agent-manager over `ssh`.
-- `ui/presentation`: pure text helpers shared by `ui`, `ui/help`, `ui/review` and `ui/rail`.
+- `ui/spawn`, `ui/quick`: the New Session form with its model choice, and the quick bar; the root keeps their prompt box and runs their spawn.
+- `ui/dialogs`: the confirm, rename, move, fork and launch fix dialogs.
+- `ui/notices`: the messages panel, its notice list and release-note rendering.
+- `ui/focus/watch`: the focused pane's watcher: control-mode client, polled fallback, pushed frames.
+- `ui/theme`: the built-in palettes and color math, a leaf any UI package may import.
+- `ui/presentation`: pure text helpers shared by `ui` and its feature packages.
 - `store`: SQLite state: sessions, groups, settings, inbox, tasks, reservations, delivery guard.
 - `tmux`: the `Driver` on the dedicated socket, the control-mode client, bindings, attach.
 - `status`: classifies pane output into agent states.
 - `config`: built-in tool definitions and CLI install.
-- `catalog`: asks each agent CLI for its models, efforts and profiles.
+- `catalog`: asks each agent CLI for its models, efforts and profiles. `catalog/value`: what it answered.
 - `launch`: builds the shell command and environment for a managed session.
 - `agentsession`, `conversation`, `sessionreport`: find and track the conversation an agent is on.
 - `hooks`: Claude Code hook events written to status files.
@@ -40,10 +45,14 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
 - **Dependency boundaries.** `go run ./tools/architecture/check-ui-boundaries`
   lists each package's transitive production imports and fails on any
   other package of this module. Allowed, besides itself:
-  `ui/help` and `ui/rail` import `keybind` and `ui/presentation`; `ui/review`
-  imports `diff/model`, `git/value` and `ui/presentation`; `diff/model`
-  imports `git/value`; `ui/focus`, `git/value` and `ui/presentation` import
-  nothing from the module. Test imports are not checked.
+  `ui/help`, `ui/rail` and `ui/notices` import `keybind` and
+  `ui/presentation`; `ui/settings` imports `keybind`, `ui/presentation` and
+  `ui/theme`; `ui/review` imports `diff/model`, `git/value` and
+  `ui/presentation`; `ui/spawn` imports `catalog/value` and `ui/presentation`;
+  `ui/quick` imports those and `ui/spawn`; `diff/model` imports `git/value`;
+  `ui/focus/watch` imports `tmux` (with its `deps` and `keybind`); `ui/focus`,
+  `ui/dialogs`, `ui/theme`, `git/value`, `catalog/value` and `ui/presentation`
+  import nothing from the module. Test imports are not checked.
 - **File names.** `go run ./tools/architecture/check-file-names`. Every
   non-test file in `internal/ui` starts with a feature name from the
   `features` map in the tool (plus `keys.go`, `mouse.go`, `updates.go`,
@@ -74,17 +83,18 @@ dispatch; it changes no state.
 
 **Features own state behind narrow hosts, and large ones get child packages.**
 A feature is a type with its state, keys and view, and it reaches the root
-only through a small host interface it declares (`settingsFeature`,
-`quickBar`, `renameDialog`, and the rest in `internal/ui`). A feature moves to a
+only through a small host interface it declares (`groupFormDialog`,
+`pathComplete`, and the rest in `internal/ui`). A feature moves to a
 child package when its inputs and outcomes are narrow enough to enforce with
-`check-ui-boundaries`: Help, Review, Focus and Rail. The child gets copied
+`check-ui-boundaries`: Help, Review, Focus, Rail, Settings, Spawn, Quick, Dialogs and Notices. The child gets copied
 values and returns typed requests; root adapters run the store, tmux and git
 work. There is no shared event bus or effect interpreter, because it would hide
 who owns what. Line counts and field counts do not prove a boundary; the checks
 above do.
 
-**Runtime resources stay with the root.** The tmux control client (`focus_watch.go`),
-the clipboard (`focus_selection.go`, `composer.go`) and the IME cursor
+**Runtime resources stay with the root.** The tmux control client's mechanics
+live in `ui/focus/watch`; the root holds and closes the instance (`focus_watch.go`).
+The clipboard (`focus_adapter.go`, `composer.go`) and the IME cursor
 (`frame_ime.go`) are held and published by `internal/ui`. Feature packages
 see copied pane facts and hand back typed outcomes. That keeps the child packages
 testable without tmux or a terminal, and keeps one place that closes what it

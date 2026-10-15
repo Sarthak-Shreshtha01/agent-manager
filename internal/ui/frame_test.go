@@ -1,6 +1,7 @@
 package ui
 
 import (
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
@@ -52,8 +53,8 @@ func TestZZShot(t *testing.T) {
 	case "settings":
 		m.mode = modeSettings
 		m.settings.dialog = settingsState{
-			toolNames: []string{"claude", "codex", "grok", "opencode"},
-			toolIndex: 0, themeIndex: 1, field: settingsFieldTheme, layoutSplit: true,
+			ToolNames: []string{"claude", "codex", "grok", "opencode"},
+			ToolIndex: 0, ThemeIndex: 1, Field: uisettings.FieldTheme, LayoutSplit: true,
 		}
 		m.update.version = "0.9.2"
 	case "help":
