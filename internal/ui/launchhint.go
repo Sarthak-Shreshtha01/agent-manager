@@ -3,15 +3,14 @@ package ui
 import (
 	"errors"
 	"os"
-	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/clipboard"
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/deps"
 	"github.com/YoanWai/agent-manager/internal/mcpreg"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // launchFix is what the setup-step dialog holds: the text it shows, the
@@ -49,8 +48,8 @@ type launchHintState struct {
 
 // launchHintDialog holds a refused launch's fix: the text, the command
 // that unblocks it, the images the refused prompt named and the install it
-// started. It owns its keys, view and the install request it builds. The
-// root routes launch errors into it, starts that install on the effect lane,
+// started. It builds the install request; the key map and the card are
+// uidialogs.LaunchHint. The root routes launch errors into it, starts that install on the effect lane,
 // and releases the mouse while it is open (syncMouseCapture keys
 // mouse.released on modeLaunchHint) so a drag selects the command.
 type launchHintDialog struct{ launchHintState }
@@ -163,26 +162,26 @@ func dropImages(images []imageAttachment) {
 	}
 }
 
+// prompt is the fix as the dialog shows it; its keys and card are
+// uidialogs.LaunchHint.
+func (d *launchHintDialog) prompt() uidialogs.LaunchHint {
+	return uidialogs.LaunchHint{Text: d.fix.text, Command: d.fix.command}
+}
+
 func (d *launchHintDialog) handleKey(h launchHintHost, msg tea.KeyMsg) tea.Cmd {
-	switch msg.String() {
-	case "ctrl+c":
+	switch d.prompt().Key(msg) {
+	case uidialogs.LaunchHintQuit:
 		cmd := h.quit()
 		return cmd
-	case "c":
-		if d.fix.command == "" {
-			return nil
-		}
+	case uidialogs.LaunchHintCopy:
 		command := d.fix.command
 		return func() tea.Msg {
 			return launchCommandCopiedMsg{err: copyLaunchCommand(command)}
 		}
-	case "i":
-		if d.fix.command == "" {
-			return nil
-		}
+	case uidialogs.LaunchHintInstall:
 		d.startInstall(h)
 		return nil
-	case "esc", "q", "enter":
+	case uidialogs.LaunchHintClose:
 		d.close(h)
 	}
 	return nil
@@ -249,25 +248,7 @@ func (m *Model) settleInstall() {
 
 func (d *launchHintDialog) view(h launchHintHost) string {
 	width := h.cardWidth()
-	inner := cardInnerWidth(width)
 	tone := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-
-	var body strings.Builder
-	for i, paragraph := range strings.Split(d.fix.text, "\n\n") {
-		style := mutedStyle
-		if i == 0 {
-			style = tone
-		}
-		if i > 0 {
-			body.WriteString("\n")
-		}
-		for _, line := range strings.Split(ansi.Wordwrap(paragraph, inner, "-"), "\n") {
-			body.WriteString(style.Render(line) + "\n")
-		}
-	}
-	hint := [][2]string{{"esc", "close"}}
-	if d.fix.command != "" {
-		hint = [][2]string{{"i", "install"}, {"c", "copy"}, {"esc", "close"}}
-	}
-	return h.cardSized(width, "◈ Session needs a setup step", strings.TrimRight(body.String(), "\n"), hint)
+	card := d.prompt().View(cardInnerWidth(width), tone, mutedStyle)
+	return h.cardSized(width, card.Title, card.Body, card.Hints)
 }
