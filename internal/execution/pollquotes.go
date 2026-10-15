@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"context"
 	"errors"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/agentsession"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/tmux"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -37,7 +39,7 @@ func isManagerEcho(line string) bool {
 // anchor scrolled off it, the recovery is the tool's own transcript for
 // Claude Code (which repaints in place, so tmux holds no history for
 // it), and a deeper pane capture for everything else.
-func (p *Runner) rowLines(sess store.Session, pane, dir string) (quote, prompt string) {
+func (p *Runner) rowLines(ctx context.Context, sess store.Session, pane, dir string) (quote, prompt string) {
 	clean := p.engine.Plain(sess.Tool, pane)
 	quote, anchored, ok := p.engine.LastMessage(sess.Tool, clean)
 	if !ok {
@@ -58,7 +60,10 @@ func (p *Runner) rowLines(sess store.Session, pane, dir string) (quote, prompt s
 			prompt = tailPrompt
 		}
 	} else if quoteAdrift || promptAdrift {
-		if deep, err := p.tmux.CapturePaneHistory(sess.ID, quoteHistoryLines); err == nil {
+		captureCtx, cancel := context.WithTimeout(ctx, tmux.CommandTimeout)
+		deep, err := p.tmux.CapturePaneHistoryContext(captureCtx, sess.ID, quoteHistoryLines)
+		cancel()
+		if err == nil {
 			cleanDeep := p.engine.Plain(sess.Tool, deep)
 			if line, anchored, ok := p.engine.LastMessage(sess.Tool, cleanDeep); ok && anchored {
 				quote = line

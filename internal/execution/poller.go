@@ -180,8 +180,11 @@ func (p *Runner) RequestRefresh() {
 
 // Run keeps the newest snapshot while its subscriber is suspended.
 // The first unread error takes priority over later results.
-// Cancellation is observed between steps; tmux calls already in flight finish first.
-func (p *Runner) Run(ctx context.Context) <-chan Result { return p.run(ctx, p.Step) }
+// Cancellation is observed between steps; tmux calls already in flight finish
+// first, except the deep quote capture, which ctx cuts short.
+func (p *Runner) Run(ctx context.Context) <-chan Result {
+	return p.run(ctx, func() Result { return p.step(ctx) })
+}
 
 func (p *Runner) run(ctx context.Context, step func() Result) <-chan Result {
 	results := make(chan Result, 1)
@@ -268,7 +271,10 @@ func StoredPreview(st *store.Store, driver *tmux.Driver, sessID string) (string,
 // call, and every process tree from one ps pass with a second scoped to
 // the pane children, so the poll cost stays flat as sessions are added.
 // runMu serializes the loop with one-off refreshes issued as tea commands.
-func (p *Runner) Step() Result {
+func (p *Runner) Step() Result { return p.step(context.Background()) }
+
+// step is Step bounded by ctx where a call takes one.
+func (p *Runner) step(ctx context.Context) Result {
 	p.runMu.Lock()
 	defer p.runMu.Unlock()
 	if p.stopped {
@@ -437,7 +443,7 @@ func (p *Runner) Step() Result {
 			agentAlive := !stat.OK || stat.Procs > 1
 			followFailures[sess.ID] = p.followConversation(&sessions[i], agentAlive, false)
 			if pane, err := p.tmux.CapturePane(sess.ID); err == nil {
-				paneLastLines[sess.ID], panePrompts[sess.ID] = p.rowLines(sess, pane, panes[sess.ID].Path)
+				paneLastLines[sess.ID], panePrompts[sess.ID] = p.rowLines(ctx, sess, pane, panes[sess.ID].Path)
 				derived, err := p.derivePaneStatus(sess, pane, agentAlive, paneHashes)
 				if err != nil {
 					return Result{Err: err}
