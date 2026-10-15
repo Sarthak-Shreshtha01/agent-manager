@@ -105,7 +105,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install psmux
-        run: cargo install --git https://github.com/psmux/psmux --rev ba490d67bdf19c091ff6e74f6eb0082ab10b2885 psmux
+        run: cargo install psmux --version 3.4.0
       - name: Vet
         run: go vet ./...
       # -race needs cgo on Windows. Each psmux session is its own server and

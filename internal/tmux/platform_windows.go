@@ -3,13 +3,17 @@
 package tmux
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/proctree"
@@ -19,6 +23,82 @@ import (
 // Binary is the multiplexer the manager drives: psmux speaks tmux's command
 // language on Windows.
 const Binary = "psmux"
+
+// psmuxMinimum is the oldest psmux the manager works with: 3.4.0 carries
+// the behaviour the suite runs against and is the first tagged release with
+// one (earlier winget builds, 3.3.x, misbehave and print no psmux version).
+const psmuxMinimum = "3.4.0"
+
+// checkVersion refuses a psmux older than the floor. Cached: tmux.New runs
+// on every subcommand and from the poller, and one probe per process is
+// enough.
+var (
+	versionOnce sync.Once
+	versionErr  error
+)
+
+func checkVersion(bin string) error {
+	versionOnce.Do(func() { versionErr = probePsmuxVersion(bin) })
+	return versionErr
+}
+
+// probePsmuxVersion asks psmux -V, which prints a tmux compatibility line
+// and, from 3.4.0 on, its own version as a second line.
+func probePsmuxVersion(bin string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "-V")
+	cmd.Env = commandEnv()
+	out, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	return parsePsmuxVersion(string(out))
+}
+
+// parsePsmuxVersion compares the psmux line's version against
+// psmuxMinimum. Without a psmux line, or with an unparseable one, the
+// build is an older one: refuse as too old rather than guess.
+func parsePsmuxVersion(out string) error {
+	found := "unknown"
+	for _, line := range strings.FieldsFunc(out, func(r rune) bool { return r == '\n' || r == '\r' }) {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "psmux" {
+			continue
+		}
+		found = fields[1]
+		break
+	}
+	gotMajor, gotMinor, ok := splitVersion(found)
+	wantMajor, wantMinor, _ := splitVersion(psmuxMinimum)
+	if ok && (gotMajor > wantMajor || (gotMajor == wantMajor && gotMinor >= wantMinor)) {
+		return nil
+	}
+	return fmt.Errorf("psmux %s is too old; agent-manager needs psmux %s or newer; upgrade it with: winget upgrade psmux", found, psmuxMinimum)
+}
+
+// splitVersion reads "3.4.0" (any suffix after the first two numbers
+// ignored) as major.minor.
+func splitVersion(s string) (int, int, bool) {
+	dot := strings.Index(s, ".")
+	if dot <= 0 {
+		return 0, 0, false
+	}
+	major, err := strconv.Atoi(s[:dot])
+	if err != nil {
+		return 0, 0, false
+	}
+	rest := s[dot+1:]
+	dot = strings.Index(rest, ".")
+	if dot < 0 {
+		dot = len(rest)
+	}
+	minor, err := strconv.Atoi(rest[:dot])
+	if err != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
+}
 
 // controlFlag attaches a control-mode client. psmux's -C echoes every
 // command back; -CC answers in the plain block protocol tmux -C speaks.

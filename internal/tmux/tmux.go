@@ -137,6 +137,9 @@ func NewWithSocket(socket string) (*Driver, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s not found on PATH: %w\n%s", Binary, err, deps.Hint(Binary))
 	}
+	if err := checkVersion(bin); err != nil {
+		return nil, err
+	}
 
 	return &Driver{bin: bin, socket: socket}, nil
 }

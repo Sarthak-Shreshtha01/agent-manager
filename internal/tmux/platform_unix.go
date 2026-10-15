@@ -33,6 +33,11 @@ func controlUnavailable() error {
 	return nil
 }
 
+// checkVersion gates the multiplexer's own minimum; tmux needs none here.
+func checkVersion(bin string) error {
+	return nil
+}
+
 // ReportsCursorFlag: tmux's #{cursor_flag} says whether the pane's
 // application shows its cursor.
 const ReportsCursorFlag = true
