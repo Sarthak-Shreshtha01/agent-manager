@@ -2,19 +2,16 @@ package ui
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/clipboard"
-	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/sysstat"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -160,64 +157,37 @@ func (m *Model) listedAgents() []store.Session {
 	return agents
 }
 
-func (m *Model) groupSessionCount(path string) int {
-	count := 0
-	for _, sess := range m.listedAgents() {
-		if inGroupSubtree(sess.Group, path) {
-			count++
-		}
+// railAgents copies the identity, group and status a group rollup reads
+// from each listed agent's current record.
+func (m *Model) railAgents() []uirail.Session {
+	listed := m.listedAgents()
+	agents := make([]uirail.Session, len(listed))
+	for i, session := range listed {
+		agents[i] = uirail.Session{ID: session.ID, Group: session.Group, Status: session.Status}
 	}
-	return count
+	return agents
+}
+
+func (m *Model) groupSessionCount(path string) int {
+	return uirail.GroupSessionCount(m.railAgents(), path)
+}
+
+func (m *Model) groupStatusBreakdown(group string) string {
+	return uirail.GroupStatusBreakdown(m.railTheme(), m.railAgents(), group)
 }
 
 func (m *Model) renamingGroup(group string) bool {
 	return m.mode == modeRename && m.rename.isGroup && m.rename.path == group
 }
 
-// groupStatusBreakdown renders "2 working · 1 waiting" for the subtree,
-// each count tinted in its status color, skipping zero statuses.
-func (m *Model) groupStatusBreakdown(group string) string {
-	counts := m.groupStatusCounts(group)
-	var parts []string
-	for _, st := range []string{status.Starting, status.Working, status.Waiting, status.Finished, status.Errored, status.Idle, status.Dead} {
-		if counts[st] > 0 {
-			// The count carries the state's color, the word stays quiet: a
-			// rollup line should read as one texture, not as six labels
-			// competing with the session names above it.
-			parts = append(parts, lipgloss.NewStyle().Foreground(statusColor(st)).
-				Render(fmt.Sprintf("%d", counts[st]))+subtleStyle.Render(" "+st))
-		}
-	}
-	return strings.Join(parts, subtleStyle.Render(" · "))
-}
-
-func (m *Model) groupStatusCounts(group string) map[string]int {
-	counts := map[string]int{}
-	for _, sess := range m.listedAgents() {
-		if inGroupSubtree(sess.Group, group) {
-			counts[sess.Status]++
-		}
-	}
-	return counts
-}
-
+// Root features read group paths the way Rail does.
 func inGroupSubtree(sessionGroup, group string) bool {
-	return sessionGroup == group || strings.HasPrefix(sessionGroup, group+"/")
+	return uirail.InGroupSubtree(sessionGroup, group)
 }
 
-func parentGroup(group string) string {
-	if index := strings.LastIndex(group, "/"); index >= 0 {
-		return group[:index]
-	}
-	return ""
-}
+func parentGroup(group string) string { return uirail.ParentGroup(group) }
 
-func baseName(path string) string {
-	if index := strings.LastIndex(path, "/"); index >= 0 {
-		return path[index+1:]
-	}
-	return path
-}
+func baseName(path string) string { return uirail.BaseName(path) }
 
 func (m *Model) awaitingRename(session store.Session) bool {
 	awaited, ok := m.ledger.awaitedRenames[session.ID]
@@ -252,14 +222,7 @@ func promptPreview(prompt string) string {
 }
 
 func (m *Model) sessionGlyph(session store.Session) string {
-	if session.Status == status.Starting {
-		return lipgloss.NewStyle().Foreground(statusColor(status.Starting)).
-			Render(startupFrames[m.startup.startupPhase%len(startupFrames)])
-	}
-	if m.isShell(session.Tool) && session.Status != status.Dead && session.Status != status.Errored {
-		return subtleStyle.Render(shellGlyph)
-	}
-	return lipgloss.NewStyle().Foreground(statusColor(session.Status)).Render(statusGlyph(session.Status))
+	return uirail.SessionGlyph(m.railTheme(), uirail.Session{Status: session.Status, IsShell: m.isShell(session.Tool)}, m.startup.startupPhase)
 }
 
 func (m *Model) prepareRailFrame(width, height int) {
@@ -335,162 +298,51 @@ func (m *Model) railLines(width, height int) []contentLine {
 	return railContentLines(m.layout.displayedRail.Lines)
 }
 
-// rowLegend is the tier for the entry under the cursor: what this session or
-// this group can be told to do.
+func (m *Model) railLegendContext() uirail.LegendContext {
+	return uirail.LegendContext{
+		ListKeys:      m.services.listKeys,
+		EnterFocuses:  m.enterFocuses(),
+		MouseDisabled: m.prefs.mouseDisabled,
+		ArrowStep:     m.prefs.arrowStep,
+		FullLayout:    m.prefs.fullLayout,
+	}
+}
+
+// rowLegend reads the row from root's current record rather than Rail's
+// last snapshot, so the tier never lags an edit awaiting reconciliation.
 func (m *Model) rowLegend() legendSection {
-	k := m.listGlyph
-	enterHint, attachHint := "focus / fold", "attach"
-	if !m.enterFocuses() {
-		enterHint, attachHint = "attach / fold", "focus"
-	}
-	row, ok := m.selectedRow()
-	if !ok {
-		return legendSection{}
-	}
-	if row.isGroup {
-		foldAction := "fold"
-		if m.rail.IsCollapsed(row.group) {
-			foldAction = "unfold"
-		}
-		pairs := [][2]string{{k(keybind.Open), foldAction}}
-		if !m.prefs.mouseDisabled {
-			pairs = append(pairs, [2]string{"double click", foldAction})
-		}
-		if m.prefs.arrowStep {
-			pairs = append(pairs, m.legendPair(keybind.StepOut, "close", keybind.StepIn, "open"))
-		}
-		pairs = append(pairs, [][2]string{
-			{k(keybind.Editor), "editor"}, {k(keybind.Rename), "rename"}, {k(keybind.Move), "move"},
-			m.legendPair(keybind.Kill, "kill", keybind.KillAll, "all"), m.legendPair(keybind.Revive, "revive", keybind.ReviveAll, "all"),
-			m.archiveRestoreLegend(), {k(keybind.Delete), "delete"},
-		}...)
-		return legendSection{title: "Group", leads: [][2]string{m.quickModeLead()}, pairs: legendPairsBound(pairs)}
-	}
-	title := "Session"
-	leads := [][2]string{m.quickModeLead(), {k(keybind.Review), "review mode"}}
-	hint := ""
-	if k(keybind.Review) != "" {
-		hint = reviewModeHint
-	}
-	conversation := [][2]string{{k(keybind.CopyReply), "copy"}, {k(keybind.Fork), "fork"}}
-	if m.isShell(row.sess.Tool) {
-		// A shell has no conversation, so the keys that would prompt,
-		// review or fork one are left off rather than offered and refused.
-		title, leads, hint, conversation = "Shell", nil, "", nil
-	}
-	pairs := [][2]string{{k(keybind.Open), enterHint}, {k(keybind.Attach), attachHint}}
-	if !m.prefs.mouseDisabled {
-		gesture := "double click"
-		if !m.prefs.fullLayout {
-			gesture = "click"
-		}
-		pairs = append(pairs, [2]string{gesture, "focus"})
-	}
-	if m.prefs.arrowStep {
-		pairs = append(pairs, [2]string{k(keybind.StepIn), "focus"})
-	}
-	if row.sess.Status == status.Finished && !row.sess.Archived {
-		pairs = append(pairs, [2]string{k(keybind.MarkIdle), "mark idle"})
-	}
-	if row.sess.AfterTurn != "" {
-		pairs = append(pairs, [2]string{k(keybind.CancelEnd), "cancel " + row.sess.AfterTurn})
-	}
-	pairs = append(pairs, conversation...)
-	// o sits outside the conversation keys: a shell's directory is worth
-	// opening as much as an agent's.
-	pairs = append(pairs, [][2]string{
-		{k(keybind.Editor), "editor"}, {k(keybind.Rename), "rename"}, {k(keybind.Move), "move"},
-		m.legendPair(keybind.Kill, "kill", keybind.KillAll, "all"), m.legendPair(keybind.Revive, "revive", keybind.ReviveAll, "all"), {k(keybind.Restart), "restart"},
-		m.archiveRestoreLegend(), {k(keybind.Delete), "delete"},
-	}...)
-	return legendSection{title: title, leads: leads, hint: hint, pairs: legendPairsBound(pairs)}
-}
-
-const reviewModeHint = `tell your agent "set review mode"`
-
-func (m *Model) quickModeLead() [2]string {
-	return [2]string{m.listGlyph(keybind.Prompt), "quick prompt mode"}
-}
-
-// archiveRestoreLegend leaves out the key of the pair that no-ops in this view.
-func (m *Model) archiveRestoreLegend() [2]string {
-	if m.rail.ShowArchived() {
-		return [2]string{m.listGlyph(keybind.Restore), "restore"}
-	}
-	return [2]string{m.listGlyph(keybind.Archive), "archive"}
-}
-
-func (m *Model) legendPair(first, firstLabel, second, secondLabel string) [2]string {
-	switch {
-	case m.listGlyph(first) == "":
-		return [2]string{m.listGlyph(second), secondLabel}
-	case m.listGlyph(second) == "":
-		return [2]string{m.listGlyph(first), firstLabel}
-	}
-	return [2]string{m.listGlyph(first, second), firstLabel + " / " + secondLabel}
-}
-
-func legendPairsBound(pairs [][2]string) [][2]string {
-	kept := pairs[:0]
-	for _, pair := range pairs {
-		if pair[0] != "" {
-			kept = append(kept, pair)
+	ctx := m.railLegendContext()
+	if row, ok := m.selectedRow(); ok {
+		ctx.RowOK = true
+		ctx.Row = uirail.Selection{Kind: uirail.GroupRow, Group: row.group}
+		if !row.isGroup {
+			ctx.Row = uirail.Selection{Kind: uirail.SessionRow, SessionID: row.sess.ID, Group: row.sess.Group}
+			ctx.Session = uirail.Session{
+				ID: row.sess.ID, Group: row.sess.Group, Tool: row.sess.Tool, Status: row.sess.Status,
+				Archived: row.sess.Archived, AfterTurn: row.sess.AfterTurn, IsShell: m.isShell(row.sess.Tool),
+			}
 		}
 	}
-	return kept
+	return legendOf(m.rail.RowLegend(ctx))
 }
 
-// viewLegend is the tier that never changes with the cursor: moving around
-// the list, filtering it, and leaving.
 func (m *Model) viewLegend() legendSection {
-	emptyGroupsAction := "hide empty"
-	if m.rail.HideEmptyGroups() {
-		emptyGroupsAction = "show empty"
-	}
-	statusFilterAction := "attention"
-	if m.rail.FilteringAttention() {
-		statusFilterAction = "show all"
-	}
-	archivedAction := "archived"
-	if m.rail.ShowArchived() {
-		archivedAction = "back to active"
-	}
-	foldAllAction := "fold all"
-	if m.rail.AllGroupsCollapsed() {
-		foldAllAction = "unfold all"
-	}
-	// Ordered by what a narrow terminal must keep: unread messages, which
-	// the footer is the only mouse path to, moving around, making
-	// something, the filters, then the keys a user already knows to look for.
-	k := m.listGlyph
-	emptyGroupsKey := k(keybind.EmptyGroups)
-	if m.rail.ShowArchived() {
-		emptyGroupsKey = ""
-	}
-	var alerts [][2]string
+	ctx := m.railLegendContext()
 	if glyph, label := m.messagesAlert(); glyph != "" {
-		alerts = append(alerts, [2]string{glyph, label})
+		ctx.Unread = [2]string{glyph, label}
 	}
-	pairs := [][2]string{
-		{strings.TrimSpace(k(keybind.Up) + " " + k(keybind.Down)), "navigate"},
-		{k(keybind.NewSession), "new"}, {k(keybind.Terminal), "terminal"}, {k(keybind.NewGroup), "group"}, {k(keybind.Search), "search"},
-		{k(keybind.Archived), archivedAction}, {k(keybind.Filter), statusFilterAction}, {emptyGroupsKey, emptyGroupsAction},
-		{k(keybind.Help), "keys"}, {k(keybind.Quit), "quit"},
-		{k(keybind.ReorderUp, keybind.ReorderDown), "reorder"}, {k(keybind.FoldAll), foldAllAction}, {k(keybind.Resize), "resize"}, {k(keybind.Settings), "settings"},
-	}
-	return legendSection{title: "View", quiet: true, alerts: alerts, pairs: legendPairsBound(pairs)}
+	return legendOf(m.rail.ViewLegend(ctx))
 }
 
 func (m *Model) reorderFooter() string {
-	info := m.rail.ReorderInfo()
-	if info.DropLabel != "" {
-		return m.transientFooter(legendSection{title: "Move", pairs: [][2]string{
-			{"release", "move " + info.DropLabel}, {"esc", "put back"},
-		}})
+	return m.transientFooter(legendOf(m.rail.ReorderLegend()))
+}
+
+func legendOf(legend uirail.Legend) legendSection {
+	return legendSection{
+		title: legend.Title, leads: legend.Leads, alerts: legend.Alerts,
+		hint: legend.Hint, pairs: legend.Pairs, quiet: legend.Quiet,
 	}
-	return m.transientFooter(legendSection{title: "Reorder", pairs: [][2]string{
-		{"drag / ↑↓ / wheel", "move"}, {"↵ / release", "drop"}, {"esc", "put back"},
-	}})
 }
 
 func (m *Model) applyRailDecision(decision uirail.Decision) (tea.Model, tea.Cmd) {

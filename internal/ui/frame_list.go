@@ -10,7 +10,6 @@ const (
 	railGutter    = 2
 	contentGutter = 2
 	railInset     = railGutter - 1
-	shellGlyph    = "❯"
 )
 
 func (m *Model) viewListFrame() string {

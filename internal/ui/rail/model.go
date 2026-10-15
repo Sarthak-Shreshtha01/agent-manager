@@ -207,7 +207,7 @@ func (m Model) Rows() []Row {
 			Status:    row.sess.Status,
 		}
 		if row.kind == GroupRow {
-			rows[i].Name = baseName(row.group)
+			rows[i].Name = BaseName(row.group)
 			if row.isRoot() {
 				rows[i].Name = "root"
 			}
@@ -437,7 +437,7 @@ func groupClosure(groups []string, sessions []Session) map[string]bool {
 	add := func(path string) {
 		for path != "" {
 			paths[path] = true
-			path = parentGroup(path)
+			path = ParentGroup(path)
 		}
 	}
 	for _, group := range groups {
@@ -454,7 +454,7 @@ func effectivelyArchived(archived map[string]bool, path string) bool {
 		if archived[path] {
 			return true
 		}
-		path = parentGroup(path)
+		path = ParentGroup(path)
 	}
 	return false
 }
@@ -462,7 +462,7 @@ func effectivelyArchived(archived map[string]bool, path string) bool {
 func addWithAncestors(set map[string]bool, path string) {
 	for path != "" {
 		set[path] = true
-		path = parentGroup(path)
+		path = ParentGroup(path)
 	}
 }
 
@@ -470,7 +470,7 @@ func pathsWithSessions(paths map[string]bool, sessions map[string][]Session) map
 	kept := map[string]bool{}
 	for path := range paths {
 		for group := range sessions {
-			if inGroupSubtree(group, path) {
+			if InGroupSubtree(group, path) {
 				kept[path] = true
 				break
 			}
@@ -486,7 +486,7 @@ func childIndex(paths map[string]bool, ordered []string) map[string][]string {
 	}
 	children := map[string][]string{}
 	for path := range paths {
-		parent := parentGroup(path)
+		parent := ParentGroup(path)
 		children[parent] = append(children[parent], path)
 	}
 	for _, siblings := range children {
@@ -505,21 +505,23 @@ func childIndex(paths map[string]bool, ordered []string) map[string][]string {
 	return children
 }
 
-func parentGroup(group string) string {
+// ParentGroup, BaseName and InGroupSubtree read slash-separated group
+// paths, where "" is the root group.
+func ParentGroup(group string) string {
 	if index := strings.LastIndex(group, "/"); index >= 0 {
 		return group[:index]
 	}
 	return ""
 }
 
-func baseName(path string) string {
+func BaseName(path string) string {
 	if index := strings.LastIndex(path, "/"); index >= 0 {
 		return path[index+1:]
 	}
 	return path
 }
 
-func inGroupSubtree(group, parent string) bool {
+func InGroupSubtree(group, parent string) bool {
 	return group == parent || strings.HasPrefix(group, parent+"/")
 }
 

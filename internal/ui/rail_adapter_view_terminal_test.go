@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/status"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
@@ -43,7 +44,7 @@ func TestRestingShellUsesCaretGlyph(t *testing.T) {
 	shell := spawnTerminal(t, m)
 	setRailSessionStatus(m, shell.ID, status.Idle)
 
-	if rail := m.railFrame(); !strings.Contains(rail, shellGlyph) {
+	if rail := m.railFrame(); !strings.Contains(rail, uirail.ShellGlyph) {
 		t.Fatalf("a resting shell should carry the caret:\n%s", rail)
 	}
 }
@@ -54,13 +55,13 @@ func TestDeadInlineShellKeepsItsStatusGlyph(t *testing.T) {
 	shell := spawnTerminal(t, m)
 	shell.Status = status.Idle
 
-	if glyph := ansi.Strip(m.sessionGlyph(shell)); glyph != shellGlyph {
+	if glyph := ansi.Strip(m.sessionGlyph(shell)); glyph != uirail.ShellGlyph {
 		t.Fatalf("a resting shell wears the caret, got %q", glyph)
 	}
 	for _, gone := range []string{status.Dead, status.Errored} {
 		shell.Status = gone
 		glyph := ansi.Strip(m.sessionGlyph(shell))
-		if glyph == shellGlyph {
+		if glyph == uirail.ShellGlyph {
 			t.Fatalf("a %s shell must not read as resting", gone)
 		}
 		if glyph != statusGlyph(gone) {
@@ -99,7 +100,7 @@ func TestRollupsCountAgentsOnly(t *testing.T) {
 		t.Fatalf("groupSessionCount = %d, want 1 agent", got)
 	}
 	total := 0
-	for _, count := range m.groupStatusCounts("backend") {
+	for _, count := range uirail.GroupStatusCounts(m.railAgents(), "backend") {
 		total += count
 	}
 	if total != 1 {

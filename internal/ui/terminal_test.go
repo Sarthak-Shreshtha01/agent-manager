@@ -18,6 +18,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -519,7 +520,7 @@ func TestAgentRowLegendKeepsTheConversationKeys(t *testing.T) {
 	if legend.title != "Session" {
 		t.Fatalf("legend title = %q, want Session", legend.title)
 	}
-	if !slices.Equal(legend.leads, [][2]string{{"space", "quick prompt mode"}, {"ctrl+r", "review mode"}}) || legend.hint != reviewModeHint {
+	if !slices.Equal(legend.leads, [][2]string{{"space", "quick prompt mode"}, {"ctrl+r", "review mode"}}) || legend.hint != uirail.ReviewModeHint {
 		t.Fatalf("legend should lead with quick prompt mode and review mode, got %q, hint %q", legend.leads, legend.hint)
 	}
 	for _, key := range []string{"y", "f"} {

@@ -414,14 +414,24 @@ func (r renderer) rowHandle(row treeRow, selected bool) string {
 }
 
 func (r renderer) sessionGlyph(session Session) string {
+	return r.palette.sessionGlyph(session, r.ctx.StartupPhase)
+}
+
+// SessionGlyph is the status mark a session's row wears, for root views
+// that name the same session outside the rail.
+func SessionGlyph(theme Theme, session Session, startupPhase int) string {
+	return newPalette(theme).sessionGlyph(session, startupPhase)
+}
+
+func (p palette) sessionGlyph(session Session, startupPhase int) string {
 	if session.Status == "starting" {
-		return lipgloss.NewStyle().Foreground(r.palette.statusColor(session.Status)).
-			Render(startupFrames[r.ctx.StartupPhase%len(startupFrames)])
+		return lipgloss.NewStyle().Foreground(p.statusColor(session.Status)).
+			Render(startupFrames[startupPhase%len(startupFrames)])
 	}
 	if session.IsShell && session.Status != "dead" && session.Status != "errored" {
-		return r.palette.subtle.Render(shellGlyph)
+		return p.subtle.Render(ShellGlyph)
 	}
-	return lipgloss.NewStyle().Foreground(r.palette.statusColor(session.Status)).Render(statusGlyph(session.Status))
+	return lipgloss.NewStyle().Foreground(p.statusColor(session.Status)).Render(statusGlyph(session.Status))
 }
 
 func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guides, trail, background string) string {
@@ -553,7 +563,7 @@ func (r renderer) renderGroup(row treeRow, selected bool, width int, pad, guides
 		marker = "▸"
 	}
 	nameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Accent2)).Bold(true)
-	name := baseName(row.group)
+	name := BaseName(row.group)
 	if selected {
 		nameStyle = nameStyle.Foreground(lipgloss.Color(r.ctx.Theme.Bright))
 	}
@@ -575,12 +585,12 @@ func (r renderer) renderGroup(row treeRow, selected bool, width int, pad, guides
 func (r renderer) groupStatusGlyphs(group string) string {
 	counts := map[string]int{}
 	for _, session := range r.model.listedSessions() {
-		if !session.IsShell && inGroupSubtree(session.Group, group) {
+		if !session.IsShell && InGroupSubtree(session.Group, group) {
 			counts[session.Status]++
 		}
 	}
 	var parts []string
-	for _, state := range []string{"starting", "working", "waiting", "finished", "errored", "idle", "dead"} {
+	for _, state := range rollupStates {
 		if counts[state] == 0 {
 			continue
 		}

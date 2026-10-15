@@ -472,7 +472,7 @@ func (m *Model) RevealGroup(path string) Decision {
 	m.search = ""
 	m.searching = false
 	collapsedChanged := false
-	for ancestor := parentGroup(path); ancestor != ""; ancestor = parentGroup(ancestor) {
+	for ancestor := ParentGroup(path); ancestor != ""; ancestor = ParentGroup(ancestor) {
 		if m.collapsed[ancestor] {
 			delete(m.collapsed, ancestor)
 			collapsedChanged = true
