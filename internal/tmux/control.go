@@ -87,16 +87,12 @@ func (d *Driver) OpenControl(id string) (*Control, error) {
 	if err := controlUnavailable(); err != nil {
 		return nil, err
 	}
-	return d.openControl(id)
-}
-
-func (d *Driver) openControl(id string) (*Control, error) {
 	release, err := enterGate(d.socket, true)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	cmd := d.command(controlFlag, "attach-session", "-t", sessionName(id))
+	cmd := d.command("-C", "attach-session", "-t", sessionName(id))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("control stdin: %w", err)
@@ -264,8 +260,7 @@ func (c *Control) readLoop(stdout io.Reader) {
 	inBlock := false
 	blockTag := ""
 	for scanner.Scan() {
-		// psmux -CC glues its DCS opener to the greeting; tmux -C sends none.
-		line := strings.TrimPrefix(scanner.Text(), "\x1bP1000p")
+		line := scanner.Text()
 		switch {
 		case !inBlock && strings.HasPrefix(line, "%begin "):
 			inBlock = true

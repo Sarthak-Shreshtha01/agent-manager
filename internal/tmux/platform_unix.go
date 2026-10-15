@@ -16,9 +16,6 @@ import (
 // Binary is the multiplexer the manager drives.
 const Binary = "tmux"
 
-// controlFlag attaches a control-mode client.
-const controlFlag = "-C"
-
 // hiddenWindowStatus is a window-status format that draws nothing.
 const hiddenWindowStatus = ""
 

@@ -108,10 +108,6 @@ func splitVersion(s string) (int, int, bool) {
 	return major, minor, true
 }
 
-// controlFlag attaches a control-mode client. psmux's -C echoes every
-// command back; -CC answers in the plain block protocol tmux -C speaks.
-const controlFlag = "-CC"
-
 // firstWindow is the window spec for a session's first window. psmux reads
 // "^" in a target as a window name, so it is named by id instead: each
 // session has its own server, whose window ids start at @1 and are never
