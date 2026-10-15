@@ -217,3 +217,18 @@ func (m *Model) applyReviewEffect(job *effectJob, result reviewEffectResult, err
 	}
 	return nil
 }
+
+func readReviewState(stor *store.Store, sessionID, repoRoot string) (store.ReviewState, error) {
+	state, err := stor.ReviewState(sessionID, repoRoot)
+	if err != nil {
+		return store.ReviewState{}, err
+	}
+	normalized, changed := uireview.NormalizeSavedState(reviewStateFromStore(state))
+	if changed {
+		state = reviewStateToStore(normalized)
+		if err := stor.MergeReviewState(sessionID, repoRoot, state); err != nil {
+			return store.ReviewState{}, err
+		}
+	}
+	return state, nil
+}

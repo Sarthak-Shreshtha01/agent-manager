@@ -37,7 +37,7 @@ func TestReviewCtrlCQuitsFromSubmodes(t *testing.T) {
 		RepoRoot: "/tmp/one", RepoRoots: []string{"/tmp/one", "/tmp/two"}, Set: diff.Set{},
 	})
 	m.openRepoPick()
-	if cmd := m.reviewNav.picker.handleKey(m, tea.KeyMsg{Type: tea.KeyCtrlC}); cmd == nil {
+	if cmd := m.handleRepoPickKey(tea.KeyMsg{Type: tea.KeyCtrlC}); cmd == nil {
 		t.Fatal("ctrl+c should quit while the repo picker is open")
 	}
 }

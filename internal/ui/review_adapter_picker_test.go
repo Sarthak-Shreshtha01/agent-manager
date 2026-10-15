@@ -65,7 +65,7 @@ func TestRepoPickerFiltersAndSelects(t *testing.T) {
 	for _, r := range "alph" {
 		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 	}
-	if got := m.reviewNav.picker.filteredRows(); len(got) != 1 || got[0].label != "alpha" {
+	if got := m.reviewNav.picker.FilteredRows(); len(got) != 1 || got[0].Label != "alpha" {
 		t.Fatalf("filter should narrow to alpha, got %v", got)
 	}
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -119,7 +119,7 @@ func TestBranchPickerListsWorktreesAndSwitches(t *testing.T) {
 	if m.mode != modeRepoPick {
 		t.Fatalf("b should open the branch picker, mode = %v (err=%q)", m.mode, m.errBar.text)
 	}
-	rendered := m.reviewNav.picker.view(m)
+	rendered := m.viewRepoPick()
 	if !strings.Contains(rendered, "feature/pick-me") {
 		t.Fatalf("picker should show the worktree branch, got:\n%s", rendered)
 	}
@@ -185,10 +185,10 @@ func TestBranchPickerSeedsCursorForSymlinkedWorktree(t *testing.T) {
 		t.Fatalf("b should open the branch picker, mode = %v (err=%q)", m.mode, m.errBar.text)
 	}
 	resolvedWorktree, _ := filepath.EvalSymlinks(rawWorktree)
-	rows := m.reviewNav.picker.filteredRows()
+	rows := m.reviewNav.picker.FilteredRows()
 	wantCursor := -1
 	for i, row := range rows {
-		if resolved, _ := filepath.EvalSymlinks(row.root); resolved == resolvedWorktree {
+		if resolved, _ := filepath.EvalSymlinks(row.Root); resolved == resolvedWorktree {
 			wantCursor = i
 			break
 		}
@@ -199,8 +199,8 @@ func TestBranchPickerSeedsCursorForSymlinkedWorktree(t *testing.T) {
 	if wantCursor == 0 {
 		t.Fatal("test setup invalid: declared worktree must not already be row 0")
 	}
-	if m.reviewNav.picker.cursor != wantCursor {
-		t.Fatalf("cursor should seed on the declared worktree row %d, got %d", wantCursor, m.reviewNav.picker.cursor)
+	if m.reviewNav.picker.Cursor() != wantCursor {
+		t.Fatalf("cursor should seed on the declared worktree row %d, got %d", wantCursor, m.reviewNav.picker.Cursor())
 	}
 }
 
@@ -457,11 +457,11 @@ func TestRepoPickerSurvivesShrinkingRootList(t *testing.T) {
 	if m.mode != modeRepoPick {
 		t.Fatalf("r should open the repo picker, mode = %v", m.mode)
 	}
-	for m.reviewNav.picker.cursor != 1 {
+	for m.reviewNav.picker.Cursor() != 1 {
 		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 		*m = *updated.(*Model)
 	}
-	onScreen := m.reviewNav.picker.filteredRows()[m.reviewNav.picker.cursor].root
+	onScreen := m.reviewNav.picker.FilteredRows()[m.reviewNav.picker.Cursor()].Root
 
 	// A reload lands carrying only the repos that still exist, re-ranked.
 	replaceReviewRootsForTest(m, []string{realRoots[1], realRoots[0]}, m.review.Snapshot().RepoSelected)
@@ -473,8 +473,8 @@ func TestRepoPickerSurvivesShrinkingRootList(t *testing.T) {
 	if m.mode != modeDiff {
 		t.Fatalf("enter should return to review, mode = %v", m.mode)
 	}
-	if m.reviewNav.picker.cursor >= len(m.reviewNav.picker.rows) {
-		t.Fatalf("cursor should stay inside the snapshot, got %d", m.reviewNav.picker.cursor)
+	if m.reviewNav.picker.Cursor() >= len(m.reviewNav.picker.Rows()) {
+		t.Fatalf("cursor should stay inside the snapshot, got %d", m.reviewNav.picker.Cursor())
 	}
 	if m.review.Snapshot().RepoSelected != onScreen {
 		t.Fatalf("enter should load the repo on the cursor row %q, got %q", onScreen, m.review.Snapshot().RepoSelected)
@@ -493,7 +493,7 @@ func TestRepoPickerFitsTerminalHeight(t *testing.T) {
 	replaceReviewRootsForTest(m, roots, roots[0])
 	m.openRepoPick()
 
-	view := m.reviewNav.picker.view(m)
+	view := m.viewRepoPick()
 	if lines := len(strings.Split(view, "\n")); lines > m.layout.height {
 		t.Fatalf("picker rendered %d lines, terminal is %d", lines, m.layout.height)
 	}
@@ -510,10 +510,10 @@ func TestRepoPickerFitsTerminalHeight(t *testing.T) {
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	*m = *updated.(*Model)
-	if m.reviewNav.picker.cursor != len(m.review.Snapshot().RepoRoots)-1 {
-		t.Fatalf("up from the top should wrap to the last repo, cursor = %d", m.reviewNav.picker.cursor)
+	if m.reviewNav.picker.Cursor() != len(m.review.Snapshot().RepoRoots)-1 {
+		t.Fatalf("up from the top should wrap to the last repo, cursor = %d", m.reviewNav.picker.Cursor())
 	}
-	view = m.reviewNav.picker.view(m)
+	view = m.viewRepoPick()
 	if lines := len(strings.Split(view, "\n")); lines > m.layout.height {
 		t.Fatalf("picker rendered %d lines at the list end, terminal is %d", lines, m.layout.height)
 	}
@@ -544,8 +544,8 @@ func TestBasePickerPersistsSwitchesScopeAndClears(t *testing.T) {
 		t.Fatalf("B should open the base picker, mode = %v", m.mode)
 	}
 	labels := map[string]bool{}
-	for _, row := range m.reviewNav.picker.rows {
-		labels[row.label] = true
+	for _, row := range m.reviewNav.picker.Rows() {
+		labels[row.Label] = true
 	}
 	if !labels["auto"] || !labels["feature"] {
 		t.Fatalf("picker should list auto and feature, got %v", labels)
@@ -638,8 +638,8 @@ func TestInvalidStoredBaseStillOpensPickerAndRecovers(t *testing.T) {
 		t.Fatalf("B must open the base picker after the load errored, mode = %v (err=%q)", m.mode, m.errBar.text)
 	}
 	labels := map[string]bool{}
-	for _, row := range m.reviewNav.picker.rows {
-		labels[row.label] = true
+	for _, row := range m.reviewNav.picker.Rows() {
+		labels[row.Label] = true
 	}
 	if !labels["auto"] || !labels["feature"] {
 		t.Fatalf("picker should list auto and the refs, got %v", labels)
@@ -663,91 +663,22 @@ func TestInvalidStoredBaseStillOpensPickerAndRecovers(t *testing.T) {
 
 // A picker row names a repo directory or a git ref, and both reach us as raw
 // bytes, so the row has to show a control byte rather than hand it to the
-// terminal.
+// terminal. The cursor row and the one below it paint through different styles.
 func TestRepoPickRowEscapesControlBytes(t *testing.T) {
 	m := &Model{
 		layout: layoutState{width: 120},
 	}
-	row := pickRow{label: "br\x1b]0;P\x07anch", root: filepath.FromSlash("/tmp/re\x1b[2Jpo/leaf")}
+	row := uireview.PickerRow{Label: "br\x1b]0;P\x07anch", Root: filepath.FromSlash("/tmp/re\x1b[2Jpo/leaf")}
+	m.reviewNav.picker.Open([]uireview.PickerRow{row, row}, "⌥ Review branch", uireview.PickRepo, "", uireview.PickerSource{}, "")
 
-	for _, selected := range []bool{false, true} {
-		out := m.reviewNav.picker.row(m, row, selected)
-		if !strings.Contains(out, "br^[]0;P^Ganch") {
-			t.Errorf("selected=%v: label should read as caret notation, got %q", selected, out)
-		}
-		if !strings.Contains(out, filepath.FromSlash("/tmp/re^[[2Jpo")) {
-			t.Errorf("selected=%v: root should read as caret notation, got %q", selected, out)
-		}
-		if stray := strayControl(out); stray != "" {
-			t.Errorf("selected=%v: picker row leaks a control byte near %q", selected, stray)
-		}
+	out := m.viewRepoPick()
+	if got := strings.Count(out, "br^[]0;P^Ganch"); got != 2 {
+		t.Errorf("both labels should read as caret notation, got %d in %q", got, out)
 	}
-}
-
-// fakeRepoPickerHost is everything the picker reaches: the review identity
-// check, the two root effects a choice starts, and dialog chrome.
-type fakeRepoPickerHost struct {
-	mode      mode
-	errs      []string
-	cleared   int
-	quits     int
-	stale     bool
-	repo      string
-	base      string
-	cardTitle string
-}
-
-func (h *fakeRepoPickerHost) setMode(next mode)     { h.mode = next }
-func (h *fakeRepoPickerHost) clearErr()             { h.cleared++ }
-func (h *fakeRepoPickerHost) reportErr(text string) { h.errs = append(h.errs, text) }
-func (h *fakeRepoPickerHost) quit() tea.Cmd {
-	h.quits++
-	return func() tea.Msg { return nil }
-}
-func (h *fakeRepoPickerHost) reviewPickerSourceCurrent(reviewPickerSource) bool { return !h.stale }
-func (h *fakeRepoPickerHost) selectRepo(root string) tea.Cmd                    { h.repo = root; return nil }
-func (h *fakeRepoPickerHost) selectBase(ref string) tea.Cmd                     { h.base = ref; return nil }
-func (h *fakeRepoPickerHost) size() (int, int)                                  { return 80, 30 }
-func (h *fakeRepoPickerHost) cardWidth() int                                    { return 60 }
-func (h *fakeRepoPickerHost) card(title, body string, _ [][2]string) string {
-	h.cardTitle = title
-	return body
-}
-
-func TestRepoPickerRunsOnANarrowHost(t *testing.T) {
-	h := &fakeRepoPickerHost{mode: modeDiff}
-	var p repoPicker
-	rows := []pickRow{{label: "alpha", root: "/w/alpha"}, {label: "beta", root: "/w/beta"}, {label: "gamma", root: "/w/gamma"}}
-	p.open(h, rows, "⌥ Review repo", pickRepo, "/w/beta", reviewPickerSource{targetID: "s1"}, "")
-	if h.mode != modeRepoPick || h.cleared != 1 || p.cursor != 1 {
-		t.Fatalf("open: mode=%v cleared=%d cursor=%d", h.mode, h.cleared, p.cursor)
+	if got := strings.Count(out, filepath.FromSlash("/tmp/re^[[2Jpo")); got != 2 {
+		t.Errorf("both roots should read as caret notation, got %d in %q", got, out)
 	}
-	if view := p.view(h); h.cardTitle != "⌥ Review repo" || !strings.Contains(view, "gamma") {
-		t.Fatalf("view: title=%q\n%s", h.cardTitle, view)
-	}
-
-	p.handleKey(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("mm")})
-	if got := p.filteredRows(); len(got) != 1 || got[0].label != "gamma" {
-		t.Fatalf("filter rows = %v", got)
-	}
-	p.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if h.repo != "/w/gamma" || h.mode != modeDiff {
-		t.Fatalf("enter: repo=%q mode=%v", h.repo, h.mode)
-	}
-
-	p.open(h, []pickRow{{label: "auto"}, {label: "main", root: "main"}}, "⌥ Diff base", pickBase, "", reviewPickerSource{}, "/w/alpha")
-	p.handleKey(h, tea.KeyMsg{Type: tea.KeyDown})
-	h.stale = true
-	p.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if h.base != "" || len(h.errs) != 1 || h.mode != modeDiff {
-		t.Fatalf("stale enter: base=%q errs=%v mode=%v", h.base, h.errs, h.mode)
-	}
-	h.stale = false
-	p.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if h.base != "main" {
-		t.Fatalf("base enter chose %q", h.base)
-	}
-	if cmd := p.handleKey(h, tea.KeyMsg{Type: tea.KeyCtrlC}); cmd == nil || h.quits != 1 {
-		t.Fatal("ctrl+c did not ask the host to quit")
+	if stray := strayControl(out); stray != "" {
+		t.Errorf("picker row leaks a control byte near %q", stray)
 	}
 }
