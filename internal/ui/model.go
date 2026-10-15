@@ -368,6 +368,9 @@ type paneMirror struct {
 	columnX int
 	cursor  paneCursor
 	geom    map[string][2]int
+	// writes is how many queued writes the pushed capture shows; see
+	// focusWatch.caughtUp.
+	writes uint64
 	// pids is the pane process each geom entry was measured on, so a pane
 	// replaced by a relaunch can be told from the one the manager sized.
 	pids map[string]int
@@ -719,18 +722,35 @@ type typedPromptCandidate struct {
 // working before it is judged a menu enter and dropped.
 const typedPromptGrace = 5 * time.Second
 
+// typedPromptMsg carries a draft read as enter went into the focused pane
+// from behind the watcher's write queue.
+type typedPromptMsg struct{ candidate typedPromptCandidate }
+
 // stashTypedPrompt snapshots the composer draft as enter goes into the
 // focused pane, from a fresh capture so the newest keystrokes are in it.
+// Behind a polling watcher the capture queues after the keystrokes still
+// in flight, which is the only way it reads them.
 func (m *Model) stashTypedPrompt(sess store.Session) {
 	if m.engine == nil || m.tmux == nil {
 		return
 	}
-	pane, err := m.tmux.CapturePane(sess.ID)
-	if err != nil {
+	driver, engine := m.tmux, m.engine
+	read := func() tea.Msg {
+		pane, err := driver.CapturePane(sess.ID)
+		if err != nil {
+			return nil
+		}
+		draft, ok := engine.InputDraft(sess.Tool, ansi.Strip(pane))
+		if !ok {
+			return nil
+		}
+		return typedPromptMsg{typedPromptCandidate{id: sess.ID, text: draft, at: time.Now()}}
+	}
+	if m.focus != nil && m.focus.queue(sess.ID, read) {
 		return
 	}
-	if draft, ok := m.engine.InputDraft(sess.Tool, ansi.Strip(pane)); ok {
-		m.pendingTyped = &typedPromptCandidate{id: sess.ID, text: draft, at: time.Now()}
+	if typed, ok := read().(typedPromptMsg); ok {
+		m.pendingTyped = &typed.candidate
 	}
 }
 
@@ -1829,6 +1849,10 @@ func (m *Model) handleMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case typedPromptMsg:
+		m.pendingTyped = &msg.candidate
+		return m, nil
+
 	case focusPreviewMsg:
 		sess, ok := m.selected()
 		if !ok || sess.ID != msg.sessID {
@@ -1858,6 +1882,7 @@ func (m *Model) handleMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 			x: msg.cursorX, y: msg.cursorY,
 			ok: msg.cursorOK, positionOK: msg.paneStateOK,
 		}
+		m.pane.writes = msg.writes
 		return m, nil
 
 	case previewMsg:

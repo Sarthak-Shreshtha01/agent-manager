@@ -488,10 +488,9 @@ func plainCells(row string) []rune {
 }
 
 // A capture taken by the slower poll path must not repaint over a frame
-// the control client just pushed: that race is what makes typed
-// characters blink in and out while focused.
+// the watcher just pushed: that race is what makes typed characters blink
+// in and out while focused.
 func TestPushedPreviewWinsOverStalePoll(t *testing.T) {
-	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "typing", t.TempDir(), "")
 	m.selectSessionRow(t, "typing")

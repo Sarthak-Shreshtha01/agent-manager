@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -73,10 +74,15 @@ func enterGate(socket string, exclusive bool) (release func(), err error) {
 	}, nil
 }
 
+// ErrControlUnavailable is OpenControl's answer where the multiplexer's
+// control client cannot be relied on. It is a property of the platform,
+// not of one session, so callers poll forked captures instead of retrying.
+var ErrControlUnavailable = errors.New("control mode is not used with " + Binary)
+
 // OpenControl attaches a control-mode client to a live session. It returns
 // once tmux has greeted the client or the client has exited. Where the
-// multiplexer's control client cannot be relied on it fails, and callers
-// poll captures instead.
+// multiplexer's control client cannot be relied on it fails with
+// ErrControlUnavailable.
 func (d *Driver) OpenControl(id string) (*Control, error) {
 	if err := controlUnavailable(); err != nil {
 		return nil, err

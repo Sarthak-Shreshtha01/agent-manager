@@ -69,7 +69,7 @@ The script installs `agent-manager.exe` to `%LOCALAPPDATA%\Programs\agent-manage
 
 Differences from macOS and Linux:
 
-- Each session runs on its own psmux server. Previews poll the pane rather than streaming it, since the manager does not use psmux's control mode.
+- Each session runs on its own psmux server. The manager does not use psmux's control mode, so previews poll the pane rather than streaming it, and a focused session is captured again as each typed key lands. psmux does not report whether a program hides its cursor, so the focused view draws the caret wherever the pane's cursor sits.
 - Inside an attached session, the review and editor keys detach through a short PowerShell `run-shell`, so they take a moment longer than on tmux.
 - Command Code (`cmd`) shares its name with `cmd.exe` and is not supported natively.
 

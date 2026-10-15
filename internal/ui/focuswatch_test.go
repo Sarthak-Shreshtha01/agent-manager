@@ -37,9 +37,9 @@ func skipControlMode(t *testing.T) {
 }
 
 // The watcher pushes a fresh preview when the pane paints, with no tick
-// asking for it.
+// asking for it: pushed over the control client, or polled where there is
+// none.
 func TestFocusWatchPushesPaneUpdates(t *testing.T) {
-	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "focus" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
@@ -462,7 +462,6 @@ func TestFocusWatchBacksOffAfterFailure(t *testing.T) {
 // an unquoted tmux format silently answers with tmux's default status
 // message instead, which is exactly how the cursor went missing.
 func TestFocusWatchReportsCursor(t *testing.T) {
-	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "cur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
@@ -507,7 +506,9 @@ func TestFocusWatchReportsCursor(t *testing.T) {
 }
 
 func TestFocusWatchHonorsHiddenCursor(t *testing.T) {
-	skipControlMode(t)
+	if !tmux.ReportsCursorFlag {
+		t.Skip(tmux.Binary + " does not report whether the cursor shows")
+	}
 	skipPOSIXShell(t)
 	driver := requireFocusDriver(t)
 	id := "hidecur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
@@ -573,9 +574,11 @@ func TestApplyPaneState(t *testing.T) {
 		t.Fatalf("plain pane state = %+v", plain)
 	}
 
+	// A multiplexer that never reports the flag leaves the position as the
+	// caret: hiding it on a constant 0 would hide every caret.
 	var hidden focusPreviewMsg
 	applyPaneState(&hidden, "7,8,0,000,0,0,0,0")
-	if !hidden.paneStateOK || hidden.cursorOK || hidden.cursorX != 7 || hidden.cursorY != 8 {
+	if !hidden.paneStateOK || hidden.cursorOK != !tmux.ReportsCursorFlag || hidden.cursorX != 7 || hidden.cursorY != 8 {
 		t.Fatalf("hidden cursor pane state = %+v, want its coordinates kept", hidden)
 	}
 
@@ -630,9 +633,9 @@ func TestControlCaptureKeepsTrailingBlankRows(t *testing.T) {
 
 // A client that dies under the watcher is reported, not swallowed: the
 // preview silently dropping to the poll cadence reads as the manager
-// lagging, with nothing on screen saying why.
+// lagging, with nothing on screen saying why. A polled watcher's capture
+// failing is the same loss.
 func TestFocusWatchReportsALostClient(t *testing.T) {
-	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "lost" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
@@ -646,8 +649,8 @@ func TestFocusWatchReportsALostClient(t *testing.T) {
 	watch.setFocus(id)
 	waitFocusPreview(t, msgs, id, "")
 
-	// Killing the session detaches its control client out from under the
-	// watcher, which is one of the ways the client goes away in use.
+	// Killing the session pulls the pane out from under the watcher, which
+	// is one of the ways the client goes away in use.
 	driver.Kill(id)
 	deadline := time.After(5 * time.Second)
 	for {
@@ -696,5 +699,61 @@ func TestFocusWatchSkipsMissingSession(t *testing.T) {
 	case msg := <-msgs:
 		t.Fatalf("missing session produced a notification: %#v", msg)
 	default:
+	}
+}
+
+// Forked writes to a polled pane run off the update loop, so whatever is
+// typed next must queue behind the writes still in flight, even once the
+// watcher has let go of the pane: keystrokes reordered on the way into a
+// composer are a different prompt. An idle queue refuses the write for a
+// pane no watcher polls, leaving it to run in order with the control pipe.
+func TestFocusWatchQueuesWritesInOrder(t *testing.T) {
+	watch := newFocusWatch(nil, func(tea.Msg) {})
+	watch.mu.Lock()
+	watch.id, watch.polled = "s1", true
+	watch.mu.Unlock()
+
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var landed []string
+	write := func(name string, hold bool) tea.Cmd {
+		return func() tea.Msg {
+			if hold {
+				<-release
+			}
+			mu.Lock()
+			landed = append(landed, name)
+			mu.Unlock()
+			return nil
+		}
+	}
+	if !watch.queue("s1", write("key", true)) {
+		t.Fatal("the polled watcher refused a write")
+	}
+	watch.Close()
+	if !watch.queue("s1", write("paste", false)) {
+		t.Fatal("a write made while another was in flight was left to run around the queue")
+	}
+	close(release)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		watch.mu.Lock()
+		writing := watch.writing
+		watch.mu.Unlock()
+		if !writing {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the queue never drained")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Equal(landed, []string{"key", "paste"}) {
+		t.Fatalf("writes landed as %v, want key then paste", landed)
+	}
+	if watch.queue("s1", write("late", false)) {
+		t.Fatal("an idle queue took a write for a pane no watcher polls")
 	}
 }
