@@ -310,7 +310,9 @@ func (d *Driver) startSession(id, cwd string, width, height int, scriptPath stri
 		if err != nil {
 			return err
 		}
-		args = append(args, "--", shell, "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+		scriptQuoted := pwsh.Quote(scriptPath)
+		args = append(args, "--", shell, "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass",
+			"-Command", "$PSNativeCommandArgumentPassing = 'Standard'; & " + scriptQuoted)
 	}
 	if _, err := d.run(args...); err != nil {
 		return err
@@ -395,7 +397,7 @@ func writeLaunchScript(id string, env map[string]string, command, colorFgBg stri
 	if colorFgBg != "" {
 		header = "$env:COLORFGBG = " + ShellQuote(colorFgBg) + "\n"
 	}
-	body := header + exportLines(env) + command + "\n" +
+	body := "$PSNativeCommandArgumentPassing = 'Standard'\n" + header + exportLines(env) + command + "\n" +
 		"Write-Host " + ShellQuote(relaunchHint) + "\n"
 	if err := os.WriteFile(path, pwsh.ScriptFile(body), 0o600); err != nil {
 		return "", fmt.Errorf("launch script: %w", err)
