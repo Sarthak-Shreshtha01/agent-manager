@@ -25,7 +25,9 @@ func TestHoldRunningHelper(t *testing.T) {
 
 // A running executable is mapped with rename sharing but not delete or
 // overwrite, so the target has to be a live process image: a plain os.Open
-// handle forbids the rename too and would not model the update.
+// handle forbids the rename too and would not model the update. The first
+// manager outlives a restart as the new one's parent, so a second update
+// runs while the first binary moved aside is still locked.
 func TestApplySwapsARunningBinaryAside(t *testing.T) {
 	self, err := os.Executable()
 	if err != nil {
@@ -53,10 +55,11 @@ func TestApplySwapsARunningBinaryAside(t *testing.T) {
 	if err := running.Start(); err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
+	stopRunning := func() {
 		stdin.Close()
 		running.Wait()
-	}()
+	}
+	defer stopRunning()
 
 	if err := Apply(context.Background(), "v9.9.9", target); err != nil {
 		t.Fatalf("apply over a running binary: %v", err)
@@ -68,11 +71,39 @@ func TestApplySwapsARunningBinaryAside(t *testing.T) {
 	if !bytes.Equal(swapped, newBinary) {
 		t.Fatalf("binary not swapped, got %d bytes", len(swapped))
 	}
-	aside, err := os.ReadFile(target + ".old")
+	aside := asideBinaries(t, target)
+	if len(aside) != 1 {
+		t.Fatalf("binaries moved aside = %v, want one", aside)
+	}
+	held, err := os.ReadFile(aside[0])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(aside, oldBinary) {
-		t.Fatal("old binary should sit at target.old")
+	if !bytes.Equal(held, oldBinary) {
+		t.Fatal("the running binary should sit beside the target")
 	}
+
+	if err := Apply(context.Background(), "v9.9.9", target); err != nil {
+		t.Fatalf("a second update while the first old binary still runs: %v", err)
+	}
+	if got := asideBinaries(t, target); len(got) != 2 || got[0] != aside[0] {
+		t.Fatalf("binaries moved aside = %v, want the running one kept and one more", got)
+	}
+
+	stopRunning()
+	if err := Apply(context.Background(), "v9.9.9", target); err != nil {
+		t.Fatalf("a third update: %v", err)
+	}
+	if got := asideBinaries(t, target); len(got) != 1 || got[0] == aside[0] {
+		t.Fatalf("binaries moved aside = %v, want only the latest once nothing runs the older ones", got)
+	}
+}
+
+func asideBinaries(t *testing.T, target string) []string {
+	t.Helper()
+	matches, err := filepath.Glob(target + ".old-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return matches
 }

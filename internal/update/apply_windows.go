@@ -3,10 +3,11 @@
 package update
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
 )
 
 const (
@@ -14,16 +15,14 @@ const (
 	binaryName = "agent-manager.exe"
 )
 
-// swapBinary moves target aside to target.old and staged into its place:
-// Windows lets a running executable be renamed but not replaced or deleted.
-// The .old left by the previous update goes first; it stays locked while an
-// agent-manager started before that update still runs from it.
+// swapBinary moves target aside and staged into its place: Windows lets a
+// running executable be renamed but not replaced or deleted. A binary moved
+// aside stays locked while a manager started from it runs, and a restart
+// keeps the old manager alive as the new one's parent, so each update moves
+// target to a name of its own instead of reusing one still in use.
 func swapBinary(staged, target string) error {
-	old := target + ".old"
-	if err := os.Remove(old); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		os.Remove(staged)
-		return fmt.Errorf("update: %s.old is still in use; close other agent-manager windows and retry: %w", target, err)
-	}
+	removeAsideBinaries(target)
+	old := fmt.Sprintf("%s.old-%d", target, time.Now().UnixNano())
 	if err := os.Rename(target, old); err != nil {
 		os.Remove(staged)
 		return err
@@ -34,4 +33,20 @@ func swapBinary(staged, target string) error {
 		return err
 	}
 	return nil
+}
+
+// removeAsideBinaries deletes what earlier updates moved aside. One that a
+// running manager still holds refuses the delete and waits for a later
+// update.
+func removeAsideBinaries(target string) {
+	entries, err := os.ReadDir(filepath.Dir(target))
+	if err != nil {
+		return
+	}
+	prefix := filepath.Base(target) + ".old"
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), prefix) {
+			os.Remove(filepath.Join(filepath.Dir(target), entry.Name()))
+		}
+	}
 }
