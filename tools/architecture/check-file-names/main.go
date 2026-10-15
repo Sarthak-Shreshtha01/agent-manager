@@ -46,12 +46,12 @@ var features = map[string]string{
 	"rename":       "the rename dialog",
 	"review":       "the Review adapter",
 	"session":      "session lifecycle: launch, attach, kill, revive, archive, delete, restart, editor",
-	"settings":     "the Settings dialog, key bindings and editor row",
+	"settings":     "the Settings adapter, its store lane and the spawn defaults it holds",
 	"spawn":        "the New Session form, model choice, spawn preflight and worktree probe",
 	"startup":      "startup greeting and banner",
 	"status":       "the status bar and toasts",
 	"terminal":     "terminal handoff and link pages",
-	"theme":        "themes, styles, surfaces and the stored theme",
+	"theme":        "live styles, surfaces and the stored theme",
 	"workspace":    "polling, refresh and what the last poll returned",
 }
 
