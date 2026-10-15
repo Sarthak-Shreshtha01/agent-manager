@@ -176,11 +176,11 @@ func (p Picker) row(s Styles, inner int, row PickerRow, selected bool) string {
 		marker = lipgloss.NewStyle().Foreground(s.Accent).Render("❯ ")
 		nameStyle = nameStyle.Foreground(s.Accent).Bold(true)
 	}
-	name := truncateTail(presentation.EscapeControlsInline(row.Label), inner-lipgloss.Width(marker))
+	name := presentation.TruncateTail(presentation.EscapeControlsInline(row.Label), inner-lipgloss.Width(marker))
 	budget := inner - lipgloss.Width(marker) - lipgloss.Width(name) - 2
 	dir := ""
 	if budget > 1 {
-		dir = s.Subtle.Render("  " + truncateTail(presentation.EscapeControlsInline(filepath.Dir(row.Root)), budget))
+		dir = s.Subtle.Render("  " + presentation.TruncateTail(presentation.EscapeControlsInline(filepath.Dir(row.Root)), budget))
 	}
 	return marker + nameStyle.Render(name) + dir
 }
@@ -203,19 +203,4 @@ func (p Picker) Body(ctx RenderContext, inner, height int) string {
 		body.WriteString(s.Subtle.Render(fmt.Sprintf("+%d more", hidden)) + "\n")
 	}
 	return strings.TrimRight(body.String(), "\n")
-}
-
-// truncateTail keeps the end of the string (best for paths).
-func truncateTail(s string, max int) string {
-	runes := []rune(s)
-	if max <= 0 {
-		return ""
-	}
-	if len(runes) <= max {
-		return s
-	}
-	if max == 1 {
-		return "…"
-	}
-	return "…" + string(runes[len(runes)-max+1:])
 }

@@ -53,3 +53,20 @@ func TestWindowClampsAndMarksHiddenContent(t *testing.T) {
 		t.Fatalf("one-row window = %q", got)
 	}
 }
+
+func TestTruncateTailRuneSafe(t *testing.T) {
+	hebrew := "/home/dev/פרויקטים/agent-manager"
+	tail := TruncateTail(hebrew, 10)
+	if !strings.HasPrefix(tail, "…") || len([]rune(tail)) != 10 {
+		t.Fatalf("TruncateTail broken: %q (%d runes)", tail, len([]rune(tail)))
+	}
+	if TruncateTail("short", 10) != "short" {
+		t.Fatal("short strings should pass through")
+	}
+	if got := TruncateTail("abcdef", 1); got != "…" {
+		t.Fatalf("max 1 = %q, want ellipsis", got)
+	}
+	if got := TruncateTail("abcdef", 0); got != "" {
+		t.Fatalf("max 0 = %q, want empty", got)
+	}
+}

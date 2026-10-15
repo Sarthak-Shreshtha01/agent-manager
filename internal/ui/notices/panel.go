@@ -201,7 +201,7 @@ func (p Panel) tail(notices []Notice, f Frame, inner int) []string {
 	var tail []string
 	if p.cursor < len(notices) {
 		if url := notices[p.cursor].URL; url != "" {
-			tail = append(tail, f.Theme.Subtle.Render("↗ "+truncateTail(strings.TrimPrefix(url, "https://"), inner-2)))
+			tail = append(tail, f.Theme.Subtle.Render("↗ "+presentation.TruncateTail(strings.TrimPrefix(url, "https://"), inner-2)))
 		}
 	}
 	if f.Refreshing {
@@ -297,21 +297,6 @@ func cardFrame(rows []string, inner int, topLegend, bottomLegend string, t Theme
 		lines = append(lines, edge+t.Fill(" "+row, inner+2)+edge)
 	}
 	return append(lines, legend("╰", bottomLegend, "╯"))
-}
-
-// truncateTail keeps the end of the string, best for a URL's path.
-func truncateTail(s string, max int) string {
-	runes := []rune(s)
-	if max <= 0 {
-		return ""
-	}
-	if len(runes) <= max {
-		return s
-	}
-	if max == 1 {
-		return "…"
-	}
-	return "…" + string(runes[len(runes)-max+1:])
 }
 
 func padRight(s string, width int) string { return presentation.PadRight(s, width) }
