@@ -200,6 +200,28 @@ func TestStopAllKillsAChildThatIgnoresTheStop(t *testing.T) {
 	}
 }
 
+// A server that ends at the stop can leave behind a child that ignores it
+// and holds none of its pipes; the server going first does not spare it.
+func TestStopAllKillsAChildItsServerLeftBehind(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	t.Setenv("CATALOG_FAKE", "orphaning")
+	t.Setenv("CATALOG_CHILD_PID", pidFile)
+	done := make(chan error, 1)
+	go func() {
+		_, err := Fetch(context.Background(), "codex", os.Args[0], t.TempDir())
+		done <- err
+	}()
+	child := waitPid(t, pidFile)
+	StopAll()
+	<-done
+	for deadline := time.Now().Add(2 * time.Second); processAlive(child); {
+		if time.Now().After(deadline) {
+			t.Fatalf("child %d outlived StopAll", child)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
 // waitPid reads the pid a fake publishes at path once it is there.
 func waitPid(t *testing.T, path string) int {
 	t.Helper()
