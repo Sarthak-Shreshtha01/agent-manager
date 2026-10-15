@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -41,14 +42,17 @@ func TestGuardedMouseCommandFollowsTheLiveFlag(t *testing.T) {
 		t.Fatalf("driver: %v", err)
 	}
 	sessID := "guard-probe"
-	if err := driver.Create(sessID, t.TempDir(), command, map[string]string{}, 80, 24); err != nil {
+	ready := filepath.Join(t.TempDir(), "ready")
+	if err := driver.Create(sessID, t.TempDir(), command, map[string]string{fixtureReadyEnv: ready}, 80, 24); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	t.Cleanup(func() { _ = driver.Kill(sessID) })
 	waitForMouseFlag(t, driver, sessID, "1")
-	// The flag is up once the escape is printed, before cat runs to echo
-	// a report; on Windows the shell takes a moment to start it.
-	waitForDriverPaneChild(t, driver, sessID, "cat")
+	if runtime.GOOS == "windows" {
+		// The flag is up once the escape is printed, before cat has a raw
+		// console to read a report through.
+		waitForFixtureReady(t, ready)
+	}
 
 	_, args := guardedMouseCommand(sessID, "\x1b[<64;7;3M")
 	if err := driver.SendCommand(args...); err != nil {

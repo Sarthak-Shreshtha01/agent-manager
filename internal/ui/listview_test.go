@@ -319,7 +319,7 @@ func TestComfortableGroupRowStacks(t *testing.T) {
 
 	lines := railText(t, m)
 	head := lineWith(t, lines, "fleet")
-	if !strings.Contains(lines[head], "●") && !strings.Contains(lines[head], "○") && !strings.Contains(lines[head], "◐") {
+	if !strings.ContainsAny(lines[head], "●○◐◌") {
 		t.Fatalf("group row should carry its dots inline: %q", lines[head])
 	}
 }
