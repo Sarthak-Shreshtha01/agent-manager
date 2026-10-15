@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -89,9 +88,6 @@ type systemTerminalDirectoryReader struct {
 func (r systemTerminalDirectoryReader) resolve(request terminalDirectoryRequest) (string, bool) {
 	if request.paneID != "" {
 		if path, err := r.tmux.PaneCurrentPath(request.paneID); err == nil && isDir(path) {
-			if resolved, resolveErr := filepath.EvalSymlinks(path); resolveErr == nil {
-				path = resolved
-			}
 			return path, true
 		}
 	}
