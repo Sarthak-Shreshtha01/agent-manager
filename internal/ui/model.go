@@ -1007,6 +1007,12 @@ func (m *Model) StartPoller(send func(tea.Msg)) {
 	go m.poller.run(send)
 }
 
+// StopPoller ends the background poll StartPoller began and waits out a
+// pass in flight, so this process acts on no session once it returns.
+func (m *Model) StopPoller() {
+	m.poller.halt()
+}
+
 func (m *Model) syncPollInput() {
 	selectedID := ""
 	focusID := ""

@@ -2117,3 +2117,41 @@ func TestAnEndAfterTheTurnWaitsForTheSessionToRest(t *testing.T) {
 		t.Fatalf("reporting the end cleared the request before the manager acted: %q", got.AfterTurn)
 	}
 }
+
+// A manager restarting into an update waits on Windows as the new one's
+// parent, so the poll it ran has to end before the hand-over.
+func TestStopPollerEndsThePoll(t *testing.T) {
+	m := buildModel(t)
+	sent := make(chan tea.Msg, 16)
+	m.poller.interval = 10 * time.Millisecond
+	go m.poller.run(func(msg tea.Msg) {
+		select {
+		case sent <- msg:
+		default:
+		}
+	})
+	select {
+	case <-sent:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the poll never ran")
+	}
+	stopped := make(chan struct{})
+	go func() {
+		m.StopPoller()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		t.Fatal("StopPoller did not return")
+	}
+	// The last result can still be on its way to the UI.
+	time.Sleep(100 * time.Millisecond)
+	for len(sent) > 0 {
+		<-sent
+	}
+	time.Sleep(200 * time.Millisecond)
+	if len(sent) != 0 {
+		t.Fatal("the poll kept running after StopPoller")
+	}
+}
