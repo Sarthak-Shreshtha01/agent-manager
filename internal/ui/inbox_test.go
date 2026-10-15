@@ -188,7 +188,7 @@ func TestInboxAsksForAReplyOnlyFromAnAgent(t *testing.T) {
 		t.Run(testCase.senderTool, func(t *testing.T) {
 			m := buildModel(t)
 			sess := spawnedSession(t, m, "claude-hooked")
-			waitForPaneChild(t, m, sess.ID, "cat")
+			waitForPaneChild(t, m, sess.ID, hookedCatProcess())
 			if err := m.store.CreateSession(store.Session{
 				ID: "sender01", Name: "payments-fix", Tool: testCase.senderTool,
 				Cwd: t.TempDir(), Status: status.Idle,
@@ -583,7 +583,7 @@ func TestInboxPressesEnterAgainWhileThePasteSitsInTheComposer(t *testing.T) {
 	if state.DeliveredAt.IsZero() || !state.DroppedAt.IsZero() {
 		t.Fatalf("a message the second Enter submitted was recorded as %+v", state)
 	}
-	if after, err := m.tmux.CapturePane(sess.ID); err != nil || !strings.HasSuffix(strings.TrimRight(after, "\n "), "❯") {
+	if after, err := m.tmux.CapturePane(sess.ID); err != nil || !strings.HasSuffix(strings.TrimRight(ansi.Strip(after), "\n "), "❯") {
 		t.Fatalf("the composer still holds the paste (%v):\n%s", err, after)
 	}
 }
