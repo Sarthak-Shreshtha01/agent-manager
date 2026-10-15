@@ -133,6 +133,9 @@ func TestSlowLifecycleDoesNotBlockWindowUpdateAndKeepsSnapshotWriter(t *testing.
 	m := buildModel(t)
 	createSession(t, m, "slow", t.TempDir(), "")
 	m.selectSessionRow(t, "slow")
+	// Archive writes a snapshot only from a pane that has drawn, and a
+	// fresh psmux pane can still be blank.
+	waitForPreview(t, m)
 	started := make(chan struct{})
 	release := make(chan struct{})
 	original := m.services.setSnapshot
@@ -147,7 +150,11 @@ func TestSlowLifecycleDoesNotBlockWindowUpdateAndKeepsSnapshotWriter(t *testing.
 	m.services.setSnapshot = func(string, string) error { return fmt.Errorf("replacement writer must not run") }
 	completed := make(chan tea.Msg, 1)
 	go func() { completed <- command() }()
-	<-started
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the archive never reached the snapshot writer")
+	}
 	updated := make(chan struct{})
 	go func() { m.Update(tea.WindowSizeMsg{Width: 150, Height: 45}); close(updated) }()
 	select {
