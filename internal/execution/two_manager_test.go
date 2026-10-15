@@ -207,7 +207,12 @@ func TestOwnerlessClaimIsMarkedUncertainNotRedelivered(t *testing.T) {
 	}
 	claimInboxForTest(t, p.store, id, time.Now())
 
-	res = p.runnerB.Step()
+	// B delivers only once a poll reads the agent idle, which a slow psmux
+	// pane can take a few ticks to show.
+	deadline := time.Now().Add(10 * time.Second)
+	for res = p.runnerB.Step(); res.Err == nil && time.Now().Before(deadline); res = p.runnerB.Step() {
+		time.Sleep(100 * time.Millisecond)
+	}
 	if res.Err == nil || !strings.Contains(res.Err.Error(), "uncertain prior transport") {
 		t.Fatalf("B step = %v, want the ownerless claim marked uncertain", res.Err)
 	}
