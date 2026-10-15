@@ -490,13 +490,29 @@ func sessionNames(m *Model) []string {
 	return names
 }
 
+// shellSettle is how long a pane must stay empty before waitForAgent takes
+// it as left with only its shell. The agent exiting hands the pane to a
+// fresh interactive shell, whose startup files can fork for a while; one
+// empty sample taken before that lands says nothing about the samples a
+// revive takes next, and AgentRunning counts those forks as an agent.
+const shellSettle = 500 * time.Millisecond
+
 // waitForAgent waits for a session's pane to hold an agent, or to be left
-// with only its shell.
+// with only its shell and stay that way for shellSettle.
 func waitForAgent(t *testing.T, m *Model, sessID string, want bool) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
+	var emptySince time.Time
 	for time.Now().Before(deadline) {
-		if running, err := sessioncmd.AgentRunning(m.services.tmux, sessID); err == nil && running == want {
+		running, err := sessioncmd.AgentRunning(m.services.tmux, sessID)
+		switch {
+		case err != nil || running != want:
+			emptySince = time.Time{}
+		case want:
+			return
+		case emptySince.IsZero():
+			emptySince = time.Now()
+		case time.Since(emptySince) >= shellSettle:
 			return
 		}
 		time.Sleep(50 * time.Millisecond)

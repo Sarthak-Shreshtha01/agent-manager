@@ -52,6 +52,13 @@ func runTests(m *testing.M) int {
 	// The suite runs as if at the machine it runs on, even when the
 	// developer reached it over SSH.
 	remoteTerminal = localTerminal
+	// Panes fall back to $SHELL once their agent exits, and the test server
+	// takes it as its default-shell. A developer's interactive shell runs
+	// startup files that fork for seconds, which AgentRunning reads as an
+	// agent, so the suite runs the plain sh CI runs.
+	if runtime.GOOS != "windows" {
+		os.Setenv("SHELL", "/bin/sh")
+	}
 	// kill-server fails whenever no server is up, which is the normal case.
 	tmuxCmd("kill-server").Run()
 	// Without tmux the run still starts: each test skips through its own
