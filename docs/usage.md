@@ -378,7 +378,7 @@ On a connection's rows:
 - `T` opens a terminal there, `x` kills an agent or closes a terminal, `v` revives, `a` and `u` archive and restore.
 - On the connection row itself, `r` edits it and `d` removes it. Removing asks first; its sessions keep running on that host.
 
-Rename, move, delete, restart, fork, review, the editor, copying a reply and reordering are refused on a remote row with a message naming the gap. A failed call shows the other machine's error. Nothing from a connection is written to this machine's store. See [SSH connections](architecture/ssh-connections.md) for the protocol.
+Rename, move, delete, restart, fork, review, the editor, copying a reply and reordering are refused on a remote row with a message naming the gap. A failed call shows the other machine's error. Nothing from a connection is written to this machine's store. See [SSH connections](ssh-connections.md) for the protocol.
 
 ## Status
 

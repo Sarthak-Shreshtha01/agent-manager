@@ -208,40 +208,16 @@ func screenText(text string) string {
 	}, ansi.Strip(text))
 }
 
-// remoteRowLegend is the footer tier for a connection's rows: only the keys
-// the connection carries out.
+// remoteRowLegend is the footer tier for a connection's rows.
 func (m *Model) remoteRowLegend() legendSection {
 	selection, _ := m.rail.Selected()
 	row, ok := m.ssh.row(selection)
 	if !ok {
 		return legendSection{}
 	}
-	k := m.listGlyph
-	fold := "fold"
-	if m.rail.SelectionCollapsed(selection) {
-		fold = "unfold"
-	}
-	leads := [][2]string{m.quickModeLead()}
-	switch row.kind {
-	case uirail.ConnectionRow:
-		return legendSection{title: "SSH connection", leads: leads, pairs: legendPairsBound([][2]string{
-			{k(keybind.Open), fold}, {k(keybind.Terminal), "terminal"}, {k(keybind.Rename), "edit"}, {k(keybind.Delete), "remove"},
-		})}
-	case uirail.GroupRow:
-		return legendSection{title: "Group", leads: leads, pairs: legendPairsBound([][2]string{
-			{k(keybind.Open), fold}, {k(keybind.Terminal), "terminal"},
-		})}
-	}
-	title, kill := "Session", "kill"
-	if row.terminal {
-		title, kill, leads = "Shell", "close", nil
-	}
-	pairs := [][2]string{{k(keybind.Open, keybind.Attach), "attach over SSH"}, {k(keybind.Kill), kill}}
-	if row.status == "dead" {
-		pairs = append(pairs, [2]string{k(keybind.Revive), "revive"})
-	}
-	pairs = append(pairs, m.archiveRestoreLegend())
-	return legendSection{title: title + " on " + row.host, leads: leads, pairs: legendPairsBound(pairs)}
+	return legendOf(m.rail.RemoteLegend(m.railLegendContext(), uirail.RemoteRow{
+		Kind: row.kind, Host: row.host, Terminal: row.terminal, Dead: row.status == "dead",
+	}, m.rail.SelectionCollapsed(selection)))
 }
 
 // remoteQuickFacts aims the quick bar's target row at a connection: a

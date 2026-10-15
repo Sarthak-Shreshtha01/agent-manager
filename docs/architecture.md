@@ -13,6 +13,8 @@ Under `internal/`:
 - `execution`: UI-free poller and runner: capture, delivery, mailbox, status, notifications.
 - `ui`: the Bubble Tea program. One `Model` routes messages, runs effects, composes the frame.
 - `ui/help`, `ui/review`, `ui/focus`, `ui/rail`: feature packages with private models.
+- `ui` `connection_*.go`: SSH connections: the dialog, remote rows, polling, preview and routed actions. See [SSH connections](ssh-connections.md).
+- `remote`: drives another host's agent-manager over `ssh`.
 - `ui/presentation`: pure text helpers shared by `ui`, `ui/help`, `ui/review` and `ui/rail`.
 - `store`: SQLite state: sessions, groups, settings, inbox, tasks, reservations, delivery guard.
 - `tmux`: the `Driver` on the dedicated socket, the control-mode client, bindings, attach.

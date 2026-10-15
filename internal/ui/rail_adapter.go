@@ -55,6 +55,7 @@ func (m *Model) railSnapshot() uirail.Snapshot {
 		Sessions:       make([]uirail.Session, 0, len(m.workspace.sessions)),
 		Groups:         append([]string(nil), m.workspace.groups...),
 		ArchivedGroups: make(map[string]bool, len(m.workspace.archivedGroups)),
+		Hosts:          m.ssh.railHosts(),
 	}
 	for path, archived := range m.workspace.archivedGroups {
 		snapshot.ArchivedGroups[path] = archived
@@ -109,7 +110,7 @@ func (m *Model) selected() (store.Session, bool) {
 
 func (m *Model) selectedRow() (treeRow, bool) {
 	selection, ok := m.rail.Selected()
-	if !ok {
+	if !ok || selection.Remote() {
 		return treeRow{}, false
 	}
 	if selection.Kind == uirail.GroupRow {
@@ -277,7 +278,7 @@ func (m *Model) railTheme() uirail.Theme {
 	return uirail.Theme{
 		Bg: current.Bg, Surface: current.Surface, Overlay: current.Overlay, Border: current.Border,
 		Bright: current.Bright, Text: current.Text, Dim: current.Dim, Subtle: current.Subtle,
-		Accent: current.Accent, Accent2: current.Accent2,
+		Accent: current.Accent, Accent2: current.Accent2, Remote: current.Remote,
 		Working: current.Working, Waiting: current.Waiting, Finished: current.Finished,
 		Errored: current.Errored, Idle: current.Idle,
 	}
@@ -322,6 +323,9 @@ func (m *Model) rowLegend() legendSection {
 				Archived: row.sess.Archived, AfterTurn: row.sess.AfterTurn, IsShell: m.isShell(row.sess.Tool),
 			}
 		}
+	}
+	if !ctx.RowOK {
+		return m.remoteRowLegend()
 	}
 	return legendOf(m.rail.RowLegend(ctx))
 }
