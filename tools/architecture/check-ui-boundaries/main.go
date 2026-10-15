@@ -21,7 +21,7 @@ var (
 	reviewBoundary   = boundary{"Review", "/internal/ui/review", []string{"/internal/ui/review", "/internal/diff/model", "/internal/git/value", "/internal/ui/presentation"}}
 	focusBoundary    = boundary{"Focus", "/internal/ui/focus", []string{"/internal/ui/focus"}}
 	watchBoundary    = boundary{"Focus watch", "/internal/ui/focus/watch", []string{"/internal/ui/focus/watch", "/internal/tmux", "/internal/deps", "/internal/keybind"}}
-	railBoundary     = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation"}}
+	railBoundary     = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation", "/internal/ui/theme"}}
 	settingsBoundary = boundary{"Settings", "/internal/ui/settings", []string{"/internal/ui/settings", "/internal/keybind", "/internal/ui/presentation", "/internal/ui/theme"}}
 	themeBoundary    = boundary{"Theme", "/internal/ui/theme", []string{"/internal/ui/theme"}}
 	spawnBoundary    = boundary{"Spawn", "/internal/ui/spawn", []string{"/internal/ui/spawn", "/internal/catalog/value", "/internal/ui/presentation"}}

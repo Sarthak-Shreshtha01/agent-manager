@@ -43,8 +43,8 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
 - **Dependency boundaries.** `go run ./tools/architecture/check-ui-boundaries`
   lists each package's transitive production imports and fails on any
   other package of this module. Allowed, besides itself:
-  `ui/help`, `ui/rail` and `ui/notices` import `keybind` and
-  `ui/presentation`; `ui/settings` imports `keybind`, `ui/presentation` and
+  `ui/help` and `ui/notices` import `keybind` and `ui/presentation`;
+  `ui/rail` and `ui/settings` import `keybind`, `ui/presentation` and
   `ui/theme`; `ui/review` imports `diff/model`, `git/value` and
   `ui/presentation`; `ui/spawn` imports `catalog/value` and `ui/presentation`;
   `ui/quick` imports those and `ui/spawn`; `diff/model` imports `git/value`;
