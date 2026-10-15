@@ -163,6 +163,7 @@ func TestCaretKeepsRowColours(t *testing.T) {
 
 // The caret blinks while focused and stops when focus ends.
 func TestCursorBlinks(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "blinker", t.TempDir(), "")
 	m.selectSessionRow(t, "blinker")
@@ -263,6 +264,7 @@ func TestSwappedKeysRouteActions(t *testing.T) {
 // Enter on a live session row focuses it; typed keys land in its pane and
 // ctrl+q returns to the list without touching the pane.
 func TestFocusModeForwardsKeys(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "focusme", t.TempDir(), "")
 	m.selectSessionRow(t, "focusme")
@@ -311,6 +313,7 @@ func TestFocusModeForwardsKeys(t *testing.T) {
 }
 
 func TestFocusModeForwardsArrowKeys(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSessionOn(t, m, "focus-arrows", "quietchat", t.TempDir())
 	m.selectSessionRow(t, "focus-arrows")
@@ -396,6 +399,7 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 // A program that owns its screen, or a pane with no history to page,
 // gets the page keys itself.
 func TestFocusPageKeysReachOtherAgents(t *testing.T) {
+	t.Parallel()
 	testenv.SkipPOSIXShell(t)
 	for _, tc := range []struct {
 		name    string
@@ -456,7 +460,7 @@ func mirrorPaneScreen(t *testing.T, m *Model, sessID string, alt bool) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		out, err := tmuxCmd("display-message", "-p", "-t", "am_"+sessID, "#{alternate_on},#{history_size}").CombinedOutput()
+		out, err := tmuxCmd(t, "display-message", "-p", "-t", "am_"+sessID, "#{alternate_on},#{history_size}").CombinedOutput()
 		if err != nil {
 			t.Fatalf("display-message: %v: %s", err, out)
 		}
@@ -601,6 +605,7 @@ func focusInputQueued(m *Model) bool {
 
 // A focused session that disappears drops the UI back to the list.
 func TestFocusModeExitsWhenSessionDies(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "doomed", t.TempDir(), "")
 	m.selectSessionRow(t, "doomed")
@@ -626,6 +631,7 @@ func TestFocusModeExitsWhenSessionDies(t *testing.T) {
 // Ctrl+R while focused opens the review instead of reaching the pane, and
 // closing the review lands back in focus rather than the list.
 func TestFocusCtrlROpensReviewAndReturns(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	createSession(t, m, "focusrev", dir, "")
@@ -696,6 +702,7 @@ func TestFocusF3OpensEditor(t *testing.T) {
 // reporting focus mode armed, so the pane's wheel and drag would be dead
 // on return.
 func TestFocusEditorThatTookTheScreenRearmsMouse(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "screenedit", t.TempDir(), "")
 	m.selectSessionRow(t, "screenedit")
@@ -723,6 +730,7 @@ func TestFocusEditorThatTookTheScreenRearmsMouse(t *testing.T) {
 // Leaving focus must keep mouse reporting: handing it back would let a
 // wheel notch scroll the manager out of view from the list.
 func TestFocusExitKeepsMouse(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "mouseback", t.TempDir(), "")
 	m.selectSessionRow(t, "mouseback")
@@ -755,6 +763,7 @@ func TestFocusExitKeepsMouse(t *testing.T) {
 // The rail marks which session is focused, so the mode is readable from
 // the list as well as from the pane.
 func TestRailShowsFocusBadge(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "badged", t.TempDir(), "")
 	m.selectSessionRow(t, "badged")
@@ -835,6 +844,7 @@ func TestFocusPasteKeepsPromptInComposer(t *testing.T) {
 // is off: the terminal handles native text selection directly.
 // This test verifies the handler returns no mouse-enable command.
 func TestDetachNoMouseReArm(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	clearRequestOnCleanup(t, m, "")
 
@@ -847,6 +857,7 @@ func TestDetachNoMouseReArm(t *testing.T) {
 
 // Ctrl+\ mirrors ctrl+q: it leaves focus without touching the pane.
 func TestFocusModeCtrlBackslashUnfocuses(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "focusme", t.TempDir(), "")
 	m.selectSessionRow(t, "focusme")
@@ -1145,6 +1156,7 @@ func TestCaretAtInputStartWaitsForQueuedKeys(t *testing.T) {
 // Left leaves focus at the head of the prompt and reaches the agent
 // anywhere else, so a typed prompt keeps its caret movement.
 func TestFocusLeftUnfocusesAtPromptHead(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "leftie", t.TempDir(), "")
 	m.selectSessionRow(t, "leftie")
@@ -1182,6 +1194,7 @@ func TestFocusLeftUnfocusesAtPromptHead(t *testing.T) {
 // A focused terminal reads the same way: Left leaves at the head of a
 // bare shell prompt and reaches the shell while a command is being typed.
 func TestFocusLeftUnfocusesTerminalAtPromptHead(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "shellie", t.TempDir(), "")
 	m.selectSessionRow(t, "shellie")
@@ -1273,6 +1286,7 @@ func TestArrowStepSettingDisablesThePair(t *testing.T) {
 
 // Alt+Left is a word jump inside the prompt, so it stays the agent's.
 func TestFocusAltLeftStaysWithTheAgent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "altleft", t.TempDir(), "")
 	m.selectSessionRow(t, "altleft")
@@ -1297,6 +1311,7 @@ func TestFocusAltLeftStaysWithTheAgent(t *testing.T) {
 // is zero-width, so the caret sitting anywhere on that blank row counts as
 // the prompt head, while typed text still belongs to the agent.
 func TestFocusLeftUnfocusesOnPiBlankComposerRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "pileft", t.TempDir(), "")
 	m.selectSessionRow(t, "pileft")
@@ -1487,6 +1502,7 @@ func TestCaretParkedBelowCommandCodesComposer(t *testing.T) {
 // composer leaves focus, and the same press over a draft forwards into the
 // pane instead.
 func TestFocusLeftUnfocusesOnCommandCodesParkedCaret(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "ccleft", t.TempDir(), "")
 	m.selectSessionRow(t, "ccleft")
@@ -1567,6 +1583,7 @@ func TestFocusLeftUnfocusesOnCommandCodesParkedCaret(t *testing.T) {
 // while the keys it no longer holds, the old detach and a review turned
 // off, reach the agent as keystrokes.
 func TestFocusModeReadsTheSessionKeyTable(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	useSessionKeys(t, m, []string{"f9"}, nil, []string{"f3"})
 	createSessionOn(t, m, "remapped", "control-echo", t.TempDir())
@@ -1668,6 +1685,7 @@ func TestFocusModeRemappedReviewAndEditorKeys(t *testing.T) {
 // and without the client the typed text only shows on the poll cadence,
 // a second or more after each key.
 func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
+	t.Parallel()
 	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "retype", t.TempDir(), "")
@@ -1693,7 +1711,7 @@ func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
 	}
 	// Detaching the control client is a client dying under the watcher,
 	// which puts the session in failure backoff.
-	if out, err := tmuxCmd("detach-client", "-s", "am_"+sess.ID).CombinedOutput(); err != nil {
+	if out, err := tmuxCmd(t, "detach-client", "-s", "am_"+sess.ID).CombinedOutput(); err != nil {
 		t.Fatalf("detach-client: %v: %s", err, out)
 	}
 	for m.focus.runtime.watch.Watching() == sess.ID {
@@ -1722,6 +1740,7 @@ func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
 // client there is not a failure to report; only a client that dies under
 // the watcher is.
 func TestKillingTheFocusedSessionReportsNoLoss(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "doomed-focus", t.TempDir(), "")
 	m.selectSessionRow(t, "doomed-focus")

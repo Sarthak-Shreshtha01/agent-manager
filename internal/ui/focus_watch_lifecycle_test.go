@@ -18,6 +18,7 @@ func seedLifecycleWatcher(t *testing.T, m *Model, id string) {
 }
 
 func TestFailedArchiveRestoresSurvivingSelectionWatcher(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -34,6 +35,7 @@ func TestFailedArchiveRestoresSurvivingSelectionWatcher(t *testing.T) {
 }
 
 func TestFailedChildDeleteRestoresSurvivingParentWatcher(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "parent", t.TempDir(), "")
 	m.selectSessionRow(t, "parent")

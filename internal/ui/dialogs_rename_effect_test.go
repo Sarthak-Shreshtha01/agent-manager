@@ -15,6 +15,7 @@ import (
 var errRenameStageTwo = errors.New("second stage failed")
 
 func TestRenameDefersGroupPersistence(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("old/inner", ""); err != nil {
@@ -61,6 +62,7 @@ func TestRenameDefersGroupPersistence(t *testing.T) {
 }
 
 func TestRenameDefersSessionPersistence(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
@@ -83,6 +85,7 @@ func TestRenameDefersSessionPersistence(t *testing.T) {
 }
 
 func TestRenameShellChildCheckRunsInWorker(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "coder", dir, "")
@@ -118,6 +121,7 @@ func TestRenameShellChildCheckRunsInWorker(t *testing.T) {
 }
 
 func TestRenameGroupDirectoryCheckRunsBeforeMutation(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("old", t.TempDir()); err != nil {
 		t.Fatal(err)
@@ -143,6 +147,7 @@ func TestRenameGroupDirectoryCheckRunsBeforeMutation(t *testing.T) {
 }
 
 func TestRenameKeepsCapturedRowIdentity(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "captured", t.TempDir(), "")
 	m.selectSessionRow(t, "captured")
@@ -159,6 +164,7 @@ func TestRenameKeepsCapturedRowIdentity(t *testing.T) {
 }
 
 func TestRenameChainedWhileQueuedActsOnThePreviousResult(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "alpha", repo)
@@ -191,6 +197,7 @@ func TestRenameChainedWhileQueuedActsOnThePreviousResult(t *testing.T) {
 }
 
 func TestRenameFollowsARelaunchButRefusesAReplacedRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
@@ -222,6 +229,7 @@ func TestRenameFollowsARelaunchButRefusesAReplacedRow(t *testing.T) {
 }
 
 func TestRenameGroupPartialFailureReconcilesCommittedStages(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("old/inner", ""); err != nil {
@@ -275,6 +283,7 @@ func TestRenameGroupPartialFailureReconcilesCommittedStages(t *testing.T) {
 }
 
 func TestRenameCompletionDoesNotReplaceNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, name := range []string{"one", "two"} {
 		if err := m.services.store.CreateGroup(name, ""); err != nil {
@@ -315,6 +324,7 @@ func TestRenameCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 }
 
 func TestRenameCommandExecutesOnceAndCompletionIsIdempotent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "once", t.TempDir(), "")
 	m.selectSessionRow(t, "once")
@@ -348,6 +358,7 @@ func TestRenameCommandExecutesOnceAndCompletionIsIdempotent(t *testing.T) {
 }
 
 func TestQuitDrainsRenameEffects(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("old/inner", ""); err != nil {
@@ -382,6 +393,7 @@ func TestQuitDrainsRenameEffects(t *testing.T) {
 }
 
 func TestMoveSessionDefersPlacement(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("target", ""); err != nil {
@@ -418,6 +430,7 @@ func TestMoveSessionDefersPlacement(t *testing.T) {
 }
 
 func TestMoveWorkerRejectsChangedSourcePrecondition(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	for _, group := range []string{"target", "concurrent"} {
@@ -448,6 +461,7 @@ func TestMoveWorkerRejectsChangedSourcePrecondition(t *testing.T) {
 }
 
 func TestMoveGroupDefersPersistence(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("alpha/inner", ""); err != nil {
@@ -483,6 +497,7 @@ func TestMoveGroupDefersPersistence(t *testing.T) {
 }
 
 func TestMoveCompletionDoesNotReplaceNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	for _, name := range []string{"target", "other"} {
@@ -531,6 +546,7 @@ func TestMoveCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 // runRename drives the worker directly: the durable stages must commit in
 // order, and the result must say exactly which stages landed.
 func TestRenameCompletionDoesNotCloseResubmittedDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
@@ -563,6 +579,7 @@ func TestRenameCompletionDoesNotCloseResubmittedDialog(t *testing.T) {
 }
 
 func TestRenameCompletionDoesNotCloseReopenedSameTargetDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("one", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -603,6 +620,7 @@ func TestRenameCompletionDoesNotCloseReopenedSameTargetDialog(t *testing.T) {
 }
 
 func TestRenameCompletionFencesStalePolls(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("old/inner", ""); err != nil {
@@ -657,6 +675,7 @@ func hasWorkspaceGroup(m *Model, path string) bool {
 }
 
 func TestRenameWorkerCommitsStagesInOrder(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("old/inner", ""); err != nil {

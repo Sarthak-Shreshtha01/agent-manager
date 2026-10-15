@@ -12,6 +12,7 @@ import (
 )
 
 func TestSessionLayoutDefaultsToSplit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.prefs.fullLayout {
 		t.Fatal("split should be the default sessions layout")
@@ -235,6 +236,7 @@ func TestFullLayoutFooterOffersNoLayoutKey(t *testing.T) {
 // width focus: the pane grows to the whole terminal body and the frame
 // paints it edge to edge, with the list hidden behind it.
 func TestFullLayoutRightOpensFullWidthFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "wide-open", t.TempDir(), "")
 	m.selectSessionRow(t, "wide-open")
@@ -289,6 +291,7 @@ func TestFullLayoutRightOpensFullWidthFocus(t *testing.T) {
 // pane keeps its full size on the way out, since shrinking it would cost
 // the agent its scrollback.
 func TestFullFocusLeftReturnsAtPromptHead(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "wide-left", t.TempDir(), "")
 	m.selectSessionRow(t, "wide-left")
@@ -331,6 +334,7 @@ func TestFullFocusLeftReturnsAtPromptHead(t *testing.T) {
 
 // A does a real tmux attach from the full screen list, unchanged.
 func TestFullLayoutAStillAttaches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "handover", t.TempDir(), "")
 	m.selectSessionRow(t, "handover")
@@ -400,6 +404,7 @@ func TestPaneTargetSizeFollowsLayout(t *testing.T) {
 // that grew taller in the full layout: the painted view crops instead,
 // because a height shrink clears a Codex scrollback (#369).
 func TestSplitRepinKeepsTallerPaneHeight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "tall", t.TempDir(), "")
 	id := m.sessionRows()[0].ID
@@ -440,6 +445,7 @@ func TestFullFocusFooterIsOneRow(t *testing.T) {
 }
 
 func TestQuickFooterLeavesThePaneSizeAlone(t *testing.T) {
+	t.Parallel()
 	for _, full := range []bool{false, true} {
 		m := buildModel(t)
 		seedTwoGroups(t, m)

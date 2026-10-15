@@ -12,6 +12,7 @@ import (
 )
 
 func TestReviewedMarkClearsOnContentChange(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -46,6 +47,7 @@ func TestReviewedMarkClearsOnContentChange(t *testing.T) {
 // A scope that does not list a file says nothing about whether it changed,
 // so its mark waits for the scope that shows it again.
 func TestAScopeMissingAFileKeepsItsReviewedMark(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -74,6 +76,7 @@ func TestAScopeMissingAFileKeepsItsReviewedMark(t *testing.T) {
 // under another scope, and only the scope a mark was taken in may judge it
 // stale.
 func TestScopeCycleKeepsReviewedMark(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

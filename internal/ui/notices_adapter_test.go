@@ -1270,6 +1270,7 @@ func TestEmptyNoticesPanelStillOpensAndOffersRefresh(t *testing.T) {
 // A notice opening mid-drag would swallow the release and strand the
 // lifted row, and one over the row menu would bury it, so both wait.
 func TestNoticesWaitForADragOrTheRowMenu(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")

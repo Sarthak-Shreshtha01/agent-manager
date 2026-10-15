@@ -11,6 +11,7 @@ import (
 )
 
 func TestQuickFooterKeepsTheCaretRowOnScreen(t *testing.T) {
+	t.Parallel()
 	for _, full := range []bool{false, true} {
 		m := buildModel(t)
 		seedTwoGroups(t, m)
@@ -61,6 +62,7 @@ func TestQuickFooterKeepsTheCaretRowOnScreen(t *testing.T) {
 }
 
 func TestQuickBarMeasuresRowsAtTheWidthItJustSet(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.input.SetWidth(80)
@@ -123,6 +125,7 @@ func TestQuickFooterFillsEveryBandCell(t *testing.T) {
 
 // Resizing a pane for prompt growth makes agents redraw their transcripts.
 func TestQuickBarKeepsPaneHeight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sizer", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())

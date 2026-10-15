@@ -13,6 +13,7 @@ import (
 )
 
 func TestArchiveConfirmationUsesLoadedSessionTree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "agent", dir, "")
@@ -28,6 +29,7 @@ func TestArchiveConfirmationUsesLoadedSessionTree(t *testing.T) {
 }
 
 func TestArchiveWorkerRejectsChildAddedAfterConfirmation(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "agent", dir, "")
@@ -57,6 +59,7 @@ func TestArchiveWorkerRejectsChildAddedAfterConfirmation(t *testing.T) {
 }
 
 func TestArchiveSelectedNoopInArchivedView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -95,6 +98,7 @@ func TestArchiveSelectedNoopInArchivedView(t *testing.T) {
 }
 
 func TestRestoreSelectedNoopInActiveView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedGroups(t, m, "zone")
 	_, sleeper, stash := seedRestoreScenario(t, m, "zone")
@@ -124,6 +128,7 @@ func TestRestoreSelectedNoopInActiveView(t *testing.T) {
 }
 
 func TestRestoreGroupBringsBackOnlyItsArchivedSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedGroups(t, m, "zone")
 	live, sleeper, stash := seedRestoreScenario(t, m, "zone")
@@ -159,6 +164,7 @@ func TestRestoreGroupBringsBackOnlyItsArchivedSessions(t *testing.T) {
 }
 
 func TestArchiveAndRestoreRefuseTheRootRow(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		action, key, next string
 		archived          bool
@@ -198,6 +204,7 @@ func TestArchiveAndRestoreRefuseTheRootRow(t *testing.T) {
 }
 
 func TestArchiveRestoreClearStaleError(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "alpha", dir, "")
@@ -226,6 +233,7 @@ func TestArchiveRestoreClearStaleError(t *testing.T) {
 }
 
 func TestRestoreKeepsArchiveWhenReviveFails(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "homeless", dir, "")
@@ -263,6 +271,7 @@ func TestRestoreKeepsArchiveWhenReviveFails(t *testing.T) {
 }
 
 func TestArchiveAbortsWhenSnapshotFails(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "alpha", dir, "")
@@ -297,6 +306,7 @@ func TestArchiveAbortsWhenSnapshotFails(t *testing.T) {
 }
 
 func TestArchiveGroupMovesWholeSubtree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("proj", ""); err != nil {
@@ -371,6 +381,7 @@ func TestArchiveGroupMovesWholeSubtree(t *testing.T) {
 }
 
 func TestArchiveGroupKeepsEmptyGroupInArchivedView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("empty", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -397,6 +408,7 @@ func TestArchiveGroupKeepsEmptyGroupInArchivedView(t *testing.T) {
 // Archiving must freeze the pane as a stored snapshot, and the poller must
 // keep serving it instead of wiping the preview on the next tick.
 func TestArchivedSessionKeepsPaneSnapshot(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "frozen", t.TempDir(), "")
 	m.selectSessionRow(t, "frozen")
@@ -459,6 +471,7 @@ func TestArchivedSessionKeepsPaneSnapshot(t *testing.T) {
 }
 
 func TestArchiveAgentPersistsEveryChild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -480,6 +493,7 @@ func TestArchiveAgentPersistsEveryChild(t *testing.T) {
 }
 
 func TestRestoreAgentUnarchivesEveryChild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -514,6 +528,7 @@ func TestRestoreAgentUnarchivesEveryChild(t *testing.T) {
 }
 
 func TestRestoreAgentBringsBackOnlyItsArchivedTerminals(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -555,6 +570,7 @@ func TestRestoreAgentBringsBackOnlyItsArchivedTerminals(t *testing.T) {
 }
 
 func TestConfirmedArchiveLeavesTheActiveViewAtOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "shelved", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -582,6 +598,7 @@ func TestConfirmedArchiveLeavesTheActiveViewAtOnce(t *testing.T) {
 }
 
 func TestConfirmedRestoreLeavesTheArchivedViewAtOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "returning", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -615,6 +632,7 @@ func TestConfirmedRestoreLeavesTheArchivedViewAtOnce(t *testing.T) {
 }
 
 func TestConfirmedGroupRestoreShowsTheSubtreeAtOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("zone", dir); err != nil {
@@ -652,6 +670,7 @@ func TestConfirmedGroupRestoreShowsTheSubtreeAtOnce(t *testing.T) {
 }
 
 func TestConfirmedGroupArchiveHidesTheSubtreeAtOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("zone", dir); err != nil {

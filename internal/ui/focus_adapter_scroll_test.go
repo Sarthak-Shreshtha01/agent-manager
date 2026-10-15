@@ -381,6 +381,7 @@ func TestNoCaretWhileScrolled(t *testing.T) {
 // by clearing the pane's entire scrollback (#369), so the render crops
 // the taller capture instead.
 func TestRefreshGrowsPaneHeightButNeverShrinksIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sizer", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -417,6 +418,7 @@ func TestRefreshGrowsPaneHeightButNeverShrinksIt(t *testing.T) {
 // shrink must not reach the pane either: the render crops it, and the
 // pane's scrollback survives. Growing the terminal back re-pins.
 func TestTerminalShrinkLeavesPaneTall(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "shrunk", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -440,6 +442,7 @@ func TestTerminalShrinkLeavesPaneTall(t *testing.T) {
 // box. The first pass adopts its real geometry rather than shrinking it,
 // which would cost a Codex pane its scrollback before anything happened.
 func TestAdoptedTallerPaneIsNotShrunk(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "adopted", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -447,7 +450,7 @@ func TestAdoptedTallerPaneIsNotShrunk(t *testing.T) {
 
 	width := m.previewPaneWidth()
 	taller := m.previewPaneHeight() + 10
-	out, err := tmuxCmd("resize-window", "-t", "am_"+sess.ID,
+	out, err := tmuxCmd(t, "resize-window", "-t", "am_"+sess.ID,
 		"-x", strconv.Itoa(width), "-y", strconv.Itoa(taller)).CombinedOutput()
 	if err != nil {
 		t.Fatalf("resize-window: %v: %s", err, out)
@@ -463,6 +466,7 @@ func TestAdoptedTallerPaneIsNotShrunk(t *testing.T) {
 // clear, so it follows the box down: a full-screen TUI left taller than
 // the box would lose its top rows to the crop.
 func TestAltScreenPaneShrinksWithTheBox(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSessionOn(t, m, "fullscreen", "quietchat", t.TempDir())
 	m.applyCmd(t, m.refreshCmd())
@@ -474,13 +478,13 @@ func TestAltScreenPaneShrinksWithTheBox(t *testing.T) {
 	// The bytes go as hex: psmux turns a literal newline in send-keys -l
 	// into the two characters \n.
 	waitForPaneChild(t, m, sess.ID, "cat")
-	if out, err := tmuxCmd("send-keys", "-t", "am_"+sess.ID, "-H",
+	if out, err := tmuxCmd(t, "send-keys", "-t", "am_"+sess.ID, "-H",
 		"1b", "5b", "3f", "31", "30", "34", "39", "68", "0a").CombinedOutput(); err != nil {
 		t.Fatalf("send-keys: %v: %s", err, out)
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		out, _ := tmuxCmd("display-message", "-p", "-t", "am_"+sess.ID, "#{alternate_on}").CombinedOutput()
+		out, _ := tmuxCmd(t, "display-message", "-p", "-t", "am_"+sess.ID, "#{alternate_on}").CombinedOutput()
 		if strings.TrimSpace(string(out)) == "1" {
 			break
 		}
@@ -504,6 +508,7 @@ func TestAltScreenPaneShrinksWithTheBox(t *testing.T) {
 // A tool whose scrollback survives a height shrink opts in with
 // fits_height, so its normal-screen pane follows the box down too.
 func TestFitsHeightToolShrinksWithTheBox(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	tool := m.services.cfg.Tools["quietchat"]
 	tool.FitsHeight = true
@@ -528,7 +533,7 @@ func TestFitsHeightToolShrinksWithTheBox(t *testing.T) {
 // windowHeight is the tmux window height a session is currently pinned to.
 func windowHeight(t *testing.T, id string) int {
 	t.Helper()
-	out, err := tmuxCmd("display-message", "-p", "-t", "am_"+id, "#{window_height}").CombinedOutput()
+	out, err := tmuxCmd(t, "display-message", "-p", "-t", "am_"+id, "#{window_height}").CombinedOutput()
 	if err != nil {
 		t.Fatalf("display-message: %v: %s", err, out)
 	}
@@ -543,6 +548,7 @@ func windowHeight(t *testing.T, id string) int {
 // way in makes an agent drawing on the normal screen redraw its whole
 // transcript, which throws the view up its history and back.
 func TestFocusKeepsPaneHeight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "focused", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -779,6 +785,7 @@ func TestWheelReachesMouseTrackingApp(t *testing.T) {
 // offset: the wheel goes to the app from then on, so nothing would walk
 // the offset back down and the view would hold a stale frame for good.
 func TestAppMouseClearsScrollback(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sticky", t.TempDir(), "")
 	m.selectSessionRow(t, "sticky")
@@ -810,6 +817,7 @@ func TestAppMouseClearsScrollback(t *testing.T) {
 // scrolled into that history must keep their place until the fresh flags
 // arrive.
 func TestStaleMouseClaimDoesNotClearHistoryScroll(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "stale-hold", t.TempDir(), "")
 	m.selectSessionRow(t, "stale-hold")
@@ -838,6 +846,7 @@ func TestStaleMouseClaimDoesNotClearHistoryScroll(t *testing.T) {
 // The poll is the only source of frames once a control client dies, so
 // it owes a scrolled-back pane the same stillness the pushed frames do.
 func TestPolledFrameHoldsScrolledView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "polled", t.TempDir(), "")
 	m.selectSessionRow(t, "polled")

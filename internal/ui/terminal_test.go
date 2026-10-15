@@ -88,6 +88,7 @@ func spawnTerminal(t *testing.T, m *Model) store.Session {
 }
 
 func TestOpenTerminalSpawnsShellInSelectedGroup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -114,6 +115,7 @@ func TestOpenTerminalSpawnsShellInSelectedGroup(t *testing.T) {
 // A shell gets no prompt and no rename directive, so the name it is given
 // is its real one and the row shows it from the first frame.
 func TestTerminalRowShowsItsNameImmediately(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("backend", t.TempDir()); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -134,6 +136,7 @@ func TestTerminalRowShowsItsNameImmediately(t *testing.T) {
 // A terminal opened on a session row follows that session's directory, so
 // the shell lands where the agent works rather than at the group default.
 func TestOpenTerminalOnSessionRowUsesItsDirectory(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	groupDir, sessionDir := t.TempDir(), t.TempDir()
 	if err := m.services.store.CreateGroup("backend", groupDir); err != nil {
@@ -153,6 +156,7 @@ func TestOpenTerminalOnSessionRowUsesItsDirectory(t *testing.T) {
 }
 
 func TestOpenTerminalOnAgentNests(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -169,6 +173,7 @@ func TestOpenTerminalOnAgentNests(t *testing.T) {
 }
 
 func TestOpenTerminalOnGroupIsUnnested(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -183,6 +188,7 @@ func TestOpenTerminalOnGroupIsUnnested(t *testing.T) {
 }
 
 func TestOpenTerminalOnNestedShellSharesParent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -202,6 +208,7 @@ func TestOpenTerminalOnNestedShellSharesParent(t *testing.T) {
 // A terminal is named for the session it hangs under, so the row says which
 // agent it was opened for even after the shell is cd'd somewhere else.
 func TestTerminalTakesTheNameOfItsSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "coder", t.TempDir(), "")
 	m.selectSessionRow(t, "coder")
@@ -216,6 +223,7 @@ func TestTerminalTakesTheNameOfItsSession(t *testing.T) {
 // session count up instead of landing on one name. A terminal opened from
 // one of them is a sibling, and counts up in the same run.
 func TestTerminalsUnderOneSessionCountUp(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "coder", t.TempDir(), "")
 	m.selectSessionRow(t, "coder")
@@ -237,6 +245,7 @@ func TestTerminalsUnderOneSessionCountUp(t *testing.T) {
 // A terminal opened on a group has no session to name it after, so it keeps
 // the generated name rather than taking the group's.
 func TestTerminalWithNoSessionKeepsItsGeneratedName(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("backend", t.TempDir()); err != nil {
 		t.Fatalf("group: %v", err)
@@ -251,6 +260,7 @@ func TestTerminalWithNoSessionKeepsItsGeneratedName(t *testing.T) {
 }
 
 func TestTerminalKeyOnUnnestedShellStaysUnnested(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -273,6 +283,7 @@ func TestTerminalKeyOnUnnestedShellStaysUnnested(t *testing.T) {
 // it, so the row checks both the pane path and the recorded cwd rather than
 // handing back somewhere that is no longer there.
 func TestRowDirRefusesADirectoryThatIsGone(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows refuses to delete a directory that is a live pane's working directory")
 	}
@@ -311,6 +322,7 @@ func (r *blockedTerminalDirectoryReader) resolve(terminalDirectoryRequest) (stri
 }
 
 func TestOpenTerminalDefersDirectoryReadAndLaunch(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	dir := t.TempDir()
@@ -340,6 +352,7 @@ func TestOpenTerminalDefersDirectoryReadAndLaunch(t *testing.T) {
 }
 
 func TestTerminalDirectoryCompletionKeepsCapturedParent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "first", dir, "")
@@ -362,6 +375,7 @@ func TestTerminalDirectoryCompletionKeepsCapturedParent(t *testing.T) {
 }
 
 func TestAcceptedTerminalDrainsBlockedDirectoryOnQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	reader := &blockedTerminalDirectoryReader{
@@ -384,6 +398,7 @@ func TestAcceptedTerminalDrainsBlockedDirectoryOnQuit(t *testing.T) {
 // Killing frees the shell like any other session, and revive brings it
 // back on the tool's empty command rather than erroring on a missing CLI.
 func TestTerminalSessionRevives(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	sess := spawnTerminal(t, m)
@@ -404,6 +419,7 @@ func TestTerminalSessionRevives(t *testing.T) {
 // picker, but a shell session keeps it on rename so saving cannot silently
 // turn the shell into an agent.
 func TestShellToolStaysOutOfPickers(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if slices.Contains(m.cachedEnabledToolNames(), shellToolName) {
 		t.Fatalf("a shell should not be offered as a CLI: %v", m.cachedEnabledToolNames())
@@ -419,6 +435,7 @@ func TestShellToolStaysOutOfPickers(t *testing.T) {
 }
 
 func TestShellToolIsFoundByItsFlag(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.services.cfg = config.Config{Tools: map[string]config.Tool{
 		"claude": {Command: "cat"},
@@ -469,6 +486,7 @@ func TestTerminalKeyIgnoresAutorepeat(t *testing.T) {
 
 // A press once the burst is over is a second request, not a repeat.
 func TestTerminalKeySpawnsAgainAfterTheWindow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 
@@ -484,6 +502,7 @@ func TestTerminalKeySpawnsAgainAfterTheWindow(t *testing.T) {
 // The footer offers what the row can do: a shell has no conversation, so
 // the keys that prompt, review or fork one are left off.
 func TestShellRowLegendDropsTheConversationKeys(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	sess := spawnTerminal(t, m)
@@ -512,6 +531,7 @@ func TestShellRowLegendDropsTheConversationKeys(t *testing.T) {
 
 // An agent row keeps the full set.
 func TestAgentRowLegendKeepsTheConversationKeys(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "agent", t.TempDir(), "")
 	m.selectSessionRow(t, "agent")
@@ -534,6 +554,7 @@ func TestAgentRowLegendKeepsTheConversationKeys(t *testing.T) {
 }
 
 func TestRowLegendHidesDoubleClickWhenMouseOff(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "agent", t.TempDir(), "")
 	m.selectSessionRow(t, "agent")

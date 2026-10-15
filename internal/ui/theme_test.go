@@ -9,7 +9,7 @@ import (
 
 func globalWindowStyle(t *testing.T) string {
 	t.Helper()
-	out, err := tmuxCmd("show-options", "-gv", "window-style").CombinedOutput()
+	out, err := tmuxCmd(t, "show-options", "-gv", "window-style").CombinedOutput()
 	if err != nil {
 		t.Fatalf("show-options window-style: %v: %s", err, out)
 	}
@@ -53,7 +53,7 @@ func TestThemeSwitchPushesPaneBackground(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { m.services.tmux.Kill("panebg") })
-	t.Cleanup(func() { tmuxCmd("set-option", "-gu", "window-style").Run() })
+	t.Cleanup(func() { tmuxCmd(t, "set-option", "-gu", "window-style").Run() })
 
 	m.openSettings()
 	m.settings.dialog.Field = uisettings.FieldTheme

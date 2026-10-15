@@ -14,6 +14,7 @@ import (
 )
 
 func TestDeleteGroupSubtree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -75,6 +76,7 @@ func TestDeleteGroupSubtree(t *testing.T) {
 }
 
 func TestDeleteGroupInArchivedViewSparesLiveSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -122,6 +124,7 @@ func TestDeleteGroupInArchivedViewSparesLiveSessions(t *testing.T) {
 }
 
 func TestDeleteArchivedGroupInArchivedViewRemovesIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("empty", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -156,6 +159,7 @@ func TestIgnoreDeletedSessionDropsOnlyTheDeleteRace(t *testing.T) {
 }
 
 func TestDeleteRemovesCleanWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := filepath.Join(t.TempDir(), "repo")
 	if err := os.MkdirAll(repo, 0o755); err != nil {
@@ -219,6 +223,7 @@ func TestDeleteKeepsWorktreeUntilLastSharingSession(t *testing.T) {
 }
 
 func TestDeleteKeepsDirtyWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := filepath.Join(t.TempDir(), "repo")
 	if err := os.MkdirAll(repo, 0o755); err != nil {
@@ -248,6 +253,7 @@ func TestDeleteKeepsDirtyWorktree(t *testing.T) {
 }
 
 func TestDeleteRemovesTheSessionSettings(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSessionOn(t, m, "hooked", "claude-hooked", t.TempDir())
 	settings := m.services.hooks.SettingsFile(m.sessionRows()[0].ID)
@@ -262,6 +268,7 @@ func TestDeleteRemovesTheSessionSettings(t *testing.T) {
 }
 
 func TestDeleteAgentIncludesChildren(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -295,6 +302,7 @@ func TestDeleteAgentIncludesChildren(t *testing.T) {
 }
 
 func TestConfirmedDeleteDropsTheRowBeforeTheNextPoll(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "doomed", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -309,6 +317,7 @@ func TestConfirmedDeleteDropsTheRowBeforeTheNextPoll(t *testing.T) {
 }
 
 func TestConfirmedGroupDeleteDropsTheGroupRowAtOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("zone", dir); err != nil {

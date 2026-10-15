@@ -10,6 +10,7 @@ import (
 )
 
 func TestNestedGroupsTree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -67,6 +68,7 @@ func TestNestedGroupsTree(t *testing.T) {
 }
 
 func TestRebuildRowsNestsChildrenUnderParent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -102,6 +104,7 @@ func TestRebuildRowsNestsChildrenUnderParent(t *testing.T) {
 }
 
 func TestSearchMatchingChildKeepsParent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -131,6 +134,7 @@ func TestSearchMatchingChildKeepsParent(t *testing.T) {
 }
 
 func TestSearchCarriedParentKeepsStoreOrder(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -162,6 +166,7 @@ func TestSearchCarriedParentKeepsStoreOrder(t *testing.T) {
 }
 
 func TestOrphanParentIDPaintsUnnested(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -192,6 +197,7 @@ func TestOrphanParentIDPaintsUnnested(t *testing.T) {
 }
 
 func TestArchiveViewShowsNestedShellWhenParentLive(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -227,6 +233,7 @@ func TestArchiveViewShowsNestedShellWhenParentLive(t *testing.T) {
 }
 
 func TestStatusFilterHoldsNestedIdleShell(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -258,6 +265,7 @@ func TestStatusFilterHoldsNestedIdleShell(t *testing.T) {
 }
 
 func TestUnlistedParentsLeaveChildrenInStoreOrder(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -298,6 +306,7 @@ func TestUnlistedParentsLeaveChildrenInStoreOrder(t *testing.T) {
 }
 
 func TestSearchMatchingArchivedChildDoesNotHoistLiveParent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {

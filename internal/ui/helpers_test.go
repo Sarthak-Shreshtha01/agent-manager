@@ -24,6 +24,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// buildModel gives the test a model on a tmux server and store of its own,
+// so a test that calls t.Parallel shares nothing with its neighbours but
+// process state. A test stays serial when it touches that state: it swaps a
+// package seam (lookPath, startEditor, captureClipboardImage, ...), sets the
+// environment or the lipgloss color profile, changes the theme or opens
+// Settings (the styles are package-wide), reads or writes the system
+// clipboard, drives testSocket, or launches a session under a fixed id (its
+// launch script sits in the shared temp dir under that id).
 func buildModel(t *testing.T) *Model {
 	t.Helper()
 	return buildModelWithStorePath(t, filepath.Join(t.TempDir(), "state.db"))
@@ -209,7 +217,7 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 	st := openTestStore(t, dbPath)
 	t.Cleanup(func() { st.Close() })
 
-	driver, err := tmux.NewWithSocket(testSocket)
+	driver, err := tmux.NewWithSocket(testServer(t))
 	if err != nil {
 		t.Fatalf("tmux: %v", err)
 	}
@@ -471,7 +479,7 @@ func createWorktreeSession(t *testing.T, m *Model, name, repo string) store.Sess
 
 func windowWidth(t *testing.T, id string) int {
 	t.Helper()
-	out, err := tmuxCmd("display-message", "-p", "-t", "am_"+id, "#{window_width}").CombinedOutput()
+	out, err := tmuxCmd(t, "display-message", "-p", "-t", "am_"+id, "#{window_width}").CombinedOutput()
 	if err != nil {
 		t.Fatalf("display-message: %v: %s", err, out)
 	}

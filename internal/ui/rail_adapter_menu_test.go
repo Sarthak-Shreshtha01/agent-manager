@@ -22,6 +22,7 @@ func menuEntry(t *testing.T, m *Model, label string) int {
 }
 
 func TestMenuStaysOpenAfterTheDotsRelease(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -44,6 +45,7 @@ func TestMenuStaysOpenAfterTheDotsRelease(t *testing.T) {
 }
 
 func TestRightClickOpensTheRowMenuAndRunsAnEntry(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -72,6 +74,7 @@ func TestRightClickOpensTheRowMenuAndRunsAnEntry(t *testing.T) {
 }
 
 func TestRowMenuClosesOnEscAndOutsideClick(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 
@@ -90,6 +93,7 @@ func TestRowMenuClosesOnEscAndOutsideClick(t *testing.T) {
 }
 
 func TestRightClickOnTheRailWhileFocusedOpensTheMenu(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -105,6 +109,7 @@ func TestRightClickOnTheRailWhileFocusedOpensTheMenu(t *testing.T) {
 }
 
 func TestGroupMenuCreatesAndNeverAttaches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("work", dir); err != nil {
@@ -133,6 +138,7 @@ func TestGroupMenuCreatesAndNeverAttaches(t *testing.T) {
 }
 
 func TestGroupMenuReviveAsksLikeTheKey(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	seedGroups(t, m, "work")
@@ -156,6 +162,7 @@ func TestGroupMenuReviveAsksLikeTheKey(t *testing.T) {
 }
 
 func TestDotsOnAnUnselectedRowOpenItsMenuAtOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -170,6 +177,7 @@ func TestDotsOnAnUnselectedRowOpenItsMenuAtOnce(t *testing.T) {
 }
 
 func TestMenuPicksTheEntryAPressIsReleasedOn(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	y0, _ := m.bodyYRange()
@@ -194,6 +202,7 @@ func TestMenuPicksTheEntryAPressIsReleasedOn(t *testing.T) {
 }
 
 func TestMenuHighlightsTheEntryUnderAHover(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	y0, _ := m.bodyYRange()
@@ -228,6 +237,7 @@ func railMouseAtLine(t *testing.T, m *Model, line int, action tea.MouseAction, b
 // The pending end is reachable both ways: the menu entry for the mouse,
 // the footer naming its key for the keyboard.
 func TestAPendingEndOffersItsCancelInTheMenuAndTheFooter(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	askAfterTurn(t, m, "alpha", store.AfterTurnArchive)
@@ -259,6 +269,7 @@ func TestAPendingEndOffersItsCancelInTheMenuAndTheFooter(t *testing.T) {
 // A row the poll has not yet ended still carries its request once dead, and
 // c cancels it there, so the menu has to as well.
 func TestADeadRowWithAPendingEndOffersItsCancel(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := askAfterTurn(t, m, "alpha", store.AfterTurnKill)

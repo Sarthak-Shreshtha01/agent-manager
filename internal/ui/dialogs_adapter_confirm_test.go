@@ -10,6 +10,7 @@ import (
 )
 
 func TestConfirmKeyIgnoresUnboundKeys(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		key  tea.KeyMsg
@@ -51,6 +52,7 @@ func TestConfirmKeyIgnoresUnboundKeys(t *testing.T) {
 }
 
 func TestConfirmKeyCancels(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		key  tea.KeyMsg
@@ -86,6 +88,7 @@ func TestConfirmKeyCancels(t *testing.T) {
 }
 
 func TestConfirmKeyCtrlCQuits(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "alpha", dir, "")
@@ -117,6 +120,7 @@ func TestConfirmKeyCtrlCQuits(t *testing.T) {
 // A destructive answer is asked in a dialog, not on the status line, so a
 // busy frame cannot hide the question.
 func TestConfirmRendersAsADialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.mode = modeConfirmDelete
 	m.confirm.confirmTarget = confirmTarget{

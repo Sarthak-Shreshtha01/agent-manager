@@ -16,6 +16,7 @@ import (
 )
 
 func TestDiffReviewShowsWholeFile(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	createSession(t, m, "coder", dir, "")
@@ -42,6 +43,7 @@ func TestDiffReviewShowsWholeFile(t *testing.T) {
 }
 
 func TestReviewLoadsFilesOnDemand(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -74,6 +76,7 @@ func TestReviewLoadsFilesOnDemand(t *testing.T) {
 }
 
 func TestRefreshFileLoadsRunSerially(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -97,6 +100,7 @@ func TestRefreshFileLoadsRunSerially(t *testing.T) {
 // A load in flight when the comment box opens (e.g. a scope cycle) must not
 // swap the set under the editor, even though m.review.Snapshot().Loading is still true.
 func TestInFlightLoadDroppedWhileAnnotating(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -118,6 +122,7 @@ func TestInFlightLoadDroppedWhileAnnotating(t *testing.T) {
 }
 
 func TestBinaryFileShowsBinaryNotZeroCounts(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -155,6 +160,7 @@ func TestBinaryFileShowsBinaryNotZeroCounts(t *testing.T) {
 // Rows past the eager-load cap are rendered before their content is read, so
 // the binary label has to come from numstat rather than the loaded file.
 func TestTrackedBinaryPastEagerCapShowsBinary(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -226,6 +232,7 @@ func TestTrackedBinaryPastEagerCapShowsBinary(t *testing.T) {
 // base under the raw selection - not the resolved toplevel - or its fingerprint
 // diverges from the load's and review reloads every tick forever.
 func TestProbeAndLoadAgreeOnFingerprint(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -272,6 +279,7 @@ func TestProbeAndLoadAgreeOnFingerprint(t *testing.T) {
 }
 
 func TestCycleDiffScopeReportsAFailedBaseLookup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	openReviewOn(t, m, "keepset", gitTestRepo(t))
 	if len(m.review.Snapshot().Set.Files) == 0 {
@@ -294,6 +302,7 @@ func TestCycleDiffScopeReportsAFailedBaseLookup(t *testing.T) {
 }
 
 func TestReviewUntrackedFileShowsCountWithoutOpening(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	openReviewOn(t, m, "counts", gitTestRepo(t))
 	var extra *uireview.FileSummary
@@ -322,6 +331,7 @@ func TestReviewUntrackedFileShowsCountWithoutOpening(t *testing.T) {
 }
 
 func TestReviewUntrackedImageShowsBinaryWithoutOpening(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -395,6 +405,7 @@ func TestReviewShowsLoaderWhileFileLoads(t *testing.T) {
 }
 
 func TestFailedDiffLoadKeepsRepoPicker(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	openReviewOn(t, m, "keeprepo", gitTestRepo(t))
 	roots := append([]string{}, m.review.Snapshot().RepoRoots...)
@@ -425,6 +436,7 @@ func TestFailedDiffLoadKeepsRepoPicker(t *testing.T) {
 }
 
 func TestReviewTargetsTheGroupBaseUnlessOnePicked(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

@@ -8,6 +8,7 @@ import (
 )
 
 func TestArchivedViewIgnoresFold(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -47,6 +48,7 @@ func TestArchivedViewIgnoresFold(t *testing.T) {
 }
 
 func TestCollapsedStatePersistsAcrossReload(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.rail.SetCollapsed("backend", true)
 	m.rail.SetCollapsed("backend/api", true)
@@ -73,6 +75,7 @@ func TestCollapsedStatePersistsAcrossReload(t *testing.T) {
 }
 
 func TestToggleCollapseAllFlipsEveryGroup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.workspace.sessions = []store.Session{{ID: "a", Group: "backend/api"}, {ID: "b", Group: "frontend"}}
 	m.rebuildRows()

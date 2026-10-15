@@ -14,6 +14,7 @@ import (
 // Ctrl+R inside a session opens review and remembers the session, so leaving
 // review returns to it rather than dropping to the list.
 func TestInSessionReviewRemembersOriginAndReattaches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -26,7 +27,7 @@ func TestInSessionReviewRemembersOriginAndReattaches(t *testing.T) {
 	}
 	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -57,6 +58,7 @@ func TestInSessionReviewRemembersOriginAndReattaches(t *testing.T) {
 // Review opened from the list has no origin, so esc returns to the list with
 // no re-attach.
 func TestListReviewLeavesToListWithoutReattach(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -85,6 +87,7 @@ func TestListReviewLeavesToListWithoutReattach(t *testing.T) {
 // Leaving review back into a session acknowledges a finished alert, matching
 // what entering the session from the list does.
 func TestReattachAcknowledgesFinished(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -100,7 +103,7 @@ func TestReattachAcknowledgesFinished(t *testing.T) {
 	if err := m.services.store.UpdateStatus(sess.ID, status.Finished); err != nil {
 		t.Fatalf("set finished: %v", err)
 	}
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -142,6 +145,7 @@ func TestStaleReattachDoesNotInterruptReopenedReview(t *testing.T) {
 }
 
 func TestReviewCloseReleasesStateAndIgnoresLateLoad(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -172,6 +176,7 @@ func TestReviewCloseReleasesStateAndIgnoresLateLoad(t *testing.T) {
 }
 
 func TestCtrlRFromListOpensReview(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

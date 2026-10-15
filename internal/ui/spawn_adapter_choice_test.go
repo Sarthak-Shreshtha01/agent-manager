@@ -132,6 +132,7 @@ func TestFormSpawnsOnTheChoice(t *testing.T) {
 // A CLI that reports nothing keeps both rows, saying so, and takes no keys
 // on them.
 func TestFormSaysWhatACLIDoesNotSupport(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	openFormOnClaude(t, m)
 	body := formBody(m)
@@ -313,6 +314,7 @@ func TestQuickPromptClicks(t *testing.T) {
 // The first need for a CLI's rows reads the kept answer, off the update
 // path, and a fresh one is not asked again.
 func TestCatalogIsReadFromTheKeptAnswer(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.services.configDir = t.TempDir()
 	tool := m.services.cfg.Tools["claude"]
@@ -357,6 +359,7 @@ func TestFormLaunchesOnDefaultsWhenTheCLIFailsToAnswer(t *testing.T) {
 // A CLI that failed to answer is asked again after a short wait, not on
 // every pass over its row.
 func TestAFailedCatalogIsRetriedAfterAWait(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	answered(m, claudeLike, catalog.Catalog{})
 	state := m.ledger.catalogs["claude"]
@@ -373,6 +376,7 @@ func TestAFailedCatalogIsRetriedAfterAWait(t *testing.T) {
 // Answering a session sends no new launch, so the choice keys say so
 // rather than opening a list nothing shows.
 func TestQuickChoiceKeysNeedAGroupTarget(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	answered(m, claudeLike, claudeAnswer)
 	createSession(t, m, "worker", t.TempDir(), "")
@@ -749,6 +753,7 @@ func TestChoiceIsKeptPerCLI(t *testing.T) {
 // A CLI with no model to pick leaves the target row to its name and the
 // worktree, with no note about what it lacks.
 func TestQuickStatusRowLeavesOutWhatACLICannotPick(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("work", t.TempDir()); err != nil {
 		t.Fatal(err)

@@ -16,6 +16,7 @@ import (
 )
 
 func TestArchivedViewShowsOnlyArchivedSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "live-one", dir, "")

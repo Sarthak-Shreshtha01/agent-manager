@@ -112,6 +112,7 @@ func TestEscapeControlsKeepsTextWhoseBytesLookLikeC1(t *testing.T) {
 // The agent in the pane runs `agent-manager rename` itself, so the session
 // name is content the review header paints, not something the user typed.
 func TestSessionNameCannotDriveTheTerminal(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -147,6 +148,7 @@ func TestSessionNameCannotDriveTheTerminal(t *testing.T) {
 // -argument error is the one that says what to do about it. The review's empty
 // state owns the rows to show it; paint would truncate a folded single row.
 func TestMultiLineGitErrorKeepsItsLines(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	req := seedReviewForTest(m, uireview.Target{ID: "s1", Cwd: "/repo"}, git.ScopeUncommitted, "/repo", diff.Set{}, false)
 	m.review.ApplyLoad(uireview.LoadResult{TargetID: "s1", Scope: req.Scope, Generation: req.Generation, RepoRoot: "/repo", RepoRoots: []string{"/repo"}, Err: errors.New("fatal: ambiguous argument 'x'\nUse '--' to separate paths from revisions")})
@@ -163,6 +165,7 @@ func TestMultiLineGitErrorKeepsItsLines(t *testing.T) {
 // the review is painted into. Both layouts, because they render through
 // different cells.
 func TestReviewedFileCannotDriveTheTerminal(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -189,6 +192,7 @@ func TestReviewedFileCannotDriveTheTerminal(t *testing.T) {
 // A clean repo proves the assertion above is not vacuous: the frame really
 // does carry nothing but SGR, so a stray control byte means something leaked.
 func TestCleanReviewFrameCarriesOnlySGR(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -203,6 +207,7 @@ func TestCleanReviewFrameCarriesOnlySGR(t *testing.T) {
 // Git is driven with -z, so a path is handed to us as raw bytes and reaches
 // the file rail, the code title and the comment bar unquoted.
 func TestReviewedPathCannotDriveTheTerminal(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

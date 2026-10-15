@@ -13,6 +13,7 @@ import (
 )
 
 func TestConfirmDefersLifecycleAndKeepsCapturedTarget(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -33,6 +34,7 @@ func TestConfirmDefersLifecycleAndKeepsCapturedTarget(t *testing.T) {
 }
 
 func TestRailDefersPersistenceAndCopiesCollapsedPaths(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	paths := []string{"alpha"}
 	_, cmd := m.applyRailDecision(uirail.Decision{Mutations: []uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: paths}}})
@@ -59,6 +61,7 @@ func TestRailDefersPersistenceAndCopiesCollapsedPaths(t *testing.T) {
 }
 
 func TestEffectQueueDrainsAcceptedWritesOnQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"first"}}, {Kind: uirail.SaveCollapsed, Collapsed: []string{"last"}}}, 0, false)
 	_, command := m.requestQuit()
@@ -83,6 +86,7 @@ func TestEffectQueueDrainsAcceptedWritesOnQuit(t *testing.T) {
 }
 
 func TestEffectCommandExecutesOnceAndCompletionIsIdempotent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"first"}}}, 0, false)
 	command := m.nextEffectCmd()
@@ -104,6 +108,7 @@ func TestEffectCommandExecutesOnceAndCompletionIsIdempotent(t *testing.T) {
 }
 
 func TestStopEffectsRefusesUnstartedCommand(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"late"}}}, 0, false)
 	command := m.nextEffectCmd()
@@ -119,6 +124,7 @@ func TestStopEffectsRefusesUnstartedCommand(t *testing.T) {
 }
 
 func TestDrainAdmitsCausalRailFollowup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.effects.quitting = true
 	m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"followup"}}}, 7, true)
@@ -130,6 +136,7 @@ func TestDrainAdmitsCausalRailFollowup(t *testing.T) {
 }
 
 func TestSlowLifecycleDoesNotBlockWindowUpdateAndKeepsSnapshotWriter(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "slow", t.TempDir(), "")
 	m.selectSessionRow(t, "slow")
@@ -179,6 +186,7 @@ func TestLifecycleRequestCopiesNestedSessionValues(t *testing.T) {
 }
 
 func TestCollapseSaveQueuesWhileMoveIsPending(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, sess := range []store.Session{{ID: "one", Name: "one", Tool: "claude", Cwd: "/tmp"}, {ID: "two", Name: "two", Tool: "claude", Cwd: "/tmp"}} {
 		if err := m.services.store.CreateSession(sess); err != nil {
@@ -198,6 +206,7 @@ func TestCollapseSaveQueuesWhileMoveIsPending(t *testing.T) {
 }
 
 func TestMoveFollowupKeepsLaterCollapsePreference(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := store.Session{ID: "mover", Name: "mover", Tool: "claude", Cwd: "/tmp"}
 	if err := m.services.store.CreateSession(sess); err != nil {

@@ -12,6 +12,7 @@ import (
 )
 
 func TestFocusDropsTheLastSessionsCaret(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -30,6 +31,7 @@ func TestFocusDropsTheLastSessionsCaret(t *testing.T) {
 }
 
 func TestMouseBackLeavesFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "mouse-back", t.TempDir(), "")
 	m.selectSessionRow(t, "mouse-back")
@@ -44,6 +46,7 @@ func TestMouseBackLeavesFocus(t *testing.T) {
 }
 
 func TestPaneBoxMatchesPaintedFrame(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "boxed", t.TempDir(), "")
 	m.selectSessionRow(t, "boxed")
@@ -73,6 +76,7 @@ func TestPaneBoxMatchesPaintedFrame(t *testing.T) {
 // A triple click on a painted pane row copies that row and nothing from
 // the rail beside it.
 func TestTripleClickOnRealFrameTakesPaneRowOnly(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "railmate", t.TempDir(), "")
 	m.selectSessionRow(t, "railmate")
@@ -144,6 +148,7 @@ func TestLateCopyConfirmationIsDroppedAfterTheSelectionGoes(t *testing.T) {
 }
 
 func TestPushedPreviewWinsOverStalePoll(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "typing", t.TempDir(), "")
 	m.selectSessionRow(t, "typing")
@@ -176,6 +181,7 @@ func TestPushedPreviewWinsOverStalePoll(t *testing.T) {
 }
 
 func TestPollPreviewResumesAfterWatcherStops(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "released", t.TempDir(), "")
 	m.selectSessionRow(t, "released")
@@ -192,6 +198,7 @@ func TestPollPreviewResumesAfterWatcherStops(t *testing.T) {
 }
 
 func TestBottomParkedCaretSurvivesControlCapture(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "ccpark", t.TempDir(), "")
 	m.selectSessionRow(t, "ccpark")

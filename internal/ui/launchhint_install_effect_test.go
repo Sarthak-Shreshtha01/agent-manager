@@ -62,6 +62,7 @@ func TestInstallStartDefersWorkOffUpdate(t *testing.T) {
 }
 
 func TestInstallStartRefusesDuplicateWhileQueued(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	installFixture(t, m, "sleep 30")
 
@@ -162,6 +163,7 @@ func TestInstallStartKeepsUncertainSendWithoutBlindRetry(t *testing.T) {
 }
 
 func TestInstallStartCompletionDoesNotReplaceNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	_, firstImage := installFixture(t, m, "sleep 30")
 	pressInLaunchHint(t, m, 'i')
@@ -194,6 +196,7 @@ func TestInstallStartCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 }
 
 func TestInstallStartStaleFailureDefersImageCleanupToCommand(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	image := tempImage(t, "stale.png")
 	m.mode = modeLaunchHint

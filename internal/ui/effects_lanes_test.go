@@ -11,6 +11,7 @@ import (
 )
 
 func TestInputDoesNotWaitBehindTheMainLane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"slow"}}}, 0, false)
 	if m.nextEffectCmd() == nil || m.effects.main.active == nil {
@@ -26,6 +27,7 @@ func TestInputDoesNotWaitBehindTheMainLane(t *testing.T) {
 }
 
 func TestKeysNeitherFenceListingsNorAskForAPoll(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.dispatchInput(inputRequest{kind: inputKeys, session: store.Session{ID: "s"}, command: "x"})
 	m.nextEffectCmd()
@@ -44,6 +46,7 @@ func TestKeysNeitherFenceListingsNorAskForAPoll(t *testing.T) {
 }
 
 func TestSecondQuitAbandonsAStuckDrain(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"a"}}, {Kind: uirail.SaveCollapsed, Collapsed: []string{"b"}}}, 0, false)
 	if _, command := m.requestQuit(); command == nil || m.effects.main.active == nil {

@@ -110,7 +110,7 @@ func TestKeyPickerBindsCapturedKeyAndSavesIt(t *testing.T) {
 		t.Fatalf("stored detach = %q, want f9", got)
 	}
 
-	bound, err := sessionTmuxCmd(live, "list-keys", "-T", "root").CombinedOutput()
+	bound, err := sessionTmuxCmd(t, live, "list-keys", "-T", "root").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list root keys: %v: %s", err, bound)
 	}

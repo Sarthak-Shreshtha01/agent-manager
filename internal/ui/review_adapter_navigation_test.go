@@ -13,6 +13,7 @@ import (
 // viewport taller than its painted area lets the cursor walk past the last
 // visible row: the selection is at the end of the file, the screen is not.
 func TestDiffCursorStaysOnScreen(t *testing.T) {
+	t.Parallel()
 	const lines = 400
 	m := buildModel(t)
 	dir := gitRepoWithLongFile(t, lines)
@@ -50,6 +51,7 @@ func TestDiffCursorStaysOnScreen(t *testing.T) {
 // can address but the screen never shows, which is how the last screenful
 // silently went missing once before.
 func TestDiffReviewReachesLastLine(t *testing.T) {
+	t.Parallel()
 	const lines = 400
 	for _, layout := range []struct {
 		name  string
@@ -96,6 +98,7 @@ func TestDiffReviewReachesLastLine(t *testing.T) {
 // if the viewport is taller than the painted rows, the walk stops short and
 // the tail of the file becomes unreachable by keyboard.
 func TestDiffReviewStepsDownToTheEnd(t *testing.T) {
+	t.Parallel()
 	const lines = 120
 	m := buildModel(t)
 	dir := gitRepoWithLongFile(t, lines)
@@ -121,6 +124,7 @@ func TestDiffReviewStepsDownToTheEnd(t *testing.T) {
 // line on screen pushes one more line of the file's tail off the bottom:
 // the cursor lands on the last line and the screen never shows it.
 func TestDiffReviewReachesEndWithWrappedLines(t *testing.T) {
+	t.Parallel()
 	const lines = 80
 	for _, layout := range []struct {
 		name  string
@@ -167,6 +171,7 @@ func TestDiffReviewReachesEndWithWrappedLines(t *testing.T) {
 // Marking a file reviewed advances to the next unreviewed file; the advanced
 // file must still get its syntax highlighting.
 func TestSpaceAdvanceKeepsHighlight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -190,6 +195,7 @@ func TestSpaceAdvanceKeepsHighlight(t *testing.T) {
 // Scroll positions are per session and per scope; a second session touching
 // the same path must open the file at the top.
 func TestScrollDoesNotLeakAcrossSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -216,6 +222,7 @@ func TestScrollDoesNotLeakAcrossSessions(t *testing.T) {
 // f drops the files git calls binary out of the review, and neither the
 // selection nor a file switch is left on one of them.
 func TestReviewCodeOnlyHidesBinaryFiles(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -278,6 +285,7 @@ func TestReviewCodeOnlyHidesBinaryFiles(t *testing.T) {
 // neither has a git verdict to go on: the filter has to settle them by name so
 // they go the moment the key is pressed and stay gone across a silent reload.
 func TestReviewCodeOnlyHidesUntrackedAndLockFiles(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -334,6 +342,7 @@ func TestReviewCodeOnlyHidesUntrackedAndLockFiles(t *testing.T) {
 // NUL, so the cursor has to be carried off it the way every other file switch
 // moves: with the file it lands on scrolled back where the user left it.
 func TestReviewCodeOnlyCarriesCursorOffASniffedBlob(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -378,6 +387,7 @@ func TestReviewCodeOnlyCarriesCursorOffASniffedBlob(t *testing.T) {
 // space walks to the next file still to review, and a file the filter hides is
 // not one the user can review.
 func TestReviewCodeOnlySpaceSkipsHiddenFile(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -425,6 +435,7 @@ func TestReviewCodeOnlySpaceSkipsHiddenFile(t *testing.T) {
 // nothing to show, which has to read as a state rather than as a broken pane,
 // and leaves tab with nowhere to go.
 func TestReviewCodeOnlyWithNoCodeFiles(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -468,6 +479,7 @@ func TestReviewCodeOnlyWithNoCodeFiles(t *testing.T) {
 }
 
 func TestDiffPageKeysMoveAViewport(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitRepoWithLongFile(t, 80)
 	openReviewOn(t, m, "pager", dir)
@@ -483,6 +495,7 @@ func TestDiffPageKeysMoveAViewport(t *testing.T) {
 }
 
 func TestNarrowReviewKeepsBothPanesMeasurable(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
