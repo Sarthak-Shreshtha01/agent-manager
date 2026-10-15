@@ -1070,6 +1070,27 @@ func TestCaretAtInputStartNeedsCurrentPane(t *testing.T) {
 	}
 }
 
+// Keys queued to a polled pane land after the frame the mirror holds, so
+// that frame's caret cannot put Left at the prompt head: a Left typed right
+// behind a word would leave focus instead of moving through it.
+func TestCaretAtInputStartWaitsForQueuedKeys(t *testing.T) {
+	m := caretModel(t, paneCursor{x: 2, y: 0, ok: true}, "❯")
+	m.focus = newFocusWatch(nil, func(tea.Msg) {})
+	if !m.caretAtInputStart("s1", "claude") {
+		t.Fatal("test setup: the empty prompt's caret is not at its head")
+	}
+	m.focus.mu.Lock()
+	m.focus.queued = 1
+	m.focus.mu.Unlock()
+	if m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame taken before a queued key decided the caret")
+	}
+	m.pane.writes = 1
+	if !m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame showing every queued key did not decide the caret")
+	}
+}
+
 // Left leaves focus at the head of the prompt and reaches the agent
 // anywhere else, so a typed prompt keeps its caret movement.
 func TestFocusLeftUnfocusesAtPromptHead(t *testing.T) {
@@ -1408,8 +1429,8 @@ func TestFocusLeftUnfocusesOnCommandCodesParkedCaret(t *testing.T) {
 	hidden := focusPreviewMsg{
 		sessID:  sess.ID,
 		preview: "✻ Thought for 2 seconds [ctrl+o to expand]\n\n────────────\n❯ Ask your question...\n────────────\n  ? for shortcuts\n\n\n\n",
+		cursorX: 0, cursorY: 6, paneStateOK: true,
 	}
-	applyPaneState(&hidden, "0,6,0,000,0,0,0,0")
 	updated, _ = m.Update(hidden)
 	*m = *updated.(*Model)
 	if m.pane.cursor.ok || !m.pane.cursor.positionOK {
@@ -1594,7 +1615,6 @@ func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
 // client there is not a failure to report; only a client that dies under
 // the watcher is.
 func TestKillingTheFocusedSessionReportsNoLoss(t *testing.T) {
-	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "doomed-focus", t.TempDir(), "")
 	m.selectSessionRow(t, "doomed-focus")

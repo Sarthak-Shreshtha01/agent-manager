@@ -3,7 +3,6 @@
 package tmux
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -42,16 +41,19 @@ const hiddenWindowStatus = "#[default]"
 // window is sized to the preview whole, the panes keeping their shares.
 const pinsSplitPane = false
 
-// errControlUnavailable keeps the manager off psmux's control client. Its
+// controlUnavailable keeps the manager off psmux's control client. Its
 // output thread slices each line at byte 200 for a debug log and panics
 // when that cuts a multibyte character, which an agent's box-drawn UI does
 // on nearly every capture; the client then goes silent while still
 // attached. Previews poll capture-pane instead.
-var errControlUnavailable = errors.New("psmux control mode is not used: its client panics on wide pane lines")
-
 func controlUnavailable() error {
-	return errControlUnavailable
+	return fmt.Errorf("%w: its client panics on wide pane lines", ErrControlUnavailable)
 }
+
+// ReportsCursorFlag is off: psmux answers #{cursor_flag} with a constant 0
+// whether the pane's application shows its cursor or hides it, so the flag
+// says nothing and the reported position is taken as the caret.
+const ReportsCursorFlag = false
 
 // commandEnv keeps psmux from parking a warm standby server per namespace:
 // every managed session passes its own directory and size, which a warm

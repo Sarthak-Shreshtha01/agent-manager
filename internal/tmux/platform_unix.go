@@ -33,6 +33,10 @@ func controlUnavailable() error {
 	return nil
 }
 
+// ReportsCursorFlag: tmux's #{cursor_flag} says whether the pane's
+// application shows its cursor.
+const ReportsCursorFlag = true
+
 // rootBinding binds a key inside managed sessions only; anywhere else on
 // the server the key goes through to the pane as itself. That branch is a
 // command string tmux parses, so a backslash in the key name is doubled.
