@@ -67,7 +67,7 @@ func OpenLocal(profileDir string, driver *tmux.Driver) (*Local, error) {
 	}
 	runner := execution.New(execution.Dependencies{
 		Store: st, TMux: driver, Engine: engine, Hooks: runtime.Hooks, Git: optionalGitDriver,
-		Inbox: sessioncmd.NewInboxOwner(st), Notify: notify.Notify,
+		Inbox: sessioncmd.NewInboxOwner(st), Notify: notify.Notify, ShowCommand: notify.ShowCommand,
 		TakeFocus: func() (string, bool) { return notify.TakeFocus(profileDir) },
 	}, execution.OptionsFromConfig(cfg))
 	return &Local{ProfileDir: profileDir, Runtime: runtime, Engine: engine, Backend: backend, Lifecycle: lifecycle, Execution: runner}, nil

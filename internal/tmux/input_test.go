@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"context"
+	"errors"
 	"os"
 	"slices"
 	"strconv"
@@ -37,6 +38,23 @@ func TestSendText(t *testing.T) {
 	}
 	if !strings.Contains(pane, "hello world") {
 		t.Fatalf("cat should echo the sent line, pane: %q", pane)
+	}
+}
+
+// A composer that cannot be read after the Enter proves nothing about the
+// submit, so the failed read is the result rather than an empty composer.
+func TestSubmitTextReturnsAComposerItCouldNotRead(t *testing.T) {
+	driver := requireTmux(t)
+	id := "unread" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
+	if err := driver.Create(id, "/tmp", "cat", nil, 0, 0); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { driver.Kill(id) })
+
+	unreadable := errors.New("composer unreadable")
+	_, err := driver.SubmitTextContext(context.Background(), id, "hello world", func() (bool, error) { return false, unreadable })
+	if !errors.Is(err, unreadable) {
+		t.Fatalf("SubmitTextContext = %v, want the failed composer read", err)
 	}
 }
 

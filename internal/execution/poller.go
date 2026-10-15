@@ -2,9 +2,10 @@ package execution
 
 import (
 	"errors"
-	"github.com/YoanWai/agent-manager/internal/launch"
 	"os"
 	"slices"
+
+	"github.com/YoanWai/agent-manager/internal/launch"
 
 	"sync"
 	"sync/atomic"
@@ -59,6 +60,11 @@ type Runner struct {
 
 	// notifyFn delivers one desktop notification; tests swap in a recorder.
 	notifyFn func(notify.Event)
+	// commandFn runs the user's notify command for the same event, or logs
+	// why it could not; tests swap in a recorder.
+	commandFn func(event notify.Event, command string, readErr error)
+	// showCommandFn shows a new notify command; tests swap in a recorder.
+	showCommandFn func(command string)
 	// takeFocus collects the session a clicked notification named; tests
 	// swap in a stub.
 	takeFocus func() (string, bool)
@@ -652,3 +658,11 @@ func (p *Runner) ReflowSessions(ids []string, reflow func()) error {
 
 const notificationsSetting = "notifications"
 const notifyFinishedSetting = "notify_finished"
+
+// notifyCommandSetting is a shell command run on every notification, with
+// the event in AM_* variables. Empty runs nothing.
+const notifyCommandSetting = "notify_command"
+
+// notifyCommandShownSetting is the last notify command a banner showed the
+// user, so a new one is announced once, before its first run.
+const notifyCommandShownSetting = "notify_command_shown"

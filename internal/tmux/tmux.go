@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -76,50 +74,6 @@ func NewWithSocket(socket string) (*Driver, error) {
 
 func (d *Driver) SocketName() string {
 	return d.socket
-}
-
-// SocketPath is the file the server this driver talks to listens on. The
-// -L name does not identify a server on its own: tmux resolves it under
-// TMUX_TMPDIR, so two managers started with different values of that
-// variable drive different servers under one socket name, each blind to
-// the other's sessions.
-func (d *Driver) SocketPath() string {
-	if cached := d.socketPath.Load(); cached != nil {
-		return *cached
-	}
-	out, err := d.run("display-message", "-p", "#{socket_path}")
-	if err != nil {
-		return socketPathFromEnv(d.socket)
-	}
-	path := strings.TrimSpace(out)
-	if path == "" {
-		return socketPathFromEnv(d.socket)
-	}
-	d.socketPath.Store(&path)
-	return path
-}
-
-// socketPathFromEnv rebuilds what tmux resolves -L to, without asking a
-// server that may not be running. tmux reports the path with its symlinks
-// resolved, so this does too and the two agree once a server exists.
-func socketPathFromEnv(socket string) string {
-	dir := "/tmp"
-	// tmux skips a TMUX_TMPDIR it cannot resolve.
-	if custom := os.Getenv("TMUX_TMPDIR"); custom != "" {
-		if _, err := os.Stat(custom); err == nil {
-			dir = custom
-		}
-	}
-	// tmux takes a relative TMUX_TMPDIR from its own working directory and
-	// reports the resolved path, so the same absolute form is what a session
-	// has to be stamped with for a later poll to recognise it.
-	if absolute, err := filepath.Abs(dir); err == nil {
-		dir = absolute
-	}
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
-		dir = resolved
-	}
-	return filepath.Join(dir, fmt.Sprintf("tmux-%d", os.Getuid()), socket)
 }
 
 func sessionName(id string) string {
@@ -244,10 +198,6 @@ func (d *Driver) Kill(id string) error {
 	_, err := d.run("kill-session", "-t", sessionName(id))
 	removeScripts(id)
 	return err
-}
-
-func removeScripts(id string) {
-	os.Remove(launchScriptPath(id))
 }
 
 func (d *Driver) Exists(id string) bool {

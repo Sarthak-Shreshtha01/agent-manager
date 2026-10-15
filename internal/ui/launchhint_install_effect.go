@@ -139,6 +139,11 @@ func (s effectServices) runInstallStart(request installStartRequest) (effectResu
 	if err != nil {
 		return result, err
 	}
+	line, err := installLine(script)
+	if err != nil {
+		removeInstallFiles(statusFile, script)
+		return result, err
+	}
 	launched, err := s.lifecycle.Launch(sessioncmd.LaunchRequest{
 		Session:     sess,
 		Tool:        tool,
@@ -163,7 +168,7 @@ func (s effectServices) runInstallStart(request installStartRequest) (effectResu
 		effectRetry: request.effectRetry,
 		images:      request.images,
 	}
-	sendResult, sendErr := s.installSendText(s.driver, sess.ID, "sh "+tmux.ShellQuote(script))
+	sendResult, sendErr := s.installSendText(s.driver, sess.ID, line)
 	if sendErr == nil && sendResult.Phase != tmux.SendPhaseSubmitted {
 		sendErr = errors.New("installer command was not confirmed submitted")
 	}

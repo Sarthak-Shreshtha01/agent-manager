@@ -3,10 +3,11 @@ package execution
 import (
 	"context"
 	"errors"
-	"github.com/YoanWai/agent-manager/internal/store"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/store"
 )
 
 func TestRunCancellationClosesResults(t *testing.T) {

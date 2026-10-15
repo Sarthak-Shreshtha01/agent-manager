@@ -200,7 +200,10 @@ func (p *Runner) maybeDeliverInbox(sess store.Session, pane, derived string, age
 		if err != nil || !claimed {
 			return err
 		}
-		result, sendErr := p.tmux.SendTextContext(ctx, sess.ID, inboxEnvelope(msg, p.mcpStyles[sess.Tool], p.senderIsShell(msg.SenderID)))
+		// A paste left in the composer is not retyped: the recipient would
+		// read it twice once someone presses Enter there.
+		envelope := inboxEnvelope(msg, p.mcpStyles[sess.Tool], p.senderIsShell(msg.SenderID))
+		result, sendErr := p.tmux.SubmitTextContext(ctx, sess.ID, envelope, p.composerDrafted(sess))
 		outcome := classifyDelivery(result, sendErr)
 		receiptErr := guard.FinishMessage(msg.ID, claim, outcome, time.Now())
 		if sendErr != nil {
@@ -246,6 +249,18 @@ func (p *Runner) promptCarriesTypedText(sess store.Session, clean string) (bool,
 		return false, nil
 	}
 	return status.HasDraftBeforeCaret(p.engine, sess.Tool, rows, caretX, caretY), nil
+}
+
+// composerDrafted reads the session's composer afresh on every call, for a
+// send that has to see its paste land and then leave.
+func (p *Runner) composerDrafted(sess store.Session) func() (bool, error) {
+	return func() (bool, error) {
+		pane, err := p.tmux.CapturePane(sess.ID)
+		if err != nil {
+			return false, err
+		}
+		return p.promptCarriesTypedText(sess, ansi.Strip(pane))
+	}
 }
 
 // inboxEnvelope wraps the body so the receiving agent knows the text came

@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/deps"
@@ -48,7 +47,7 @@ func (d *Driver) run(dir string, args ...string) (string, error) {
 	// prompt from a hook or LFS filter would hang unseen; off its terminal
 	// and with prompts disabled, git fails instead.
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "SSH_ASKPASS_REQUIRE=never")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	detachTerminal(cmd)
 	out, err := cmd.CombinedOutput()
 	text := strings.TrimRight(string(out), "\n")
 	if err != nil {
@@ -714,8 +713,7 @@ func (d *Driver) FetchBase(dir, override string) error {
 	cmd.Dir = dir
 	// Nobody can answer a background fetch, so git's, askpass's and ssh's tty prompts are all shut off.
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "SSH_ASKPASS_REQUIRE=never")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	killFetchTree(cmd)
 	cmd.WaitDelay = time.Second
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git fetch %s %s: %w: %s", remote, branch, err, strings.TrimSpace(string(out)))

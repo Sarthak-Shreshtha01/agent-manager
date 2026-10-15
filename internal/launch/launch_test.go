@@ -329,7 +329,7 @@ func TestEnvironmentWiresTheSessionReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Environment pi: %v", err)
 	}
-	if want := agentLaunch(manager, "cat --model 'big' --session-id abc -e "+tmux.ShellQuote(filepath.Join(manager.Dir(), "track-pi.ts"))); command != want {
+	if want := agentLaunch(manager, "cat --model 'big' --session-id abc -e "+tmux.ShellQuote(filepath.Join(manager.Dir(), "agent-manager-pi.ts"))); command != want {
 		t.Fatalf("pi command = %q, want %q", command, want)
 	}
 
@@ -338,7 +338,7 @@ func TestEnvironmentWiresTheSessionReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Environment opencode: %v", err)
 	}
-	if command != agentLaunch(manager, "cat") || env["OPENCODE_TUI_CONFIG"] != filepath.Join(manager.Dir(), "track-opencode-tui.json") {
+	if command != agentLaunch(manager, "cat") || env["OPENCODE_TUI_CONFIG"] != filepath.Join(manager.Dir(), "agent-manager-opencode-tui.json") {
 		t.Fatalf("opencode launch = %q %v, want the TUI config in the environment", command, env)
 	}
 

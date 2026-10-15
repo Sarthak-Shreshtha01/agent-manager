@@ -2,8 +2,9 @@ package execution
 
 import (
 	"errors"
-	"github.com/YoanWai/agent-manager/internal/launch"
 	"strings"
+
+	"github.com/YoanWai/agent-manager/internal/launch"
 
 	"unicode"
 
