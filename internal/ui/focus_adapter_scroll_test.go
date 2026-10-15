@@ -731,12 +731,6 @@ func TestAltMouseForwardingKeepsTheRelease(t *testing.T) {
 	}
 }
 
-func TestHexBytesSpellsEveryReportByte(t *testing.T) {
-	if got, want := hexBytes("\x1b[<64;1;1M"), "1b 5b 3c 36 34 3b 31 3b 31 4d"; got != want {
-		t.Errorf("hexBytes = %q, want %q", got, want)
-	}
-}
-
 // An application that turns on mouse tracking owns the wheel: agent CLIs
 // run on the alternate screen, where tmux keeps no scrollback at all, and
 // scroll themselves when they receive the event.

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/tmux"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -85,7 +86,7 @@ func (s effectServices) runInput(request inputRequest) (effectResult, error) {
 			if request.kind == inputMouse {
 				// The guarded report answers with one block for if-shell and
 				// one for whichever branch it ran.
-				blocks = guardedMouseReplies
+				blocks = tmux.GuardedMouseReplies
 			}
 			available, err = s.watch.forwardBlocks(request.command, blocks)
 			if available && err != nil {
