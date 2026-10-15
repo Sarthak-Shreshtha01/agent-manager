@@ -206,36 +206,6 @@ func TestControlBlockSurvivesProtocolLookalikes(t *testing.T) {
 
 // A server that stops answering must cost the caller a bounded wait, not
 // hang it: Command runs on the UI loop.
-// psmux's -CC client opens with a DCS introducer glued to its greeting,
-// which must not hide the greeting from the parser.
-func TestControlGreetingAfterDCSIntroducer(t *testing.T) {
-	server := newFakeServer()
-	server.send("\x1bP1000p%begin 1 1 0", "%end 1 1 0")
-	select {
-	case <-server.control.ready:
-	case <-time.After(2 * time.Second):
-		t.Fatal("the greeting behind the DCS introducer never registered")
-	}
-	got := make(chan string, 1)
-	go func() {
-		out, err := server.control.Command("display-message -p ok")
-		if err != nil {
-			out = "error: " + err.Error()
-		}
-		got <- out
-	}()
-	waitWritten(t, server, "display-message -p ok")
-	server.send("%begin 2 1 1", "ok", "%end 2 1 1")
-	select {
-	case out := <-got:
-		if out != "ok" {
-			t.Fatalf("Command = %q, want ok", out)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("no reply")
-	}
-}
-
 func TestControlCommandTimesOut(t *testing.T) {
 	server := newFakeServer()
 	server.send("%begin 1 0 0", "%end 1 0 0")

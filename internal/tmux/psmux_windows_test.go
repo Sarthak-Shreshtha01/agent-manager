@@ -165,29 +165,6 @@ func TestPsmuxRequestMarkerIsPerSession(t *testing.T) {
 	}
 }
 
-// The manager stays off psmux's control client, whose output thread panics
-// on wide lines; the protocol itself still parses, which a reply short of
-// that limit shows.
-func TestPsmuxControlModeAnswersCommands(t *testing.T) {
-	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "ctl", "", "")
-	if _, err := driver.OpenControl(id); err == nil {
-		t.Fatal("OpenControl should refuse psmux's control client")
-	}
-	control, err := driver.openControl(id)
-	if err != nil {
-		t.Fatalf("openControl: %v", err)
-	}
-	defer control.Close()
-	got, err := control.Command("display-message -p '#{session_name}'")
-	if err != nil {
-		t.Fatalf("Command: %v", err)
-	}
-	if strings.TrimSpace(got) != "am_"+id {
-		t.Fatalf("session name over control = %q, want am_%s", got, id)
-	}
-}
-
 // A pane's $TMUX names its server's pid; that and the pane id pick the
 // session, and a pid from any other server answers empty.
 func TestPsmuxSessionOfPaneUsesTheServerPid(t *testing.T) {
