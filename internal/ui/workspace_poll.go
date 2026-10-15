@@ -20,6 +20,8 @@ import (
 
 var postNotification = notify.Notify
 
+var showCommand = notify.ShowCommand
+
 type poller struct {
 	runner       *execution.Runner
 	dependencies execution.Dependencies
@@ -27,7 +29,7 @@ type poller struct {
 }
 
 func newPoller(st *store.Store, driver *tmux.Driver, engine *status.Engine, hookManager *hooks.Manager, gitDriver *git.Driver, statusSources, sessionStores, mcpStyles, reportStyles map[string]string, shellTools map[string]bool, binaries execution.ToolBinaries, interval time.Duration) *poller {
-	deps := execution.Dependencies{Store: st, TMux: driver, Engine: engine, Hooks: hookManager, Git: gitDriver, Notify: postNotification, TakeFocus: takeNotifyFocus}
+	deps := execution.Dependencies{Store: st, TMux: driver, Engine: engine, Hooks: hookManager, Git: gitDriver, Notify: postNotification, ShowCommand: showCommand, TakeFocus: takeNotifyFocus}
 	opts := execution.Options{StatusSources: statusSources, SessionStores: sessionStores, MCPStyles: mcpStyles, ReportStyles: reportStyles, ShellTools: shellTools, Binaries: binaries, Interval: interval}
 	return &poller{runner: execution.New(deps, opts), dependencies: deps, options: opts}
 }

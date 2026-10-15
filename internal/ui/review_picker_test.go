@@ -137,8 +137,8 @@ func TestBranchPickerListsWorktreesAndSwitches(t *testing.T) {
 }
 
 // The b picker must seed its cursor on the worktree under review even when
-// that worktree was declared via a /tmp path that git resolves to
-// /private/tmp, since /tmp is a symlink on macOS.
+// that worktree was declared via a temp path that git resolves elsewhere
+// (/var -> /private/var on macOS, where the temp dir lives behind a symlink).
 func TestBranchPickerSeedsCursorForSymlinkedWorktree(t *testing.T) {
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
@@ -147,13 +147,13 @@ func TestBranchPickerSeedsCursorForSymlinkedWorktree(t *testing.T) {
 	umbrella, _ := umbrellaWithTwoRepos(t)
 	alpha := filepath.Join(umbrella, "alpha")
 
-	linkedParent, err := os.MkdirTemp("/tmp", "am-p2-symlink-seed-*")
+	linkedParent, err := os.MkdirTemp(os.TempDir(), "am-p2-symlink-seed-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(linkedParent) })
 	if resolved, _ := filepath.EvalSymlinks(linkedParent); resolved == linkedParent {
-		t.Skip("/tmp does not resolve to a different path on this system")
+		t.Skip("the temp dir does not resolve to a different path on this system")
 	}
 	rawWorktree := filepath.Join(linkedParent, "wt-declared")
 
@@ -408,6 +408,11 @@ func TestRepoPickerReportsMissingSession(t *testing.T) {
 		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 		*m = *updated.(*Model)
 	}
+	// Hand the sessions back before buildModel's cleanup kills them: a
+	// leaked pane keeps its cwd busy, and Windows will not remove a live
+	// process's working directory with the rest of the temp dir.
+	sessions := m.workspace.sessions
+	t.Cleanup(func() { m.workspace.sessions = sessions })
 	m.workspace.sessions = nil
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -663,14 +668,14 @@ func TestRepoPickRowEscapesControlBytes(t *testing.T) {
 	m := &Model{
 		layout: layoutState{width: 120},
 	}
-	row := pickRow{label: "br\x1b]0;P\x07anch", root: "/tmp/re\x1b[2Jpo/leaf"}
+	row := pickRow{label: "br\x1b]0;P\x07anch", root: filepath.FromSlash("/tmp/re\x1b[2Jpo/leaf")}
 
 	for _, selected := range []bool{false, true} {
 		out := m.reviewNav.picker.row(m, row, selected)
 		if !strings.Contains(out, "br^[]0;P^Ganch") {
 			t.Errorf("selected=%v: label should read as caret notation, got %q", selected, out)
 		}
-		if !strings.Contains(out, "/tmp/re^[[2Jpo") {
+		if !strings.Contains(out, filepath.FromSlash("/tmp/re^[[2Jpo")) {
 			t.Errorf("selected=%v: root should read as caret notation, got %q", selected, out)
 		}
 		if stray := strayControl(out); stray != "" {

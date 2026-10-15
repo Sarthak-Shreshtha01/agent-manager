@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
@@ -48,6 +49,7 @@ func TestPreparedAttachDoesNotReplaceNewerHelp(t *testing.T) {
 }
 
 func TestAttachReportsTransportFailureWithoutCallingPaneDead(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	m := buildModel(t)
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "tmux")

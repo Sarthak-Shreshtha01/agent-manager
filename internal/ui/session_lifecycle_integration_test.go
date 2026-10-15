@@ -3,9 +3,12 @@ package ui
 import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -107,6 +110,9 @@ func seedRestoreScenario(t *testing.T, m *Model, group string) (live, sleeper, s
 // manager appended to it and then holds the pane open, so a test can prove
 // which flags a launch carried.
 func argCaptureCommand(argsFile string) string {
+	if runtime.GOOS == "windows" {
+		return testfixture.ModeCommand("capture-args") + " " + tmux.ShellQuote(argsFile)
+	}
 	script := `printf '%s\n' "$@" > ` + tmux.ShellQuote(argsFile) + `; cat`
 	return "sh -c " + tmux.ShellQuote(script) + " sh"
 }
@@ -162,7 +168,7 @@ func waitForPane(t *testing.T, m *Model, id, marker string) {
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		pane, err := m.services.tmux.CapturePane(id)
-		if err == nil && strings.Contains(pane, marker) {
+		if err == nil && strings.Contains(ansi.Strip(pane), marker) {
 			return
 		}
 		if time.Now().After(deadline) {

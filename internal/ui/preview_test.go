@@ -132,3 +132,65 @@ func TestPreviewFollowsPaneWithoutCursorMoves(t *testing.T) {
 		t.Fatalf("frame missing the newest pane content:\n%s", view)
 	}
 }
+
+func TestTypedPromptsAreHeldPerSession(t *testing.T) {
+	m := buildModel(t)
+	createSession(t, m, "typed-a", t.TempDir(), "")
+	createSession(t, m, "typed-b", t.TempDir(), "")
+	index := func(name string) int {
+		for i, s := range m.workspace.sessions {
+			if s.Name == name {
+				return i
+			}
+		}
+		t.Fatalf("no session named %q", name)
+		return -1
+	}
+	a, b := index("typed-a"), index("typed-b")
+	aID, bID := m.workspace.sessions[a].ID, m.workspace.sessions[b].ID
+	hold := func(i int, text string, at time.Time) {
+		sess := m.workspace.sessions[i]
+		m.holdTypedPrompt(typedPromptCandidate{session: sess, id: sess.ID, text: text, at: at})
+	}
+	commit := func() {
+		m.commitTypedPrompt()
+		m.drainEffects(t)
+	}
+	lastPrompt := func(id string) string {
+		got, err := m.services.store.Get(id)
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		return got.LastPrompt
+	}
+
+	// A's capture lands after B's: both drafts are still waiting on their
+	// sessions to turn working.
+	hold(a, "prompt for a", time.Now())
+	hold(b, "prompt for b", time.Now())
+	m.workspace.sessions[a].Status = status.Working
+	m.workspace.sessions[b].Status = status.Working
+	commit()
+	if got := lastPrompt(aID); got != "prompt for a" {
+		t.Fatalf("a's last prompt = %q, want %q", got, "prompt for a")
+	}
+	if got := lastPrompt(bID); got != "prompt for b" {
+		t.Fatalf("b's last prompt = %q, want %q", got, "prompt for b")
+	}
+
+	hold(a, "stale for a", time.Now().Add(-2*typedPromptGrace))
+	hold(b, "fresh for b", time.Now())
+	m.workspace.sessions[b].Status = status.Idle
+	commit()
+	if got := lastPrompt(aID); got != "prompt for a" {
+		t.Fatalf("an expired draft overwrote a's last prompt with %q", got)
+	}
+	if got := lastPrompt(bID); got != "prompt for b" {
+		t.Fatalf("b's draft committed before b turned working: %q", got)
+	}
+	m.workspace.sessions[b].Status = status.Working
+	commit()
+	if got := lastPrompt(bID); got != "fresh for b" {
+		t.Fatalf("b's last prompt = %q, want the draft that waited for working", got)
+	}
+}

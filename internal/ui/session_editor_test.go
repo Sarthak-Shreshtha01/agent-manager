@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -471,6 +472,9 @@ func TestOpenEditorWithoutAnyEditorExplainsItself(t *testing.T) {
 // A directory removed under a session is named in the refusal, rather than
 // leaving the status line trailing off after a colon.
 func TestOpenEditorNamesADirectoryThatIsGone(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows refuses to remove a directory that is a live pane's working directory")
+	}
 	m := buildModel(t)
 	launched := captureEditor(t, "code")
 	gone := t.TempDir()
@@ -504,9 +508,9 @@ func TestAttachDoneOpensEditorAndReturnsToTheSession(t *testing.T) {
 	if !ok {
 		t.Fatal("no session selected")
 	}
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -516,7 +520,7 @@ func TestAttachDoneOpensEditorAndReturnsToTheSession(t *testing.T) {
 	if cmd == nil {
 		t.Fatalf("the request produced no launch, err = %q", m.errBar.text)
 	}
-	request, err := m.services.tmux.PendingRequest()
+	request, err := m.services.tmux.PendingRequest(sess.ID)
 	if err != nil {
 		t.Fatalf("PendingRequest: %v", err)
 	}
@@ -557,9 +561,9 @@ func TestAttachDoneRefusedEditorArmsNoReturn(t *testing.T) {
 	createSession(t, m, "editme", t.TempDir(), "")
 	m.selectSessionRow(t, "editme")
 	sess := m.sessionRows()[0]
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -586,9 +590,9 @@ func TestAttachDoneTerminalEditorArmsTheReturn(t *testing.T) {
 	if !ok {
 		t.Fatal("no session selected")
 	}
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -742,9 +746,9 @@ func TestAttachDoneEditorFollowsTheSessionThatDetached(t *testing.T) {
 		t.Fatalf("first row is %q", attached.Name)
 	}
 	m.selectSessionRow(t, "elsewhere")
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, attached.ID)
 
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(attached.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: attached.ID})
@@ -756,8 +760,12 @@ func TestAttachDoneEditorFollowsTheSessionThatDetached(t *testing.T) {
 		t.Fatalf("launched %v, want the attached session's directory %v", *launched, want)
 	}
 
-	// A session that left the list takes its request with it.
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	// A session that left the list takes its request with it. psmux keeps
+	// the marker on the session's own server, which leaves with it.
+	if runtime.GOOS == "windows" {
+		return
+	}
+	if _, err := sessionTmuxCmd(attached.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	*launched = nil

@@ -88,9 +88,15 @@ func enterGateContext(ctx context.Context, socket string, exclusive bool) (relea
 	}, nil
 }
 
+// ErrControlUnavailable is OpenControl's answer where the multiplexer's
+// control client cannot be relied on. It is a property of the platform,
+// not of one session, so callers poll forked captures instead of retrying.
+var ErrControlUnavailable = errors.New("control mode is not used with " + Binary)
+
 // OpenControl attaches a control-mode client to a live session. Gate
 // acquisition and the greeting are bounded by the same default as other tmux
-// commands.
+// commands. Where the multiplexer's control client cannot be relied
+// on it fails with ErrControlUnavailable.
 func (d *Driver) OpenControl(id string) (*Control, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
 	defer cancel()
@@ -99,15 +105,19 @@ func (d *Driver) OpenControl(id string) (*Control, error) {
 
 // OpenControlContext attaches a control-mode client and returns once tmux has
 // greeted it. ctx bounds only the open; a returned Control owns its process
-// until Close is called.
+// until Close is called. Where the multiplexer's control client cannot be
+// relied on it fails, and callers poll captures instead.
 func (d *Driver) OpenControlContext(ctx context.Context, id string) (*Control, error) {
+	if err := controlUnavailable(); err != nil {
+		return nil, err
+	}
 	release, err := enterGateContext(ctx, d.socket, true)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
 	processCtx, cancelProcess := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(processCtx, d.bin, d.args("-C", "attach-session", "-t", sessionName(id))...)
+	cmd := d.commandContext(processCtx, "-C", "attach-session", "-t", sessionName(id))
 	configureBoundedCommand(cmd)
 	cmd.WaitDelay = commandTimeout
 	stdin, err := cmd.StdinPipe()

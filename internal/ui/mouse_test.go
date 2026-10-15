@@ -390,6 +390,7 @@ func TestClickInFocusedPaneStaysFocused(t *testing.T) {
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
+	waitForPreview(t, m)
 	updated, _ := m.focusSelected()
 	m = updated.(*Model)
 	m.drainEffects(t)

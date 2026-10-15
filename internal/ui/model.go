@@ -157,7 +157,7 @@ type Dependencies struct {
 func New(cfg config.Config, st *store.Store, driver *tmux.Driver, engine *status.Engine, hookManager *hooks.Manager, version string) (*Model, error) {
 	gitDriver, _ := git.New()
 	dir, _ := config.Dir()
-	deps := execution.Dependencies{Store: st, TMux: driver, Engine: engine, Hooks: hookManager, Git: gitDriver, Notify: postNotification,
+	deps := execution.Dependencies{Store: st, TMux: driver, Engine: engine, Hooks: hookManager, Git: gitDriver, Notify: postNotification, ShowCommand: showCommand,
 		TakeFocus: func() (string, bool) { return notify.TakeFocus(dir) }}
 	opts := execution.OptionsFromConfig(cfg)
 	var model *Model
@@ -269,5 +269,5 @@ func newView(deps Dependencies, version string) (*Model, error) {
 
 func (m *Model) Init() tea.Cmd {
 	m.syncPollInput()
-	return tea.Batch(m.syncPaneTheme(), m.refreshExistingSessionUX, m.checkForUpdate, m.checkFeed, m.updateTick(), m.bannerTick(), m.previewTick(), m.startStartupTick(), m.sweepPastes, m.pasteSweepTick())
+	return tea.Batch(m.syncPaneTheme(), m.refreshExistingSessionUX, m.checkForUpdate, m.checkFeed, m.updateTick(), m.bannerTick(), m.previewTick(), m.startStartupTick(), m.sweepPastes, m.pasteSweepTick(), checkPaneShell)
 }

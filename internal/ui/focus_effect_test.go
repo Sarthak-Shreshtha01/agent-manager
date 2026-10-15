@@ -222,8 +222,8 @@ func TestDetachProbeReadsAndClearsInOneStep(t *testing.T) {
 	createSession(t, m, "reviewme", t.TempDir(), "")
 	m.selectSessionRow(t, "reviewme")
 	sess := m.sessionRows()[0]
-	clearRequestOnCleanup(t, m)
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	clearRequestOnCleanup(t, m, sess.ID)
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -231,14 +231,14 @@ func TestDetachProbeReadsAndClearsInOneStep(t *testing.T) {
 	if m.effects.main.active == nil {
 		t.Fatal("the detach probe should be accepted before the marker is read")
 	}
-	if request, err := m.services.tmux.PendingRequest(); err != nil || request != tmux.RequestReview {
+	if request, err := m.services.tmux.PendingRequest(sess.ID); err != nil || request != tmux.RequestReview {
 		t.Fatalf("the marker should be untouched on the update path: %q, %v", request, err)
 	}
 	m.drainEffects(t)
 	if m.mode != modeDiff {
 		t.Fatalf("marker set should enter review, mode = %v, err = %q", m.mode, m.errBar.text)
 	}
-	request, err := m.services.tmux.PendingRequest()
+	request, err := m.services.tmux.PendingRequest(sess.ID)
 	if err != nil {
 		t.Fatalf("PendingRequest: %v", err)
 	}
@@ -346,8 +346,8 @@ func detachWithReviewRequest(t *testing.T, m *Model) {
 	createSession(t, m, "beta", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
 	sess, _ := m.selected()
-	clearRequestOnCleanup(t, m)
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	clearRequestOnCleanup(t, m, sess.ID)
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})

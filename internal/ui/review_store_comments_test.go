@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -71,16 +73,37 @@ func TestDiffAnnotateAndSend(t *testing.T) {
 	}
 	// Join wrapped lines so the delivery check does not depend on where the
 	// pane's width breaks the prompt; the session sizes to the model width.
-	out, err := tmuxCmd("capture-pane", "-p", "-J", "-t", "am_"+sess.ID).CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
+	// psmux's -J only trims each row, so on Windows keep every row at the
+	// full pane width (-N) and join them by hand.
+	capture := []string{"capture-pane", "-p", "-J", "-t", "am_" + sess.ID}
+	if runtime.GOOS == "windows" {
+		capture = []string{"capture-pane", "-p", "-N", "-t", "am_" + sess.ID}
 	}
-	pane := string(out)
-	if !strings.Contains(pane, "use fmt.Println here") || !strings.Contains(pane, "main.go:3") ||
-		!strings.Contains(pane, "[comment "+notes[0].ID+"]") || !strings.Contains(pane, "review_comment") ||
-		!strings.Contains(pane, "Code review of the uncommitted changes on `main` (`") ||
-		!strings.Contains(pane, "in `"+m.review.Snapshot().RepoSelected+"`") {
-		t.Fatalf("prompt not delivered:\n%s", pane)
+	// The pane echoes the paste when its shell gets to it, which on a
+	// loaded machine outlasts the second the send waits for the echo.
+	delivered := func(pane string) bool {
+		return strings.Contains(pane, "use fmt.Println here") && strings.Contains(pane, "main.go:3") &&
+			strings.Contains(pane, "[comment "+notes[0].ID+"]") && strings.Contains(pane, "review_comment") &&
+			strings.Contains(pane, "Code review of the uncommitted changes on `main` (`") &&
+			strings.Contains(pane, "in `"+m.review.Snapshot().RepoSelected+"`")
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		out, err := tmuxCmd(capture...).CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+		pane := string(out)
+		if runtime.GOOS == "windows" {
+			pane = strings.NewReplacer("\r", "", "\n", "").Replace(pane)
+		}
+		if delivered(pane) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("prompt not delivered:\n%s", pane)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	m.openAnnotate()

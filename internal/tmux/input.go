@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -47,13 +48,28 @@ func (result SendResult) PasteMayHaveStarted() bool {
 }
 
 func (d *Driver) SendTextContext(ctx context.Context, id, text string) (SendResult, error) {
+	return d.SubmitTextContext(ctx, id, text, nil)
+}
+
+// ErrUnsubmitted reports a paste still sitting in the composer after every
+// Enter SubmitTextContext pressed for it.
+var ErrUnsubmitted = errors.New("the pasted text is still in the composer after Enter")
+
+// SubmitTextContext is SendTextContext for a caller that can read the
+// session's composer: drafted reports whether it holds text, and must report
+// false before the paste. A composer it cannot read proves no submit, so its
+// error is returned rather than taken for an empty composer. A tool may draw
+// the paste as a collapsed placeholder rather than its text, and may swallow
+// the Enter after it, so the composer filling is taken as the echo and the
+// composer emptying as the submit.
+func (d *Driver) SubmitTextContext(ctx context.Context, id, text string, drafted func() (bool, error)) (SendResult, error) {
 	target := PaneTarget(id)
 	release, err := enterPaneSendGate(ctx, d.socket, target)
 	if err != nil {
 		return SendResult{}, err
 	}
 	defer release()
-	return d.pasteAndEnterContext(ctx, target, text)
+	return d.pasteAndEnterContext(ctx, id, text, drafted)
 }
 
 // A human send from the effect lane and the poller's automatic delivery can
@@ -116,7 +132,7 @@ func (d *Driver) Paste(id, text string) error {
 }
 
 func (d *Driver) PasteContext(ctx context.Context, id, text string) error {
-	_, err := d.pasteContext(ctx, PaneTarget(id), text)
+	_, err := d.pasteContext(ctx, id, text)
 	return err
 }
 
@@ -129,16 +145,24 @@ const (
 	echoPoll = 25 * time.Millisecond
 )
 
+// An agent clears its composer within a frame of reading the Enter; one that
+// still holds the paste a second later dropped it, and gets it again.
+const (
+	submitWait  = time.Second
+	submitTries = 3
+)
+
 // pasteAndEnter holds the Enter until the pane has drawn the paste. Both
 // writes reach one pty, and a pane too busy to read between them takes the
 // carriage return as part of the bracketed paste rather than as a submit,
 // stranding the message in the composer.
-func (d *Driver) pasteAndEnterContext(ctx context.Context, target, text string) (SendResult, error) {
+func (d *Driver) pasteAndEnterContext(ctx context.Context, id, text string, drafted func() (bool, error)) (SendResult, error) {
+	target := PaneTarget(id)
 	before, baseline := d.capturePlainContext(ctx, target)
 	if err := ctx.Err(); err != nil {
 		return SendResult{}, err
 	}
-	result, err := d.pasteContext(ctx, target, text)
+	result, err := d.pasteContext(ctx, id, text)
 	if err != nil {
 		return result, err
 	}
@@ -155,7 +179,7 @@ func (d *Driver) pasteAndEnterContext(ctx context.Context, target, text string) 
 		case <-timer.C:
 		}
 	} else {
-		if err := d.awaitPasteEchoContext(ctx, target, before, text); err != nil {
+		if err := d.awaitPasteEchoContext(ctx, target, before, text, drafted); err != nil {
 			return result, err
 		}
 	}
@@ -164,12 +188,57 @@ func (d *Driver) pasteAndEnterContext(ctx context.Context, target, text string) 
 		return result, err
 	}
 	result.Phase = SendPhaseSubmitted
-	return result, nil
+	if drafted == nil {
+		return result, nil
+	}
+	return result, d.confirmSubmit(ctx, target, drafted)
+}
+
+// confirmSubmit presses Enter again while the composer still holds the
+// paste, a bounded number of times, and reports a paste no Enter submitted.
+func (d *Driver) confirmSubmit(ctx context.Context, target string, drafted func() (bool, error)) error {
+	for try := 1; ; try++ {
+		cleared, err := composerCleared(ctx, drafted)
+		if err != nil || cleared {
+			return err
+		}
+		if try == submitTries {
+			return ErrUnsubmitted
+		}
+		if _, err := d.runContext(ctx, "send-keys", "-t", target, "Enter"); err != nil {
+			return err
+		}
+	}
+}
+
+func composerCleared(ctx context.Context, drafted func() (bool, error)) (bool, error) {
+	deadline := time.Now().Add(submitWait)
+	for {
+		typed, err := drafted()
+		if err != nil {
+			return false, err
+		}
+		if !typed {
+			return true, nil
+		}
+		if time.Now().After(deadline) {
+			return false, nil
+		}
+		timer := time.NewTimer(echoPoll)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return false, ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 // A pane that draws the paste some other way, as a collapsed placeholder or
-// not at all, is released at the cap and submits the way it did before.
-func (d *Driver) awaitPasteEchoContext(ctx context.Context, target, before, text string) error {
+// not at all, is released at the cap and submits the way it did before,
+// unless the caller can see its composer fill. A composer read that fails
+// here only costs the early release; confirmSubmit is what reports it.
+func (d *Driver) awaitPasteEchoContext(ctx context.Context, target, before, text string, drafted func() (bool, error)) error {
 	opening := MessageOpening(text)
 	if opening == "" {
 		return nil
@@ -181,6 +250,11 @@ func (d *Driver) awaitPasteEchoContext(ctx context.Context, target, before, text
 			return nil
 		} else if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		if drafted != nil {
+			if typed, err := drafted(); err == nil && typed {
+				return nil
+			}
 		}
 		if time.Now().After(deadline) {
 			return nil
@@ -216,9 +290,10 @@ func MessageOpening(text string) string {
 	return ""
 }
 
-// paste loads text into a tmux buffer and pastes it into the pane.
+// paste loads text into a tmux buffer and pastes it into the session's pane.
 // tmux send-keys silently stops around 1024 bytes; load-buffer does not.
-func (d *Driver) pasteContext(ctx context.Context, target, text string) (SendResult, error) {
+func (d *Driver) pasteContext(ctx context.Context, id, text string) (SendResult, error) {
+	target := PaneTarget(id)
 	result := SendResult{}
 	file, err := os.CreateTemp("", "am-paste-*")
 	if err != nil {
@@ -234,8 +309,9 @@ func (d *Driver) pasteContext(ctx context.Context, target, text string) (SendRes
 		return result, fmt.Errorf("paste temp close: %w", err)
 	}
 	// tmux buffers are server-wide, and every agent's MCP process pastes too.
+	// psmux keeps them per session server, so each step goes to this one's.
 	buf := fmt.Sprintf("am_paste_%d_%d", os.Getpid(), pasteSeq.Add(1))
-	if _, err := d.runContextStarted(ctx, func() { result.Phase = SendPhaseLoadStarted }, "load-buffer", "-b", buf, path); err != nil {
+	if _, err := d.runInContext(ctx, func() { result.Phase = SendPhaseLoadStarted }, id, "load-buffer", "-b", buf, path); err != nil {
 		return result, err
 	}
 	result.Phase = SendPhaseLoaded
@@ -243,9 +319,9 @@ func (d *Driver) pasteContext(ctx context.Context, target, text string) (SendRes
 	// them. Codex uses paste-burst detection without these markers and can
 	// consume the immediately following Enter as part of the paste, leaving
 	// the prompt in its composer instead of submitting it.
-	if _, err := d.runContextStarted(ctx, func() { result.Phase = SendPhasePasteStarted }, "paste-buffer", "-p", "-d", "-b", buf, "-t", target); err != nil {
+	if _, err := d.runInContext(ctx, func() { result.Phase = SendPhasePasteStarted }, id, "paste-buffer", "-p", "-d", "-b", buf, "-t", target); err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
-		_, _ = d.runContext(cleanupCtx, "delete-buffer", "-b", buf)
+		_, _ = d.runInContext(cleanupCtx, nil, id, "delete-buffer", "-b", buf)
 		cancel()
 		return result, err
 	}

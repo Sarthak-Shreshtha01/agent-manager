@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/YoanWai/agent-manager/internal/app"
 	"github.com/YoanWai/agent-manager/internal/catalog"
@@ -265,14 +264,15 @@ func run() (resultErr error) {
 	}
 	if runErr == nil {
 		if finished, ok := final.(*ui.Model); ok && finished.RestartPath() != "" {
-			// A self-update swapped the binary on disk; exec replaces this
-			// process with the new build so the manager comes back updated
-			// without touching the tmux sessions it manages.
+			// A self-update swapped the binary on disk; restart hands over
+			// to the new build so the manager comes back updated without
+			// touching the tmux sessions it manages. On Windows this process
+			// waits as the new one's parent, so its poll stops first.
 			stopRuntime()
 			if err := local.Close(); err != nil {
 				return err
 			}
-			return syscall.Exec(finished.RestartPath(), os.Args, os.Environ())
+			return restart(finished.RestartPath())
 		}
 	}
 	return runErr

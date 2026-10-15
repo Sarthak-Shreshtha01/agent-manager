@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -19,26 +20,59 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/sysstat"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/google/uuid"
 )
+
+// goneSessionOutcome is how a send to a killed session ends. tmux keeps its
+// server, so the buffer loads and only the paste fails, which may have
+// landed. psmux runs a server per session, so the load already finds none
+// and nothing can have reached a pane.
+func goneSessionOutcome() store.DeliveryOutcome {
+	if runtime.GOOS == "windows" {
+		return store.DeliveryRefused
+	}
+	return store.DeliveryUncertain
+}
 
 const testSocket = "amexectest"
 
 func tmuxCmd(args ...string) *exec.Cmd {
-	return exec.Command("tmux", append([]string{"-L", testSocket}, args...)...)
+	cmd := exec.Command(tmux.Binary, append([]string{"-L", testSocket}, args...)...)
+	if runtime.GOOS == "windows" {
+		cmd.Env = append(os.Environ(), "PSMUX_NO_WARM=1")
+	}
+	return cmd
 }
+
 func TestMain(m *testing.M) {
+	// A copy of this binary a pane launched as a test tool's stand-in runs
+	// that fixture, not the suite.
+	if code, ok := testfixture.Run(os.Args); ok {
+		os.Exit(code)
+	}
+	os.Exit(runTests(m))
+}
+
+func runTests(m *testing.M) int {
+	cleanup, err := testfixture.Prepare(testSocket)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer cleanup()
 	tmuxCmd("kill-server").Run()
-	if _, err := exec.LookPath("tmux"); err == nil {
+	if _, err := exec.LookPath(tmux.Binary); err == nil {
 		if out, err := tmuxCmd("new-session", "-d", "-s", "anchor").CombinedOutput(); err != nil {
 			fmt.Fprintf(os.Stderr, "anchor: %v: %s", err, out)
-			os.Exit(1)
+			return 1
 		}
 	}
 	code := m.Run()
 	tmuxCmd("kill-server").Run()
-	os.Exit(code)
+	return code
 }
 
 type harness struct {
@@ -62,8 +96,8 @@ func testPollMessage(result Result) any {
 }
 func buildModel(t *testing.T) *harness {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	cfg := config.Config{
 		Tools: map[string]config.Tool{
@@ -95,7 +129,7 @@ func buildModel(t *testing.T) *harness {
 			"terminal": {
 				Shell:         true,
 				DefaultStatus: status.Idle,
-				InputPrefix:   `(?m)^\s*(?:\S+\s+){0,3}[❯>$#›»→%➜]\s`,
+				InputPrefix:   `(?m)^\s*(?:(?:\S+\s+){0,3}[❯>$#›»→%➜]|PS [^\n>]*>)\s`,
 			},
 			// Shows every control character it is sent as ^X, with the tty
 			// flow and line-editing keys turned off so ctrl+q and ctrl+r
@@ -133,10 +167,31 @@ func buildModel(t *testing.T) *harness {
 				DefaultStatus:  status.Idle,
 				ActivityCutoff: "(?m)^❯",
 			},
+			// Collapses a paste into a placeholder the way Claude Code does
+			// and takes a second Enter to submit it, so the first one is
+			// swallowed the way a busy composer swallows it. tmux writes a
+			// paste a line at a time, so only a carriage return read after
+			// the closing bracket counts as an Enter.
+			"collapsing-tool": {
+				Command: `sh -c 'stty raw -echo; printf "\033[?2004h❯ "; p=0; n=0; ` +
+					`while :; do c=$(dd bs=65536 count=1 2>/dev/null | od -An -v -c | tr -d " \n"); ` +
+					`case "$c" in *201~*) p=1; printf "[Pasted text #1 +6 lines]";; "\\r") [ $p = 1 ] && n=$((n+1));; esac; ` +
+					`[ $n = 2 ] && { printf "\r\n❯ "; p=0; n=0; }; done'`,
+				DefaultStatus:  status.Idle,
+				ActivityCutoff: "(?m)^❯",
+			},
+			// Collapses a paste into a placeholder and never submits it.
+			"stuck-tool": {
+				Command: `sh -c 'stty raw -echo; printf "❯ "; dd bs=65536 count=1 >/dev/null 2>&1; ` +
+					`printf "[Pasted text #1 +6 lines]"; cat >/dev/null'`,
+				DefaultStatus:  status.Idle,
+				ActivityCutoff: "(?m)^❯",
+			},
 			// Draws its input line at once and takes the prompt it launched
-			// with half a second later, the way an agent finishes booting.
+			// with a couple of seconds later, the way an agent finishes
+			// booting; the take has to outlast a whole poll pass.
 			"slow-take-tool": {
-				Command:        `sh -c 'printf "❯ "; sleep 0.5; printf "\n❯ %s\n❯ " "$0"; cat'`,
+				Command:        `sh -c 'printf "❯ "; sleep 2; printf "\n❯ %s\n❯ " "$0"; cat'`,
 				DefaultStatus:  status.Idle,
 				ActivityCutoff: "(?m)^❯",
 			},
@@ -155,6 +210,17 @@ func buildModel(t *testing.T) *harness {
 			},
 		},
 	}
+	// Windows has no cat or sh: the tools run the test binary's stand-ins.
+	if runtime.GOOS == "windows" {
+		for _, name := range testfixture.Tools() {
+			tool, ok := cfg.Tools[name]
+			if !ok {
+				continue
+			}
+			tool.Command = testfixture.Command(name)
+			cfg.Tools[name] = tool
+		}
+	}
 	st, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -171,10 +237,17 @@ func buildModel(t *testing.T) *harness {
 	gitDriver, _ := git.New()
 	h := &harness{cfg: cfg, store: st, tmux: driver, hooks: hooks, gitDrv: gitDriver}
 	h.poller = New(Dependencies{Store: st, TMux: driver, Engine: engine, Hooks: hooks, Git: gitDriver}, OptionsFromConfig(cfg))
+	// Every managed session on the test server goes, including one whose
+	// row the test deleted: Windows will not remove a temp dir that is a
+	// live pane's working directory, and tests never run in parallel.
 	t.Cleanup(func() {
 		sessions, _ := st.ListSessions(true)
 		for _, s := range sessions {
 			driver.Kill(s.ID)
+		}
+		panes, _ := driver.Panes()
+		for id := range panes {
+			driver.Kill(id)
 		}
 		h.poller.captureWait.Wait()
 		st.Close()
@@ -472,7 +545,7 @@ func settledPane(t *testing.T, m *harness, sessionID string, markers ...string) 
 // The envelope wraps at the pane width, and tmux wraps without inserting
 // anything, so the unwrapped text is the joined rows.
 func containsAll(pane string, markers []string) bool {
-	flat := strings.ReplaceAll(pane, "\n", "")
+	flat := strings.ReplaceAll(ansi.Strip(pane), "\n", "")
 	for _, marker := range markers {
 		if !strings.Contains(flat, marker) {
 			return false

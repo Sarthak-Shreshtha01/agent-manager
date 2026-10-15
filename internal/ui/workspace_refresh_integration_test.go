@@ -6,6 +6,10 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
+	"github.com/charmbracelet/x/ansi"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -181,9 +185,10 @@ func settledPane(t *testing.T, m *Model, sessionID string, markers ...string) st
 }
 
 // The envelope wraps at the pane width, and tmux wraps without inserting
-// anything, so the unwrapped text is the joined rows.
+// anything, so the unwrapped text is the joined rows. The escapes go first:
+// psmux closes every captured row with an SGR reset.
 func containsAll(pane string, markers []string) bool {
-	flat := strings.ReplaceAll(pane, "\n", "")
+	flat := strings.ReplaceAll(ansi.Strip(pane), "\n", "")
 	for _, marker := range markers {
 		if !strings.Contains(flat, marker) {
 			return false
@@ -198,7 +203,11 @@ func containsAll(pane string, markers []string) bool {
 // retype it by hand.
 func TestPollRetypesARowOntoTheCLIItsPaneRuns(t *testing.T) {
 	m := buildModel(t)
-	m.services.cfg.Tools["tail-tool"] = config.Tool{Command: "tail -f /dev/null", DefaultStatus: status.Idle}
+	tail := "tail -f /dev/null"
+	if runtime.GOOS == "windows" {
+		tail = filepath.Join(testfixture.Dir, "tail.exe") + " -f NUL"
+	}
+	m.services.cfg.Tools["tail-tool"] = config.Tool{Command: tail, DefaultStatus: status.Idle}
 	engine, err := status.NewEngine(m.services.cfg)
 	if err != nil {
 		t.Fatalf("engine: %v", err)
@@ -216,7 +225,7 @@ func TestPollRetypesARowOntoTheCLIItsPaneRuns(t *testing.T) {
 	}
 	quitAgent(t, m, sess.ID)
 
-	if err := m.services.tmux.SendKeys(sess.ID, "tail -f /dev/null", "Enter"); err != nil {
+	if err := m.services.tmux.SendKeys(sess.ID, tail, "Enter"); err != nil {
 		t.Fatalf("start the other CLI: %v", err)
 	}
 	waitForPaneChild(t, m, sess.ID, "tail")

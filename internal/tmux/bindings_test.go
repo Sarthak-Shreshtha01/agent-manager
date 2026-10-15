@@ -1,7 +1,10 @@
 package tmux
 
 import (
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +16,7 @@ import (
 // stale socket); that error must reach the caller, not just the
 // session-scoped read's.
 func TestResolvedOptionPropagatesTheGlobalFallbackError(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *'-g -v prefix'*) echo 'no server running' >&2; exit 1;; esac\nexit 0\n"
@@ -30,6 +34,7 @@ func TestResolvedOptionPropagatesTheGlobalFallbackError(t *testing.T) {
 // straight after, and only the command list finds none. That is not an
 // error: Create installs the bindings once a session starts the server.
 func TestEnsureBindingsIgnoresAMissingServer(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *list-keys*) exit 0;; esac\necho 'no server running on /tmp/agentmgr' >&2; exit 1\n"
@@ -46,6 +51,7 @@ func TestEnsureBindingsIgnoresAMissingServer(t *testing.T) {
 // Create runs on the UI's update path, and a new session cannot carry a pin,
 // so with tmux_prefix off only a refresh looks for one.
 func TestOnlyARefreshLooksForAPinnedPrefix(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *" + pinnedPrefixOption + "*) echo 'pin read' >&2; exit 1;; esac\nexit 0\n"
@@ -65,7 +71,7 @@ func TestOnlyARefreshLooksForAPinnedPrefix(t *testing.T) {
 func TestSetLabelNeutralizesFormatStrings(t *testing.T) {
 	driver := requireTmux(t)
 	id := "lbl" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -93,17 +99,21 @@ func TestSetLabelNeutralizesFormatStrings(t *testing.T) {
 // binding, so EnsureBindings has to drop it as well as install F3.
 func TestEnsureBindingsMovesTheEditorKeyToF3(t *testing.T) {
 	driver := requireTmux(t)
-	stale := []string{"bind-key", "-n", "C-o", "if-shell", "-F", ownedBindingTest,
-		"set-option -g " + requestOption + " " + RequestEditor + " ; detach-client", "send-keys C-o"}
-	if out, err := tmuxCmd(stale...).CombinedOutput(); err != nil {
-		t.Fatalf("seed the old binding: %v: %s", err, out)
+	server := bindingServer(t, driver)
+	oldKey := bindingOf(t, "ctrl+o").Keys()[0]
+	stale := append([][]string{rootBinding(oldKey, "set-option -g "+requestOption+" "+RequestEditor+" ; detach-client")},
+		recordRootBindings([]string{oldKey.Tmux()})...)
+	for _, command := range stale {
+		if out, err := server(command...).CombinedOutput(); err != nil {
+			t.Fatalf("seed the old binding: %v: %s", err, out)
+		}
 	}
 
 	if err := driver.EnsureBindings(); err != nil {
 		t.Fatalf("EnsureBindings: %v", err)
 	}
 
-	bound, err := tmuxCmd("list-keys", "-T", "root").CombinedOutput()
+	bound, err := server("list-keys", "-T", "root").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list root keys: %v: %s", err, bound)
 	}
@@ -127,19 +137,20 @@ func TestEnsureBindingsMovesTheEditorKeyToF3(t *testing.T) {
 
 func TestEnsureBindingsRestoresPrefixDetach(t *testing.T) {
 	driver := requireTmux(t)
+	server := bindingServer(t, driver)
 	t.Cleanup(func() {
-		if out, err := tmuxCmd("bind-key", "-T", "prefix", "d", "detach-client").CombinedOutput(); err != nil {
+		if out, err := server("bind-key", "-T", "prefix", "d", "detach-client").CombinedOutput(); err != nil {
 			t.Errorf("restore prefix d: %v: %s", err, out)
 		}
 	})
-	if out, err := tmuxCmd("unbind-key", "-T", "prefix", "d").CombinedOutput(); err != nil {
+	if out, err := server("unbind-key", "-T", "prefix", "d").CombinedOutput(); err != nil {
 		t.Fatalf("unbind prefix d: %v: %s", err, out)
 	}
 
 	if err := driver.EnsureBindings(); err != nil {
 		t.Fatalf("EnsureBindings: %v", err)
 	}
-	bound, err := tmuxCmd("list-keys", "-T", "prefix").CombinedOutput()
+	bound, err := server("list-keys", "-T", "prefix").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list prefix d: %v: %s", err, bound)
 	}
@@ -159,7 +170,7 @@ func TestEnsureBindingsRestoresPrefixDetach(t *testing.T) {
 func TestRefreshChromeKeepsLabelAndAddsSessionHints(t *testing.T) {
 	driver := requireTmux(t)
 	id := "chr" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -222,6 +233,10 @@ func TestRefreshChromeKeepsLabelAndAddsSessionHints(t *testing.T) {
 	if !strings.Contains(string(right), `C-\ d = back`) {
 		t.Fatalf("footer should retain the primary-prefix escape, got %q", right)
 	}
+	// psmux has no None prefix: it ignores the value and keeps the old key.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	if out, err := tmuxCmd("set-option", "-t", "am_"+id, "prefix", "None").CombinedOutput(); err != nil {
 		t.Fatalf("disable prefix: %v: %s", err, out)
 	}
@@ -251,7 +266,7 @@ func TestRefreshChromeKeepsLabelAndAddsSessionHints(t *testing.T) {
 	if strings.Contains(string(right), "None d") || !strings.Contains(string(right), `Ctrl+q / Ctrl+\ = back`) {
 		t.Fatalf("footer should retain only the direct escapes without prefixes, got %q", right)
 	}
-	length, err := tmuxCmd("show-option", "-t", "am_"+id, "-v", "status-right-length").CombinedOutput()
+	length, err := tmuxCmd("show-options", "-t", "am_"+id, "-v", "status-right-length").CombinedOutput()
 	if err != nil {
 		t.Fatalf("status-right-length: %v", err)
 	}
@@ -284,7 +299,7 @@ func TestRefreshChromeResolvesAGloballySetPrefix(t *testing.T) {
 	})
 
 	id := "globalprefix" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -321,24 +336,20 @@ func TestTmuxPrefixFreesTheServersPrefixForASessionKey(t *testing.T) {
 			t.Errorf("restore prefix: %v: %s", err, out)
 		}
 	})
-	if out, err := tmuxCmd("set-option", "-g", "prefix", "C-s").CombinedOutput(); err != nil {
-		t.Fatalf("set the tmux.conf prefix: %v: %s", err, out)
-	}
 	detachOnCtrlS := keybind.DefaultSession().With(keybind.Detach, bindingOf(t, "ctrl+s"))
 	driver.SetSessionKeys(detachOnCtrlS.With(keybind.TmuxPrefix, bindingOf(t, "ctrl+b")))
 	id := "tmuxprefix" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
-
 	sessionOption := func(option string) string {
 		t.Helper()
 		out, err := tmuxCmd("show-options", "-q", "-v", "-t", "am_"+id, option).CombinedOutput()
 		if err != nil {
 			t.Fatalf("show-options %s: %v: %s", option, err, out)
 		}
-		return strings.TrimSpace(string(out))
+		return keyOption(string(out))
 	}
 	footer := func() string {
 		t.Helper()
@@ -347,6 +358,39 @@ func TestTmuxPrefixFreesTheServersPrefixForASessionKey(t *testing.T) {
 			t.Fatalf("status-right: %v: %s", err, right)
 		}
 		return string(right)
+	}
+	// psmux keeps global and session options in one store per session
+	// server, so a server-global prefix cannot sit under a session pin the
+	// way tmux.conf's does on tmux; the pin is the only prefix there.
+	// psmux also has no None prefix: it normalizes the marker to none, and
+	// an unset session prefix answers the server's own default, not empty.
+	if runtime.GOOS == "windows" {
+		if got := sessionOption("prefix") + " " + sessionOption("prefix2"); got != "C-b none" {
+			t.Fatalf("the session should answer to the pinned prefix alone, got %q", got)
+		}
+		driver.SetSessionKeys(detachOnCtrlS)
+		if err := driver.RefreshChrome(id); err != nil {
+			t.Fatalf("RefreshChrome without tmux_prefix: %v", err)
+		}
+		if got := sessionOption("prefix"); got != "C-b" {
+			t.Fatalf("clearing tmux_prefix should hand back the server's default prefix, the session still sets %q", got)
+		}
+		if right := footer(); !strings.Contains(right, "Ctrl+s / C-b d = back") {
+			t.Fatalf("after clearing tmux_prefix the footer should advertise the free key and the default prefix, got %q", right)
+		}
+		if out, err := tmuxCmd("set-option", "-t", "am_"+id, "prefix", "C-a").CombinedOutput(); err != nil {
+			t.Fatalf("set a session prefix by hand: %v: %s", err, out)
+		}
+		if err := driver.RefreshChrome(id); err != nil {
+			t.Fatalf("RefreshChrome over a hand-set prefix: %v", err)
+		}
+		if got := sessionOption("prefix"); got != "C-a" {
+			t.Fatalf("a prefix the manager never set should stay, got %q", got)
+		}
+		return
+	}
+	if out, err := tmuxCmd("set-option", "-g", "prefix", "C-s").CombinedOutput(); err != nil {
+		t.Fatalf("set the tmux.conf prefix: %v: %s", err, out)
 	}
 	if got := sessionOption("prefix") + " " + sessionOption("prefix2"); got != "C-b None" {
 		t.Fatalf("the session should answer to the pinned prefix alone, got %q", got)
@@ -382,16 +426,17 @@ func TestTmuxPrefixFreesTheServersPrefixForASessionKey(t *testing.T) {
 // would point every capture and keystroke at whatever pane has focus.
 func TestEnsureBindingsPinsPaneNumbering(t *testing.T) {
 	driver := requireTmux(t)
-	if out, err := tmuxCmd("set-window-option", "-g", "pane-base-index", "1").CombinedOutput(); err != nil {
+	server := bindingServer(t, driver)
+	if out, err := server("set-window-option", "-g", "pane-base-index", "1").CombinedOutput(); err != nil {
 		t.Fatalf("set pane-base-index: %v: %s", err, out)
 	}
-	t.Cleanup(func() { tmuxCmd("set-window-option", "-g", "pane-base-index", "0").Run() })
+	t.Cleanup(func() { server("set-window-option", "-g", "pane-base-index", "0").Run() })
 
 	if err := driver.EnsureBindings(); err != nil {
 		t.Fatalf("EnsureBindings: %v", err)
 	}
 
-	out, err := tmuxCmd("show-window-options", "-gv", "pane-base-index").CombinedOutput()
+	out, err := server("show-window-options", "-gv", "pane-base-index").CombinedOutput()
 	if err != nil {
 		t.Fatalf("show-window-options: %v: %s", err, out)
 	}
@@ -423,19 +468,33 @@ func bindingOf(t *testing.T, specs ...string) keybind.Binding {
 
 // ownedRootLines reads the root-table bindings the manager owns, keyed by
 // the key name as unbind-key takes it.
-func ownedRootLines(t *testing.T) map[string]string {
+func ownedRootLines(t *testing.T, server func(args ...string) *exec.Cmd) map[string]string {
 	t.Helper()
-	bound, err := tmuxCmd("list-keys", "-T", "root").CombinedOutput()
+	bound, err := server("list-keys", "-T", "root").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list root keys: %v: %s", err, bound)
+	}
+	// tmux bindings carry the session test; psmux's are recorded by key.
+	recorded := map[string]bool{}
+	if runtime.GOOS == "windows" {
+		keys, err := server("show-options", "-gqv", rootKeysOption).CombinedOutput()
+		if err != nil {
+			t.Fatalf("recorded root keys: %v: %s", err, keys)
+		}
+		for _, key := range strings.Fields(string(keys)) {
+			recorded[key] = true
+		}
 	}
 	owned := map[string]string{}
 	for _, line := range strings.Split(string(bound), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 4 || !strings.Contains(line, ownedBindingTest) {
+		if len(fields) < 4 {
 			continue
 		}
-		owned[strings.ReplaceAll(fields[3], `\\`, `\`)] = line
+		key := strings.ReplaceAll(fields[3], `\\`, `\`)
+		if runtime.GOOS == "windows" && recorded[key] || strings.Contains(line, ownedBindingTest) {
+			owned[key] = line
+		}
 	}
 	return owned
 }
@@ -455,15 +514,18 @@ func restoreDefaultKeys(t *testing.T, driver *Driver) {
 // the server, and moving back drops the keys it had moved to.
 func TestEnsureBindingsFollowsTheKeyTable(t *testing.T) {
 	driver := requireTmux(t)
+	server := bindingServer(t, driver)
 	restoreDefaultKeys(t, driver)
 	custom := sessionOf(t, []string{"f9", "alt+q"}, []string{"ctrl+g"}, nil)
 	driver.SetSessionKeys(custom)
 	if err := driver.EnsureBindings(); err != nil {
 		t.Fatalf("EnsureBindings: %v", err)
 	}
-	owned := ownedRootLines(t)
+	owned := ownedRootLines(t, server)
 	for _, key := range []string{"F9", "M-q"} {
-		if line := owned[key]; !strings.Contains(line, "detach-client") || !strings.Contains(line, "send-keys "+key) {
+		// psmux bindings have no other session to pass the key through to.
+		passes := runtime.GOOS == "windows" || strings.Contains(owned[key], "send-keys "+key)
+		if line := owned[key]; !strings.Contains(line, "detach-client") || !passes {
 			t.Errorf("%s should detach inside a session and pass through elsewhere, got %q", key, line)
 		}
 	}
@@ -480,13 +542,19 @@ func TestEnsureBindingsFollowsTheKeyTable(t *testing.T) {
 	if err := driver.EnsureBindings(); err != nil {
 		t.Fatalf("EnsureBindings with defaults: %v", err)
 	}
-	owned = ownedRootLines(t)
+	owned = ownedRootLines(t, server)
 	for _, key := range []string{"F9", "M-q", "C-g"} {
 		if line, bound := owned[key]; bound {
 			t.Errorf("%s should come off with the table that bound it, got %q", key, line)
 		}
 	}
-	if line := owned[`C-\`]; !strings.Contains(line, "detach-client") || !strings.Contains(line, `send-keys C-\\\\`) {
+	// tmux lists the stored branch with its backslashes doubled; psmux
+	// binds the key straight to detach-client.
+	passThrough := `send-keys C-\\\\`
+	if runtime.GOOS == "windows" {
+		passThrough = "detach-client"
+	}
+	if line := owned[`C-\`]; !strings.Contains(line, "detach-client") || !strings.Contains(line, passThrough) {
 		t.Errorf(`C-\ should detach and pass itself through, got %q`, line)
 	}
 	if line := owned["C-q"]; !strings.Contains(line, "detach-client") {
@@ -505,15 +573,16 @@ func TestEnsureBindingsFollowsTheKeyTable(t *testing.T) {
 // remove.
 func TestEnsureBindingsLeavesTheUsersOwnBindingsAlone(t *testing.T) {
 	driver := requireTmux(t)
-	if out, err := tmuxCmd("bind-key", "-n", "F9", "display-message", "mine").CombinedOutput(); err != nil {
+	server := bindingServer(t, driver)
+	if out, err := server("bind-key", "-n", "F9", "display-message", "mine").CombinedOutput(); err != nil {
 		t.Fatalf("seed the user binding: %v: %s", err, out)
 	}
-	t.Cleanup(func() { tmuxCmd("unbind-key", "-n", "F9").Run() })
+	t.Cleanup(func() { server("unbind-key", "-n", "F9").Run() })
 
 	if err := driver.EnsureBindings(); err != nil {
 		t.Fatalf("EnsureBindings: %v", err)
 	}
-	bound, err := tmuxCmd("list-keys", "-T", "root").CombinedOutput()
+	bound, err := server("list-keys", "-T", "root").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list root keys: %v: %s", err, bound)
 	}
@@ -546,7 +615,7 @@ func TestSessionFooterNamesTheConfiguredKeys(t *testing.T) {
 	restoreDefaultKeys(t, driver)
 	driver.SetSessionKeys(sessionOf(t, []string{"f9"}, []string{"ctrl+g"}, nil))
 	id := "footerkeys"
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })

@@ -45,6 +45,10 @@ const notificationsSetting = "notifications"
 
 const notifyFinishedSetting = "notify_finished"
 
+// notifyCommandSetting is a shell command run on every notification, with
+// the event in AM_* variables. Empty runs nothing.
+const notifyCommandSetting = "notify_command"
+
 // hiddenToolsSetting lists CLI tools omitted from new-session pickers
 // (comma-separated names). Empty means every configured tool is shown.
 const hiddenToolsSetting = "hidden_tools"

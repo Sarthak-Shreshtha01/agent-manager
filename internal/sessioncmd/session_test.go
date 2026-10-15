@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -102,6 +103,9 @@ default_status = "idle"
 // CLIs, so a test gets a pane it can predict.
 func testConfigLoader(t *testing.T, doc string) func() (config.Config, error) {
 	t.Helper()
+	if goruntime.GOOS == "windows" {
+		doc = unwrapExecFixtures.Replace(doc)
+	}
 	var declared struct {
 		Tools map[string]config.Tool `toml:"tools"`
 	}
@@ -112,6 +116,11 @@ func testConfigLoader(t *testing.T, doc string) func() (config.Config, error) {
 		return config.Config{Tools: declared.Tools}, nil
 	}
 }
+
+// unwrapExecFixtures drops the sh -c wrapper a POSIX launch needs to exec a
+// two-command fixture whole. A Windows launch types the line into the pane's
+// PowerShell without exec, which runs both commands as written.
+var unwrapExecFixtures = strings.NewReplacer(`sh -c \"`, "", `&& exec cat\"`, "&& cat")
 
 func newStoreSessionHarness(t *testing.T) *sessionHarness {
 	t.Helper()
@@ -174,8 +183,8 @@ func (h *sessionHarness) addSessionRow(t *testing.T, name string) string {
 
 func newSessionHarness(t *testing.T) *sessionHarness {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	configDir := t.TempDir()
 	driver, err := tmux.NewWithSocket("amsesstest-" + uuid.NewString()[:8])
@@ -277,7 +286,7 @@ func TestSessionHarnessCleanupRemovesSocket(t *testing.T) {
 		socket = newSessionHarness(t).driver.SocketPath()
 	})
 	if socket == "" {
-		t.Skip("tmux not installed")
+		t.Skip(tmux.Binary + " not installed")
 	}
 	if _, err := os.Stat(socket); !os.IsNotExist(err) {
 		t.Fatalf("socket %q survived harness cleanup: %v", socket, err)

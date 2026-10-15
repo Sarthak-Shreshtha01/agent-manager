@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ func windowSizeOption(t *testing.T, id string) string {
 func TestPrepareAttachRestoresAutoSize(t *testing.T) {
 	driver := requireTmux(t)
 	id := "attach" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 100, 30); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 100, 30); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -52,6 +53,7 @@ func TestPrepareAttachRestoresAutoSize(t *testing.T) {
 // tmux that rejects "latest" stands in for the old server and logs its
 // calls, so the test also proves the second attach skips the doomed try.
 func TestPrepareAttachFallsBackWhenLatestRejected(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -91,6 +93,7 @@ func TestPrepareAttachFallsBackWhenLatestRejected(t *testing.T) {
 // line it holds, and one that loses height clears a Codex scrollback
 // (#369). The other axis is the window's own and every pane follows it.
 func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	for _, split := range []struct {
 		axis string
 		flag string
@@ -105,7 +108,7 @@ func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
 			t.Run(split.axis+"/"+box.name, func(t *testing.T) {
 				driver := requireTmux(t)
 				id := "fit" + split.axis[:1] + box.name[:1] + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-				if err := driver.Create(id, "/tmp", "cat", nil, 80, 24); err != nil {
+				if err := driver.Create(id, paneDir(), "cat", nil, 80, 24); err != nil {
 					t.Fatalf("Create: %v", err)
 				}
 				t.Cleanup(func() { driver.Kill(id) })
@@ -136,6 +139,7 @@ func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
 // A geometry line tmux did not answer in numbers leaves the agent pane at
 // whatever the split gave it, so the resize reports rather than returns.
 func TestResizeReportsUnreadableGeometry(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *display-message*) echo 'no geometry here';; esac\nexit 0\n"
@@ -153,26 +157,30 @@ func TestResizeReportsUnreadableGeometry(t *testing.T) {
 
 func teammateSize(t *testing.T, id string) [2]int {
 	t.Helper()
-	out, err := tmuxCmd("list-panes", "-t", "am_"+id, "-f", "#{==:#{pane_index},1}", "-F", "#{pane_width} #{pane_height}").CombinedOutput()
+	out, err := tmuxCmd("list-panes", "-t", "am_"+id, "-F", "#{pane_index} #{pane_width} #{pane_height}").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list-panes: %v: %s", err, out)
 	}
-	fields := strings.Fields(string(out))
-	if len(fields) != 2 {
-		t.Fatalf("teammate pane geometry = %q", out)
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && fields[0] == "1" {
+			width, _ := strconv.Atoi(fields[1])
+			height, _ := strconv.Atoi(fields[2])
+			return [2]int{width, height}
+		}
 	}
-	width, _ := strconv.Atoi(fields[0])
-	height, _ := strconv.Atoi(fields[1])
-	return [2]int{width, height}
+	t.Fatalf("no teammate pane in %q", out)
+	return [2]int{}
 }
 
 // A window someone opened inside a session becomes that session's current
 // window, which is not the one the agent runs in. Everything the preview
 // pins has to stay on the agent's window through that.
 func TestResizePinsTheAgentWindowNotTheCurrentOne(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "window" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "cat", nil, 80, 24); err != nil {
+	if err := driver.Create(id, paneDir(), "cat", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })

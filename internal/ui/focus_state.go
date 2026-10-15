@@ -68,6 +68,7 @@ func (m *Model) routeFocusMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 				X: msg.cursorX, Y: msg.cursorY,
 				Visible: msg.cursorOK, PositionKnown: msg.paneStateOK,
 			},
+			Writes: msg.writes,
 		}, currentID)
 		if result.UsePreview {
 			m.workspace.preview = msg.preview

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -69,11 +70,22 @@ func (m *Model) focusRegionRequestCmd(request uifocus.RegionRequest) tea.Cmd {
 			return focusScrollMsg{sessID: request.SessionID, offset: request.Offset, rows: request.Rows}
 		}
 		out, ok := watch.query(command)
+		if ok {
+			out = matchExecShape(out)
+		} else {
+			// No control client: a forked capture of the same rows comes
+			// back in the exec shape already.
+			ctx, cancel := context.WithTimeout(context.Background(), focusControlCallTimeout)
+			var err error
+			out, err = watch.driver.CapturePaneHistoryContext(ctx, request.SessionID, request.Offset+request.Rows)
+			cancel()
+			ok = err == nil
+		}
 		return focusScrollMsg{
 			sessID:  request.SessionID,
 			offset:  request.Offset,
 			rows:    request.Rows,
-			preview: bottomWindow(matchExecShape(out), request.Rows, request.Offset),
+			preview: bottomWindow(out, request.Rows, request.Offset),
 			ok:      ok,
 		}
 	}

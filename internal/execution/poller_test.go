@@ -1,11 +1,13 @@
 package execution
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,6 +20,8 @@ import (
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -179,6 +183,7 @@ func TestPendingRenameKeepsTheWorktreeDirectory(t *testing.T) {
 }
 
 func TestPendingRenameLetsAgentKeepWorking(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -946,7 +951,12 @@ func writeCodexRollout(t *testing.T, path, sessionID, cwd string, modTime time.T
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	line := `{"type":"session_meta","payload":{"session_id":"` + sessionID + `","cwd":"` + cwd + `"}}` + "\n"
+	// Marshalled, not spliced: a Windows path's backslashes are JSON escapes.
+	quotedCwd, err := json.Marshal(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := `{"type":"session_meta","payload":{"session_id":"` + sessionID + `","cwd":` + string(quotedCwd) + `}}` + "\n"
 	if err := os.WriteFile(path, []byte(line), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1571,6 +1581,9 @@ func TestPendingInputWaitsForBetweenTurn(t *testing.T) {
 			m := buildModel(t)
 			tool := m.cfg.Tools["ready-tool"]
 			tool.Command = `sh -c 'printf "\033[2J\033[H❯ /compact\n⠋ working\n❯ "; IFS= read -r line; printf "\033[2J\033[H❯ /compact\n❯ "; while IFS= read -r line; do printf "\n❯ "; done'`
+			if runtime.GOOS == "windows" {
+				tool.Command = testfixture.ModeCommand(`prompt-loop --first '\033[2J\033[H❯ /compact\n⠋ working\n❯ ' --then '\033[2J\033[H❯ /compact\n❯ '`)
+			}
 			if signal == "rule" {
 				tool.Rules = []config.Rule{{State: status.Working, Pattern: "⠋ working"}}
 			} else {
@@ -1662,6 +1675,9 @@ func TestPendingInputLandsOnAnErroredPane(t *testing.T) {
 	m := buildModel(t)
 	tool := m.cfg.Tools["ready-tool"]
 	tool.Command = `sh -c 'printf "error: boom\n❯ "; while IFS= read -r line; do printf "\n❯ "; done'`
+	if runtime.GOOS == "windows" {
+		tool.Command = testfixture.ModeCommand(`prompt-loop --first 'error: boom\n❯ '`)
+	}
 	tool.Rules = []config.Rule{{State: status.Errored, Pattern: "error: boom"}}
 	m.cfg.Tools["ready-tool"] = tool
 	engine, err := status.NewEngine(m.cfg)
@@ -1941,6 +1957,9 @@ func TestClaudeTailFollowsTheLiveTranscript(t *testing.T) {
 		t.Fatalf("reply = %q, want the live transcript over a cached one of the same size and time", reply)
 	}
 
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod cannot deny reads on Windows")
+	}
 	liveProject := filepath.Dir(livePath)
 	if err := os.Chmod(liveProject, 0o000); err != nil {
 		t.Fatal(err)

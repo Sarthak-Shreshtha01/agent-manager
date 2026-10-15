@@ -2,6 +2,8 @@ package tmux
 
 import (
 	"context"
+	"errors"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"slices"
 	"strconv"
@@ -11,9 +13,10 @@ import (
 )
 
 func TestSendText(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "send" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "cat", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "cat", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -40,10 +43,28 @@ func TestSendText(t *testing.T) {
 	}
 }
 
+// A composer that cannot be read after the Enter proves nothing about the
+// submit, so the failed read is the result rather than an empty composer.
+func TestSubmitTextReturnsAComposerItCouldNotRead(t *testing.T) {
+	driver := requireTmux(t)
+	id := "unread" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
+	if err := driver.Create(id, "/tmp", "cat", nil, 0, 0); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { driver.Kill(id) })
+
+	unreadable := errors.New("composer unreadable")
+	_, err := driver.SubmitTextContext(context.Background(), id, "hello world", func() (bool, error) { return false, unreadable })
+	if !errors.Is(err, unreadable) {
+		t.Fatalf("SubmitTextContext = %v, want the failed composer read", err)
+	}
+}
+
 // pasteReady follows the paste-mode request, so a pane showing it has bracketed paste on.
 const pasteReady = "paste-ready"
 
 func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "bracket" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-bracket-" + id
@@ -53,7 +74,7 @@ func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
 	want := "\x1b[200~" + text + "\x1b[201~\r"
 	command := "stty raw -echo; printf '\\033[?2004h" + pasteReady + "'; dd bs=1 count=" +
 		strconv.Itoa(len(want)) + " of=" + ShellQuote(marker) + " 2>/dev/null"
-	if err := driver.Create(id, "/tmp", command, nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), command, nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -79,6 +100,7 @@ func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
 // as part of the bracketed paste, so the Enter has to reach it as a read of
 // its own, however late the pane gets around to reading.
 func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "late" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	reads := "/tmp/am-late-" + id
@@ -91,7 +113,7 @@ func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
 	command := "stty raw -echo; printf '\\033[?2004h" + pasteReady + "'; sleep 0.4; " +
 		"while :; do dd bs=4096 count=1 2>/dev/null | tee -a " + ShellQuote(reads) +
 		"; printf '|' >> " + ShellQuote(reads) + "; done"
-	if err := driver.Create(id, "/tmp", command, nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), command, nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -117,6 +139,7 @@ func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
 // text already on screen would pass for it, so the Enter waits the window out
 // rather than matching against nothing.
 func TestSendTextWaitsOutTheWindowWhenTheBaselineCaptureFails(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -151,6 +174,7 @@ func TestSendTextWaitsOutTheWindowWhenTheBaselineCaptureFails(t *testing.T) {
 // pane's bracketed-paste markers with no Enter after it, so agent composers
 // keep multi-line text instead of submitting on the first newline.
 func TestPasteDeliversWithoutSubmitting(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "paste" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-paste-nosubmit-" + id
@@ -162,7 +186,7 @@ func TestPasteDeliversWithoutSubmitting(t *testing.T) {
 	want := "\x1b[200~first line\rsecond line\r\x1b[201~"
 	command := "stty raw -echo; printf '\\033[?2004h" + pasteReady + "'; dd bs=1 count=" +
 		strconv.Itoa(len(want)+1) + " of=" + ShellQuote(marker) + " 2>/dev/null"
-	if err := driver.Create(id, "/tmp", command, nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), command, nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -193,6 +217,7 @@ func TestPasteDeliversWithoutSubmitting(t *testing.T) {
 // tmux keeps paste buffers per server, where the manager and every agent's MCP
 // process paste side by side.
 func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -219,6 +244,7 @@ func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
 // press Enter. Interleaved, the second paste lands before the first Enter and
 // both texts submit as one prompt.
 func TestSendTextHoldsASecondSendToThePaneUntilTheFirstSubmits(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	held := dir + "/held"

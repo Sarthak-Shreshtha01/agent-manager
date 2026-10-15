@@ -2,20 +2,24 @@ package ui
 
 import (
 	"fmt"
-	"github.com/YoanWai/agent-manager/internal/tmux"
-	tea "github.com/charmbracelet/bubbletea"
+	"os"
 	"os/exec"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/testenv"
+	"github.com/YoanWai/agent-manager/internal/tmux"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func requireFocusDriver(t *testing.T) *tmux.Driver {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	driver, err := tmux.NewWithSocket(testSocket)
 	if err != nil {
@@ -24,12 +28,22 @@ func requireFocusDriver(t *testing.T) *tmux.Driver {
 	return driver
 }
 
+// skipControlMode skips a test that needs the watcher's control client up:
+// on Windows OpenControl refuses by design and previews poll instead.
+func skipControlMode(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the manager does not use psmux control mode")
+	}
+}
+
 // The watcher pushes a fresh preview when the pane paints, with no tick
-// asking for it.
+// asking for it: pushed over the control client, or polled where there is
+// none.
 func TestFocusWatchPushesPaneUpdates(t *testing.T) {
 	driver := requireFocusDriver(t)
 	id := "focus" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -51,6 +65,7 @@ func TestFocusWatchPushesPaneUpdates(t *testing.T) {
 // A serving control client owns an admitted command even when tmux rejects it:
 // the caller may use a fallback only while no client is available.
 func TestFocusWatchForwardDistinguishesUnavailableFromAdmitted(t *testing.T) {
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	watch := newFocusWatch(driver, func(tea.Msg) {})
 	t.Cleanup(watch.Close)
@@ -59,7 +74,7 @@ func TestFocusWatchForwardDistinguishesUnavailableFromAdmitted(t *testing.T) {
 	}
 
 	id := "forward" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -182,7 +197,7 @@ func TestFocusWatchRefocus(t *testing.T) {
 	stamp := strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	first, second := "fw1"+stamp, "fw2"+stamp
 	for _, id := range []string{first, second} {
-		if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+		if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 			t.Fatalf("Create %s: %v", id, err)
 		}
 	}
@@ -238,6 +253,7 @@ type focusArrival struct {
 
 func startFocusArrivalWatch(t *testing.T) (*tmux.Driver, string, <-chan focusArrival, *focusWatch) {
 	t.Helper()
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	id := "timing" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
@@ -382,7 +398,7 @@ func waitFocusArrival(t *testing.T, arrivals <-chan focusArrival, contains strin
 func TestFocusWatchRefocusWhileSendBlocked(t *testing.T) {
 	driver := requireFocusDriver(t)
 	id := "fwb" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -483,7 +499,7 @@ func TestFocusWatchBacksOffAfterFailure(t *testing.T) {
 func TestFocusWatchReportsCursor(t *testing.T) {
 	driver := requireFocusDriver(t)
 	id := "cur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -525,12 +541,16 @@ func TestFocusWatchReportsCursor(t *testing.T) {
 }
 
 func TestFocusWatchHonorsHiddenCursor(t *testing.T) {
+	if !tmux.ReportsCursorFlag {
+		t.Skip(tmux.Binary + " does not report whether the cursor shows")
+	}
+	testenv.SkipPOSIXShell(t)
 	driver := requireFocusDriver(t)
 	id := "hidecur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	// Reset the pane first: shell startup output may leave its cursor below
 	// row zero, which made this exact-coordinate assertion host-dependent.
 	command := "printf '\\033[H\\033[2J\\033[?25lhidden-cursor'; exec sleep 10"
-	if err := driver.Create(id, "/tmp", command, nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), command, nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -591,9 +611,11 @@ func TestApplyPaneState(t *testing.T) {
 		t.Fatalf("plain pane state = %+v", plain)
 	}
 
+	// A multiplexer that never reports the flag leaves the position as the
+	// caret: hiding it on a constant 0 would hide every caret.
 	var hidden focusPreviewMsg
 	applyPaneState(&hidden, "7,8,0,000,0,0,0,0")
-	if !hidden.paneStateOK || hidden.cursorOK || hidden.cursorX != 7 || hidden.cursorY != 8 {
+	if !hidden.paneStateOK || hidden.cursorOK != !tmux.ReportsCursorFlag || hidden.cursorX != 7 || hidden.cursorY != 8 {
 		t.Fatalf("hidden cursor pane state = %+v, want its coordinates kept", hidden)
 	}
 
@@ -648,11 +670,12 @@ func TestControlCaptureKeepsTrailingBlankRows(t *testing.T) {
 
 // A client that dies under the watcher is reported, not swallowed: the
 // preview silently dropping to the poll cadence reads as the manager
-// lagging, with nothing on screen saying why.
+// lagging, with nothing on screen saying why. A polled watcher's capture
+// failing is the same loss.
 func TestFocusWatchReportsALostClient(t *testing.T) {
 	driver := requireFocusDriver(t)
 	id := "lost" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -663,8 +686,8 @@ func TestFocusWatchReportsALostClient(t *testing.T) {
 	watch.setFocus(id)
 	waitFocusPreview(t, msgs, id, "")
 
-	// Killing the session detaches its control client out from under the
-	// watcher, which is one of the ways the client goes away in use.
+	// Killing the session pulls the pane out from under the watcher, which
+	// is one of the ways the client goes away in use.
 	driver.Kill(id)
 	deadline := time.After(5 * time.Second)
 	for {
@@ -713,5 +736,40 @@ func TestFocusWatchSkipsMissingSession(t *testing.T) {
 	case msg := <-msgs:
 		t.Fatalf("missing session produced a notification: %#v", msg)
 	default:
+	}
+}
+
+// Only a write to the pane a watcher polls is counted, and the watcher
+// hears it land: the frame it takes next carries the count, so the caret
+// can be trusted once the frame shows every counted write.
+func TestFocusWatchCountsWritesToThePolledPane(t *testing.T) {
+	watch := newFocusWatch(nil, func(tea.Msg) {})
+	if watch.countWrite("s1") {
+		t.Fatal("a write was counted with no watcher polling the pane")
+	}
+	input := make(chan struct{}, 1)
+	watch.mu.Lock()
+	watch.id, watch.polled, watch.input = "s1", true, input
+	watch.mu.Unlock()
+	if watch.countWrite("s2") {
+		t.Fatal("a write to another pane was counted")
+	}
+	if !watch.countWrite("s1") {
+		t.Fatal("a write to the polled pane was not counted")
+	}
+	if watch.caughtUp(0) {
+		t.Fatal("a frame taken before the write landed was caught up")
+	}
+	watch.writeLanded("s1")
+	select {
+	case <-input:
+	default:
+		t.Fatal("the watcher was not woken to look for the echo")
+	}
+	watch.mu.Lock()
+	landed := watch.landed
+	watch.mu.Unlock()
+	if !watch.caughtUp(landed) {
+		t.Fatal("a frame taken once the write landed was not caught up")
 	}
 }

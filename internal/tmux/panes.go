@@ -3,8 +3,6 @@ package tmux
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,11 +14,22 @@ func (d *Driver) CapturePane(id string) (string, error) {
 	return d.run("capture-pane", "-p", "-e", "-t", PaneTarget(id))
 }
 
+// CapturePaneContext is CapturePane bounded by ctx, for a watcher whose
+// close must not wait on a capture still in flight.
+func (d *Driver) CapturePaneContext(ctx context.Context, id string) (string, error) {
+	return d.runContext(ctx, "capture-pane", "-p", "-e", "-t", PaneTarget(id))
+}
+
 // CapturePaneHistory captures the pane with up to `lines` history rows
 // above the visible ones, for extractions whose anchor — a message
 // bullet, a prompt echo — can scroll off the visible screen.
 func (d *Driver) CapturePaneHistory(id string, lines int) (string, error) {
 	return d.run("capture-pane", "-p", "-e", "-S", "-"+strconv.Itoa(lines), "-t", PaneTarget(id))
+}
+
+// CapturePaneHistoryContext is CapturePaneHistory bounded by ctx.
+func (d *Driver) CapturePaneHistoryContext(ctx context.Context, id string, lines int) (string, error) {
+	return d.runContext(ctx, "capture-pane", "-p", "-e", "-S", "-"+strconv.Itoa(lines), "-t", PaneTarget(id))
 }
 
 // capturePlain drops the escapes CapturePane keeps, which an application is
@@ -31,6 +40,17 @@ func (d *Driver) capturePlain(target string) (string, error) {
 
 func (d *Driver) capturePlainContext(ctx context.Context, target string) (string, error) {
 	return d.runContext(ctx, "capture-pane", "-p", "-t", target)
+}
+
+// Display expands a format against the session's agent pane, for callers
+// that read pane state without a control client.
+func (d *Driver) Display(id, format string) (string, error) {
+	return d.run("display-message", "-p", "-t", PaneTarget(id), format)
+}
+
+// DisplayContext is Display bounded by ctx.
+func (d *Driver) DisplayContext(ctx context.Context, id, format string) (string, error) {
+	return d.runContext(ctx, "display-message", "-p", "-t", PaneTarget(id), format)
 }
 
 // Cursor reports where the session's caret sits in its visible pane, in
@@ -104,11 +124,14 @@ type Pane struct {
 
 // Panes returns every managed session's agent pane in a single tmux call,
 // which doubles as a liveness check: a session absent from the map is gone.
-// The filter keeps the agent's own pane, the one PaneTarget addresses, so a
+// Only the agent's own pane counts, the one PaneTarget addresses, so a
 // session whose agent split the window reports the agent's own process and
-// the size the preview draws, never a teammate's.
+// the size the preview draws, never a teammate's. The filter runs here
+// rather than as list-panes -f, which tmux 3.1 lacks and psmux ignores: the
+// first pane 0 of a session is the one in its first window, since panes
+// list in window order.
 func (d *Driver) Panes() (map[string]Pane, error) {
-	out, err := exec.Command(d.bin, d.args("list-panes", "-a", "-f", "#{==:#{pane_index},0}", "-F", "#{session_name} #{pane_pid} #{pane_width} #{pane_height} #{window_panes} #{alternate_on} #{pane_tty} #{pane_current_path}")...).CombinedOutput()
+	out, err := d.command("list-panes", "-a", "-F", "#{session_name} #{pane_index} #{pane_pid} #{pane_width} #{pane_height} #{window_panes} #{alternate_on} #{pane_tty} #{pane_current_path}").CombinedOutput()
 	if err != nil {
 		// A server with no session in it, as the startup list-keys leaves
 		// for a moment, answers "no current target".
@@ -129,54 +152,18 @@ func (d *Driver) Panes() (map[string]Pane, error) {
 		if _, taken := panes[id]; taken {
 			continue
 		}
-		fields := strings.SplitN(geometry, " ", 7)
-		if len(fields) < 7 {
+		fields := strings.SplitN(geometry, " ", 8)
+		if len(fields) < 8 {
 			continue
 		}
-		pane := Pane{TTY: fields[5], Path: fields[6]}
-		var altScreen int
-		if _, err := fmt.Sscanf(geometry, "%d %d %d %d %d", &pane.PID, &pane.Width, &pane.Height, &pane.Panes, &altScreen); err == nil {
+		pane := Pane{TTY: fields[6], Path: fields[7]}
+		var index, altScreen int
+		if _, err := fmt.Sscanf(geometry, "%d %d %d %d %d %d", &index, &pane.PID, &pane.Width, &pane.Height, &pane.Panes, &altScreen); err == nil && index == 0 {
 			pane.AltScreen = altScreen == 1
 			panes[id] = pane
 		}
 	}
 	return panes, nil
-}
-
-// SessionOfPane names the managed session a tmux pane belongs to, for a
-// caller that knows which pane it sits in but not which session it is.
-// A terminal the manager opens carries no launch command, so it gets no
-// launch script and the session id never reaches its environment; the
-// pane it runs in still says which session tmux filed it under.
-//
-// tmuxEnv is the caller's $TMUX, socket,server_pid,session_id. A pane on any
-// other server belongs to some other tmux, not to this manager, and answers
-// empty. The socket alone cannot tell servers apart: it keeps its path across
-// a restart while pane ids start again at %0, so an environment inherited from
-// a previous server would name whichever session owns that id now. The pid
-// is what differs.
-func (d *Driver) SessionOfPane(tmuxEnv, paneID string) (string, error) {
-	// tmux resolves a target it cannot parse to the current session and
-	// exits 0, which would answer for a session this pane is not in.
-	if !paneIDPattern.MatchString(paneID) {
-		return "", nil
-	}
-	socket, pid, ok := socketAndPid(tmuxEnv)
-	if !ok {
-		return "", nil
-	}
-	out, err := d.run("display-message", "-p", "-t", paneID, "#{socket_path} #{pid} #{session_name}")
-	if err != nil {
-		return "", err
-	}
-	serverSocket, serverPid, name := splitPaneInfo(strings.TrimRight(out, "\n"))
-	if resolvedSocket(socket) != resolvedSocket(serverSocket) || pid != serverPid {
-		return "", nil
-	}
-	if !strings.HasPrefix(name, prefix) {
-		return "", nil
-	}
-	return strings.TrimPrefix(name, prefix), nil
 }
 
 var paneIDPattern = regexp.MustCompile(`^%[0-9]+$`)
@@ -211,26 +198,6 @@ func (d *Driver) SessionOfProcess(pid int) (string, error) {
 	return "", nil
 }
 
-func processParents() (map[int]int, error) {
-	out, err := exec.Command("ps", "-A", "-o", "pid=,ppid=").Output()
-	if err != nil {
-		return nil, fmt.Errorf("list processes: %w", err)
-	}
-	parents := map[int]int{}
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			continue
-		}
-		pid, pidErr := strconv.Atoi(fields[0])
-		ppid, ppidErr := strconv.Atoi(fields[1])
-		if pidErr == nil && ppidErr == nil {
-			parents[pid] = ppid
-		}
-	}
-	return parents, nil
-}
-
 // socketAndPid reads $TMUX from the right, since the socket path is the one
 // field free to contain a comma.
 func socketAndPid(tmuxEnv string) (socket, pid string, ok bool) {
@@ -242,28 +209,10 @@ func socketAndPid(tmuxEnv string) (socket, pid string, ok bool) {
 	return socket, pid, found && socket != "" && pid != ""
 }
 
-// splitPaneInfo reads the name and the pid off the end, so a socket path
-// with spaces in it stays whole. An unknown pane leaves the name empty.
-func splitPaneInfo(out string) (socket, pid, name string) {
-	rest, name, _ := cutLast(out, " ")
-	socket, pid, _ = cutLast(rest, " ")
-	return socket, pid, name
-}
-
 func cutLast(s, sep string) (before, after string, found bool) {
 	i := strings.LastIndex(s, sep)
 	if i < 0 {
 		return s, "", false
 	}
 	return s[:i], s[i+len(sep):], true
-}
-
-// resolvedSocket puts two socket paths in the same terms before they are
-// compared: macOS reports /private/tmp where the other side says /tmp, and
-// a temporary directory is routinely a symlink on either platform.
-func resolvedSocket(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return resolved
-	}
-	return filepath.Clean(path)
 }

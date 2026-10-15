@@ -1,6 +1,15 @@
 package ui
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/execution"
 	"github.com/YoanWai/agent-manager/internal/hooks"
@@ -9,15 +18,9 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/sysstat"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 func buildModel(t *testing.T) *Model {
@@ -27,8 +30,8 @@ func buildModel(t *testing.T) *Model {
 
 func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	cfg := config.Config{
 		Tools: map[string]config.Tool{
@@ -60,7 +63,7 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 			"terminal": {
 				Shell:         true,
 				DefaultStatus: status.Idle,
-				InputPrefix:   `(?m)^\s*(?:\S+\s+){0,3}[❯>$#›»→%➜]\s`,
+				InputPrefix:   `(?m)^\s*(?:(?:\S+\s+){0,3}[❯>$#›»→%➜]|PS [^\n>]*>)\s`,
 			},
 			// Shows every control character it is sent as ^X, with the tty
 			// flow and line-editing keys turned off so ctrl+q and ctrl+r
@@ -98,10 +101,31 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 				DefaultStatus:  status.Idle,
 				ActivityCutoff: "(?m)^❯",
 			},
+			// Collapses a paste into a placeholder the way Claude Code does
+			// and takes a second Enter to submit it, so the first one is
+			// swallowed the way a busy composer swallows it. tmux writes a
+			// paste a line at a time, so only a carriage return read after
+			// the closing bracket counts as an Enter.
+			"collapsing-tool": {
+				Command: `sh -c 'stty raw -echo; printf "\033[?2004h❯ "; p=0; n=0; ` +
+					`while :; do c=$(dd bs=65536 count=1 2>/dev/null | od -An -v -c | tr -d " \n"); ` +
+					`case "$c" in *201~*) p=1; printf "[Pasted text #1 +6 lines]";; "\\r") [ $p = 1 ] && n=$((n+1));; esac; ` +
+					`[ $n = 2 ] && { printf "\r\n❯ "; p=0; n=0; }; done'`,
+				DefaultStatus:  status.Idle,
+				ActivityCutoff: "(?m)^❯",
+			},
+			// Collapses a paste into a placeholder and never submits it.
+			"stuck-tool": {
+				Command: `sh -c 'stty raw -echo; printf "❯ "; dd bs=65536 count=1 >/dev/null 2>&1; ` +
+					`printf "[Pasted text #1 +6 lines]"; cat >/dev/null'`,
+				DefaultStatus:  status.Idle,
+				ActivityCutoff: "(?m)^❯",
+			},
 			// Draws its input line at once and takes the prompt it launched
-			// with half a second later, the way an agent finishes booting.
+			// with a couple of seconds later, the way an agent finishes
+			// booting; the take has to outlast a whole poll pass.
 			"slow-take-tool": {
-				Command:        `sh -c 'printf "❯ "; sleep 0.5; printf "\n❯ %s\n❯ " "$0"; cat'`,
+				Command:        `sh -c 'printf "❯ "; sleep 2; printf "\n❯ %s\n❯ " "$0"; cat'`,
 				DefaultStatus:  status.Idle,
 				ActivityCutoff: "(?m)^❯",
 			},
@@ -119,6 +143,17 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 				DefaultStatus: status.Idle,
 			},
 		},
+	}
+	// Windows has no cat or sh: the tools run the test binary's stand-ins.
+	if runtime.GOOS == "windows" {
+		for _, name := range testfixture.Tools() {
+			tool, ok := cfg.Tools[name]
+			if !ok {
+				continue
+			}
+			tool.Command = testfixture.Command(name)
+			cfg.Tools[name] = tool
+		}
 	}
 	st, err := store.Open(dbPath)
 	if err != nil {
@@ -145,6 +180,10 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 	t.Cleanup(func() {
 		for _, s := range m.workspace.sessions {
 			driver.Kill(s.ID)
+		}
+		panes, _ := driver.Panes()
+		for id := range panes {
+			driver.Kill(id)
 		}
 	})
 	return m
@@ -209,12 +248,13 @@ func (m *Model) stepCmd(t *testing.T, cmd tea.Cmd) tea.Cmd {
 	return next
 }
 
-// clearRequestOnCleanup drops the server-global detach marker when the test
-// ends: one left behind reaches every later test that reads it.
-func clearRequestOnCleanup(t *testing.T, m *Model) {
+// clearRequestOnCleanup drops the detach marker left on the server hosting
+// session id when the test ends: one left behind reaches every later test
+// that reads it.
+func clearRequestOnCleanup(t *testing.T, m *Model, id string) {
 	t.Helper()
 	t.Cleanup(func() {
-		if err := m.services.tmux.ClearRequest(); err != nil {
+		if err := m.services.tmux.ClearRequest(id); err != nil {
 			t.Errorf("ClearRequest: %v", err)
 		}
 	})
@@ -474,6 +514,21 @@ func (m *Model) spawnSession(toolName, name, dir, group, prompt string, autoName
 	result, err := services.runSpawn(request)
 	m.applySpawnEffect(request, result.(spawnEffectResult), err)
 	return err
+}
+
+// waitForPreview refreshes until the selected session's pane has drawn:
+// psmux's PowerShell takes a moment to start, and a blank pane paints no
+// box to click.
+func waitForPreview(t *testing.T, m *Model) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for !paneBooted(m.workspace.preview) {
+		if time.Now().After(deadline) {
+			t.Fatal("the selected pane never drew")
+		}
+		time.Sleep(50 * time.Millisecond)
+		m.applyCmd(t, m.refreshCmd())
+	}
 }
 
 // waitForPaneChild waits for a pane to run a named program, which is a

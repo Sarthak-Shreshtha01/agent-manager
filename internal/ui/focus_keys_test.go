@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/testenv"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
 	tea "github.com/charmbracelet/bubbletea"
@@ -321,31 +324,46 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 	if m.mode != modeFocus {
 		t.Fatalf("after enter, mode = %v, err = %q", m.mode, m.errBar.text)
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for !m.focus.runtime.watch.serving(sess.ID) {
-		if time.Now().After(deadline) {
-			t.Fatal("focus control client never became ready")
+	// Keys ride the control pipe when there is one; without it (Windows)
+	// they take the forked send-keys path.
+	if runtime.GOOS != "windows" {
+		deadline := time.Now().Add(5 * time.Second)
+		for !m.focus.runtime.watch.serving(sess.ID) {
+			if time.Now().After(deadline) {
+				t.Fatal("focus control client never became ready")
+			}
+			time.Sleep(30 * time.Millisecond)
 		}
-		time.Sleep(30 * time.Millisecond)
 	}
 
-	ready := filepath.Join(t.TempDir(), "ready")
-	reader := "touch " + tmux.ShellQuote(ready) + "; od -An -tx1 -N7"
-	command := "sh -c " + tmux.ShellQuote(reader)
-	if err := m.services.tmux.SendKeys(sess.ID, command, "Enter"); err != nil {
-		t.Fatalf("start key reader: %v", err)
-	}
-	deadline = time.Now().Add(5 * time.Second)
-	for {
-		if _, err := os.Stat(ready); err == nil {
-			break
-		} else if !os.IsNotExist(err) {
-			t.Fatalf("check key reader: %v", err)
+	if runtime.GOOS == "windows" {
+		// cat -v writes what it reads in caret notation, so the arrows
+		// read back as the escape sequences the pane was handed.
+		ready := filepath.Join(t.TempDir(), "ready")
+		command := "$env:" + testfixture.ReadyEnv + " = " + tmux.ShellQuote(ready) + "; " + testfixture.Cat() + " -v"
+		if err := m.services.tmux.SendKeys(sess.ID, command, "Enter"); err != nil {
+			t.Fatalf("start key reader: %v", err)
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("key reader never became ready")
+		testfixture.WaitForReady(t, ready)
+	} else {
+		ready := filepath.Join(t.TempDir(), "ready")
+		reader := "touch " + tmux.ShellQuote(ready) + "; od -An -tx1 -N7"
+		command := "sh -c " + tmux.ShellQuote(reader)
+		if err := m.services.tmux.SendKeys(sess.ID, command, "Enter"); err != nil {
+			t.Fatalf("start key reader: %v", err)
 		}
-		time.Sleep(30 * time.Millisecond)
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			if _, err := os.Stat(ready); err == nil {
+				break
+			} else if !os.IsNotExist(err) {
+				t.Fatalf("check key reader: %v", err)
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("key reader never became ready")
+			}
+			time.Sleep(30 * time.Millisecond)
+		}
 	}
 
 	for _, key := range []tea.KeyType{tea.KeyUp, tea.KeyDown, tea.KeyEnter} {
@@ -354,13 +372,17 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 		*m = *updated.(*Model)
 	}
 
-	deadline = time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(5 * time.Second)
 	for {
 		pane, err := m.services.tmux.CapturePane(sess.ID)
 		if err != nil {
 			t.Fatalf("capture: %v", err)
 		}
-		if strings.Contains(strings.Join(strings.Fields(pane), " "), "1b 5b 41 1b 5b 42 0a") {
+		if runtime.GOOS == "windows" {
+			if strings.Contains(pane, "^[[A^[[B") {
+				return
+			}
+		} else if strings.Contains(strings.Join(strings.Fields(pane), " "), "1b 5b 41 1b 5b 42 0a") {
 			return
 		}
 		if time.Now().After(deadline) {
@@ -373,6 +395,7 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 // A program that owns its screen, or a pane with no history to page,
 // gets the page keys itself.
 func TestFocusPageKeysReachOtherAgents(t *testing.T) {
+	testenv.SkipPOSIXShell(t)
 	for _, tc := range []struct {
 		name    string
 		command string
@@ -812,7 +835,7 @@ func TestFocusPasteKeepsPromptInComposer(t *testing.T) {
 // This test verifies the handler returns no mouse-enable command.
 func TestDetachNoMouseReArm(t *testing.T) {
 	m := buildModel(t)
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, "")
 
 	_, cmd := m.Update(attachDoneMsg{})
 	cmd = m.foregroundTestCmd(t, cmd)
@@ -1094,6 +1117,28 @@ func TestCaretAtInputStartNeedsCurrentPane(t *testing.T) {
 	setFocusScrollOffset(t, m, "s1", 3, 1)
 	if m.caretAtInputStart("s1", "claude") {
 		t.Fatal("a scrolled-back pane decided the caret")
+	}
+}
+
+// Keys counted to a polled pane land after the frame the mirror holds, so
+// that frame's caret cannot put Left at the prompt head: a Left typed right
+// behind a word would leave focus instead of moving through it.
+func TestCaretAtInputStartWaitsForQueuedKeys(t *testing.T) {
+	m := caretModel(t, paneCursor{x: 2, y: 0, ok: true}, "❯")
+	watch := newFocusWatch(nil, func(tea.Msg) {})
+	m.focus.runtime.watch = watch
+	if !m.caretAtInputStart("s1", "claude") {
+		t.Fatal("test setup: the empty prompt's caret is not at its head")
+	}
+	watch.mu.Lock()
+	watch.queued = 1
+	watch.mu.Unlock()
+	if m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame taken before a queued key decided the caret")
+	}
+	updateFocusPane(m, "s1", func(update *uifocus.PaneUpdate) { update.Writes = 1 })
+	if !m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame showing every queued key did not decide the caret")
 	}
 }
 
@@ -1457,8 +1502,8 @@ func TestFocusLeftUnfocusesOnCommandCodesParkedCaret(t *testing.T) {
 	hidden := focusPreviewMsg{
 		sessID:  sess.ID,
 		preview: "✻ Thought for 2 seconds [ctrl+o to expand]\n\n────────────\n❯ Ask your question...\n────────────\n  ? for shortcuts\n\n\n\n",
+		cursorX: 0, cursorY: 6, paneStateOK: true,
 	}
-	applyPaneState(&hidden, "0,6,0,000,0,0,0,0")
 	updated, _ = m.Update(hidden)
 	m.drainEffects(t)
 	*m = *updated.(*Model)

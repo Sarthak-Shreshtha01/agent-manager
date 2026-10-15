@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +30,10 @@ const requestOption = "@am_request"
 
 // pinnedPrefixOption marks a prefix the manager set, the only kind unpinPrefix removes.
 const pinnedPrefixOption = "@am_pinned_prefix"
+
+// rootKeysOption is the user option where psmux servers record the root
+// keys the manager bound, so the next run can take them off.
+const rootKeysOption = "@am_root_keys"
 
 const (
 	RequestReview = "review"
@@ -67,59 +70,36 @@ func New() (*Driver, error) {
 // isolated socket so their sessions never collide with the default socket or
 // with live agents on the production socket.
 func NewWithSocket(socket string) (*Driver, error) {
-	bin, err := exec.LookPath("tmux")
+	bin, err := exec.LookPath(Binary)
 	if err != nil {
-		return nil, fmt.Errorf("tmux not found on PATH: %w\n%s", err, deps.Hint("tmux"))
+		return nil, fmt.Errorf("%s not found on PATH: %w\n%s", Binary, err, deps.Hint(Binary))
 	}
+	if err := checkVersion(bin); err != nil {
+		return nil, err
+	}
+
 	return &Driver{bin: bin, socket: socket}, nil
+}
+
+// Version probes the multiplexer's own version on the manager's socket,
+// which the socket isolation invariant requires of every invocation, even
+// one that opens no server.
+func Version() (string, error) {
+	d, err := New()
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := d.commandContext(ctx, "-V").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func (d *Driver) SocketName() string {
 	return d.socket
-}
-
-// SocketPath is the file the server this driver talks to listens on. The
-// -L name does not identify a server on its own: tmux resolves it under
-// TMUX_TMPDIR, so two managers started with different values of that
-// variable drive different servers under one socket name, each blind to
-// the other's sessions.
-func (d *Driver) SocketPath() string {
-	if cached := d.socketPath.Load(); cached != nil {
-		return *cached
-	}
-	out, err := d.run("display-message", "-p", "#{socket_path}")
-	if err != nil {
-		return socketPathFromEnv(d.socket)
-	}
-	path := strings.TrimSpace(out)
-	if path == "" {
-		return socketPathFromEnv(d.socket)
-	}
-	d.socketPath.Store(&path)
-	return path
-}
-
-// socketPathFromEnv rebuilds what tmux resolves -L to, without asking a
-// server that may not be running. tmux reports the path with its symlinks
-// resolved, so this does too and the two agree once a server exists.
-func socketPathFromEnv(socket string) string {
-	dir := "/tmp"
-	// tmux skips a TMUX_TMPDIR it cannot resolve.
-	if custom := os.Getenv("TMUX_TMPDIR"); custom != "" {
-		if _, err := os.Stat(custom); err == nil {
-			dir = custom
-		}
-	}
-	// tmux takes a relative TMUX_TMPDIR from its own working directory and
-	// reports the resolved path, so the same absolute form is what a session
-	// has to be stamped with for a later poll to recognise it.
-	if absolute, err := filepath.Abs(dir); err == nil {
-		dir = absolute
-	}
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
-		dir = resolved
-	}
-	return filepath.Join(dir, fmt.Sprintf("tmux-%d", os.Getuid()), socket)
 }
 
 func sessionName(id string) string {
@@ -130,7 +110,7 @@ func sessionName(id string) string {
 // session's first, which is not the session's current window once anyone
 // opens a second one inside it.
 func windowTarget(id string) string {
-	return sessionName(id) + ":^"
+	return sessionName(id) + ":" + firstWindow
 }
 
 // PaneTarget addresses the pane the agent itself runs in. A bare session
@@ -148,6 +128,20 @@ func PaneTarget(id string) string {
 // tmux requires -L <socket> before the command word.
 func (d *Driver) args(a ...string) []string {
 	return append([]string{"-L", d.socket}, a...)
+}
+
+// command builds one invocation of the multiplexer on this driver's socket.
+func (d *Driver) command(args ...string) *exec.Cmd {
+	cmd := exec.Command(d.bin, d.args(args...)...)
+	cmd.Env = commandEnv()
+	return cmd
+}
+
+// commandContext is command bounded by ctx.
+func (d *Driver) commandContext(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, d.bin, d.args(args...)...)
+	cmd.Env = commandEnv()
+	return cmd
 }
 
 func (d *Driver) run(args ...string) (string, error) {
@@ -168,25 +162,42 @@ func (d *Driver) runContextStarted(ctx context.Context, started func(), args ...
 		return "", err
 	}
 	defer release()
-	cmd := exec.CommandContext(ctx, d.bin, d.args(args...)...)
-	configureBoundedCommand(cmd)
+	// tmux takes a command list in one invocation; psmux's command line
+	// reads only one command, so there each runs on its own, stopping at the
+	// first that fails the way tmux does.
 	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("tmux %s: %w", strings.Join(args, " "), err)
-	}
-	if started != nil {
-		started()
-	}
-	err = cmd.Wait()
-	if err != nil {
-		if contextErr := ctx.Err(); contextErr != nil {
-			err = contextErr
+	for i, command := range splitCommandList(args) {
+		cmd := d.commandContext(ctx, command...)
+		configureBoundedCommand(cmd)
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		if err := cmd.Start(); err != nil {
+			return "", fmt.Errorf("tmux %s: %w", strings.Join(args, " "), err)
 		}
-		return "", fmt.Errorf("tmux %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(out.String()))
+		if started != nil && i == 0 {
+			started()
+		}
+		if err := cmd.Wait(); err != nil {
+			if contextErr := ctx.Err(); contextErr != nil {
+				err = contextErr
+			}
+			return "", fmt.Errorf("tmux %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(out.String()))
+		}
 	}
 	return out.String(), nil
+}
+
+// runIn runs a command on the server that hosts session id. tmux has one
+// server for every session, so this is run; psmux runs a server per
+// session, and a command without a target goes to whichever it finds.
+func (d *Driver) runIn(id string, args ...string) (string, error) {
+	return d.run(append(sessionRoute(id), args...)...)
+}
+
+// runInContext is runIn bounded by ctx, reporting when the first command
+// started.
+func (d *Driver) runInContext(ctx context.Context, started func(), id string, args ...string) (string, error) {
+	return d.runContextStarted(ctx, started, append(sessionRoute(id), args...)...)
 }
 
 // commandList joins commands into the single invocation tmux takes for a
@@ -218,21 +229,22 @@ func (d *Driver) SendCommand(args ...string) error {
 }
 
 // A missing tmux server means no request rather than an error: the
-// manager outlives the sessions it opens.
-func (d *Driver) PendingRequest() (string, error) {
-	out, err := exec.Command(d.bin, d.args("show-option", "-gqv", requestOption)...).CombinedOutput()
+// manager outlives the sessions it opens. id names the session the user
+// just detached from; psmux keeps the marker on that session's server.
+func (d *Driver) PendingRequest(id string) (string, error) {
+	out, err := d.command(append(sessionRoute(id), "show-options", "-gqv", requestOption)...).CombinedOutput()
 	if err != nil {
 		if noServer(string(out)) {
 			return "", nil
 		}
-		return "", fmt.Errorf("tmux show-option %s: %w: %s", requestOption, err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("tmux show-options %s: %w: %s", requestOption, err, strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
 // ClearRequest unsets the marker so a request is carried out once.
-func (d *Driver) ClearRequest() error {
-	_, err := d.run("set-option", "-gu", requestOption)
+func (d *Driver) ClearRequest(id string) error {
+	_, err := d.runIn(id, "set-option", "-gu", requestOption)
 	return err
 }
 
@@ -276,7 +288,7 @@ func (d *Driver) SessionExistsContext(ctx context.Context, id string) (bool, err
 	if err == nil {
 		return true, nil
 	}
-	if noServer(err.Error()) || strings.Contains(err.Error(), "can't find session") {
+	if noServer(err.Error()) || strings.Contains(err.Error(), "can't find session") || sessionMissingExit(err) {
 		return false, nil
 	}
 	return false, err

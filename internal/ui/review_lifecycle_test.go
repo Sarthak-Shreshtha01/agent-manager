@@ -24,9 +24,9 @@ func TestInSessionReviewRemembersOriginAndReattaches(t *testing.T) {
 	if !ok {
 		t.Fatal("no session selected")
 	}
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -95,12 +95,12 @@ func TestReattachAcknowledgesFinished(t *testing.T) {
 	if !ok {
 		t.Fatal("no session selected")
 	}
-	clearRequestOnCleanup(t, m)
+	clearRequestOnCleanup(t, m, sess.ID)
 
 	if err := m.services.store.UpdateStatus(sess.ID, status.Finished); err != nil {
 		t.Fatalf("set finished: %v", err)
 	}
-	if _, err := tmuxCmd("set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
