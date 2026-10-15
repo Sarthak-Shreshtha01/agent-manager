@@ -16,6 +16,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/mcpreg"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -531,7 +532,7 @@ func imageExists(t *testing.T, path string) bool {
 
 func fakeInstallCommand(t *testing.T) string {
 	t.Helper()
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	bin := t.TempDir()
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	target := filepath.Join(bin, "am-fake-cli")

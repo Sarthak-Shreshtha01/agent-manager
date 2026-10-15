@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -509,7 +510,7 @@ func TestFocusWatchHonorsHiddenCursor(t *testing.T) {
 	if !tmux.ReportsCursorFlag {
 		t.Skip(tmux.Binary + " does not report whether the cursor shows")
 	}
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireFocusDriver(t)
 	id := "hidecur" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	command := "printf '\\033[?25lhidden-cursor'; exec sleep 10"

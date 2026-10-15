@@ -15,6 +15,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -339,7 +340,7 @@ func TestShellToolIsFoundByItsFlag(t *testing.T) {
 // machine does.
 func slowSpawn(t *testing.T, delay time.Duration) {
 	t.Helper()
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	realTmux, err := exec.LookPath(tmux.Binary)
 	if err != nil {
 		t.Skip(tmux.Binary + " not installed")

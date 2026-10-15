@@ -24,6 +24,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	"github.com/google/uuid"
 )
@@ -232,7 +233,7 @@ func TestSessionsCreateCarriesNamePromptAndTargetWithRealTmux(t *testing.T) {
 // a revive carries them again on either pane path, since the row keeps the
 // choice.
 func TestSessionsCreateCarriesItsChoiceThroughRevive(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	for _, tc := range []struct {
 		name string
 		kill bool
@@ -477,7 +478,7 @@ func TestSessionsKillKeepsTheScreenAndReviveBringsItBack(t *testing.T) {
 // The agent switched conversation after it launched; revive brings back the
 // one it reported, and tells the new agent the launch its row is stamped with.
 func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	h := newSessionHarness(t)
 	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "switcher", Tool: "reporter"})
 	if err != nil {
@@ -503,7 +504,7 @@ func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
 // Muse names its conversation only in a file it holds open while it runs,
 // and no manager screen may be open to have read it before the kill.
 func TestKillFollowsTheConversationTheAgentHolds(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	h := newSessionHarness(t)
 	held := filepath.Join(t.TempDir(), "muse", "sessions", "conv-held.json")
 	if err := os.MkdirAll(filepath.Dir(held), 0o755); err != nil {
@@ -1277,7 +1278,7 @@ func TestReviveRestartsTheAgentInsideItsLivePane(t *testing.T) {
 }
 
 func TestRevivePickerRecoveryCoversBothPanePaths(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	tests := []struct {
 		name string
 		tool string
@@ -1329,7 +1330,7 @@ func TestReviveRefusesWhileTheAgentIsStillRunning(t *testing.T) {
 	// The resting tool's agent is printf followed by cat: under PowerShell
 	// printf does not exist and cat is an in-process cmdlet, so the pane
 	// shell never gains the child process that marks a running agent.
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	h := newSessionHarness(t)
 	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "chatty", Tool: "resting"})
 	if err != nil {

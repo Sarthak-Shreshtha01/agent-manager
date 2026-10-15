@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/testenv"
 )
 
 // restore saves the seams for the returned func to put back, and starts the
@@ -40,13 +42,6 @@ func isolateTempDir(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("TMPDIR", dir)
 	t.Setenv("TMP", dir)
-}
-
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
 }
 
 func requirePastesDirEmpty(t *testing.T) {
@@ -504,7 +499,7 @@ func TestIsPastePath(t *testing.T) {
 }
 
 func TestCommandSeams(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	sh, err := exec.LookPath("sh")
 	if err != nil {
 		t.Fatal("sh is required on supported platforms")
@@ -657,7 +652,7 @@ func TestWriteTextHeadlessUsesOSC52(t *testing.T) {
 }
 
 func TestWriteTextSendsExactTextToPlatformWriter(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	defer restore()()
 	goos = "darwin"
 	sh, err := exec.LookPath("sh")
@@ -838,7 +833,7 @@ func TestWriteTextOSC52SizeBoundary(t *testing.T) {
 // A stale SSH DISPLAY selects xclip, which then dies with "Can't open
 // display"; the copy must still land through OSC 52.
 func TestWriteTextNativeFailureFallsBackToOSC52(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	defer restore()()
 	headlessLinux()
 	getenv = func(name string) string {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -379,7 +380,7 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 // A program that owns its screen, or a pane with no history to page,
 // gets the page keys itself.
 func TestFocusPageKeysReachOtherAgents(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	for _, tc := range []struct {
 		name    string
 		command string
