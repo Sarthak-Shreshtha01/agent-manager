@@ -65,6 +65,15 @@ func catCommand() string {
 	return "cat"
 }
 
+// hookedCatProcess is the process claude-hooked's cat runs as: on Windows
+// the fixture stands in for it under its own name.
+func hookedCatProcess() string {
+	if runtime.GOOS == "windows" {
+		return fixtureName
+	}
+	return "cat"
+}
+
 // runFixture runs the fixture this binary was started as, reporting false
 // when it was started as the test binary.
 func runFixture(args []string) (int, bool) {

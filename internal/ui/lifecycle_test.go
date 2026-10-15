@@ -1400,7 +1400,7 @@ func waitForPane(t *testing.T, m *Model, id, marker string) {
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		pane, err := m.tmux.CapturePane(id)
-		if err == nil && strings.Contains(pane, marker) {
+		if err == nil && strings.Contains(ansi.Strip(pane), marker) {
 			return
 		}
 		if time.Now().After(deadline) {
@@ -2639,7 +2639,7 @@ func TestASessionAskingToBeArchivedGoesOnceItsTurnEnds(t *testing.T) {
 	if got.AfterTurn != "" {
 		t.Fatalf("the request outlived its archive: %q", got.AfterTurn)
 	}
-	if snapshot, _ := m.store.Snapshot(sess.ID); !strings.Contains(snapshot, "last words") {
+	if snapshot, _ := m.store.Snapshot(sess.ID); !strings.Contains(ansi.Strip(snapshot), "last words") {
 		t.Fatalf("the archived row lost its last screen: %q", snapshot)
 	}
 	if len(m.sessionRows()) != 0 {
