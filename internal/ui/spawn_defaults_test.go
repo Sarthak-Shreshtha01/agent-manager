@@ -154,6 +154,9 @@ func TestFormShowsAndFetchesTheWorktreeBase(t *testing.T) {
 	if got, want := gitOutput(t, clone, "rev-parse", "origin/main"), gitOutput(t, remote, "rev-parse", "HEAD"); got != want {
 		t.Fatalf("origin/main = %s after the fetch, want %s", got, want)
 	}
+	// The repo answer lasts worktreeLookupTTL, which a slow fetch can
+	// outlive; Update's refresh would ask again, so the test does too.
+	m.handleMsg(m.formWorktreeProbeCmd(false)())
 	if view := m.viewForm(); !strings.Contains(view, "origin/main (auto)") || strings.Contains(view, "fetching") {
 		t.Fatalf("a finished fetch leaves the base alone on its row, got %q", view)
 	}
