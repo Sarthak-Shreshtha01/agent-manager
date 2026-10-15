@@ -3,6 +3,7 @@ package execution
 import (
 	"database/sql"
 	"fmt"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -238,7 +239,7 @@ func TestOwnerlessClaimIsMarkedUncertainNotRedelivered(t *testing.T) {
 }
 
 func TestDeliveryGuardKeepsPeerFromRetiringAnInFlightSend(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	p := pair(t, true)
 	sess := p.spawnReady(t)
 	deadline := time.Now().Add(5 * time.Second)

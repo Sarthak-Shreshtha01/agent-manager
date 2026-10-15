@@ -94,6 +94,7 @@ func updateFocusPane(m *Model, id string, change func(*uifocus.PaneUpdate)) {
 		SGR:       pane.SGR,
 		History:   pane.History,
 		Cursor:    pane.Cursor,
+		Writes:    pane.Writes,
 	}
 	change(&update)
 	m.focus.pane.ApplyPane(update, id)

@@ -143,7 +143,6 @@ func TestLateCopyConfirmationIsDroppedAfterTheSelectionGoes(t *testing.T) {
 }
 
 func TestPushedPreviewWinsOverStalePoll(t *testing.T) {
-	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "typing", t.TempDir(), "")
 	m.selectSessionRow(t, "typing")

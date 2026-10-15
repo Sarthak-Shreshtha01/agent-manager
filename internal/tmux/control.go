@@ -88,9 +88,15 @@ func enterGateContext(ctx context.Context, socket string, exclusive bool) (relea
 	}, nil
 }
 
+// ErrControlUnavailable is OpenControl's answer where the multiplexer's
+// control client cannot be relied on. It is a property of the platform,
+// not of one session, so callers poll forked captures instead of retrying.
+var ErrControlUnavailable = errors.New("control mode is not used with " + Binary)
+
 // OpenControl attaches a control-mode client to a live session. Gate
 // acquisition and the greeting are bounded by the same default as other tmux
-// commands.
+// commands. Where the multiplexer's control client cannot be relied
+// on it fails with ErrControlUnavailable.
 func (d *Driver) OpenControl(id string) (*Control, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
 	defer cancel()
@@ -105,17 +111,13 @@ func (d *Driver) OpenControlContext(ctx context.Context, id string) (*Control, e
 	if err := controlUnavailable(); err != nil {
 		return nil, err
 	}
-	return d.openControlContext(ctx, id)
-}
-
-func (d *Driver) openControlContext(ctx context.Context, id string) (*Control, error) {
 	release, err := enterGateContext(ctx, d.socket, true)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
 	processCtx, cancelProcess := context.WithCancel(context.Background())
-	cmd := d.commandContext(processCtx, controlFlag, "attach-session", "-t", sessionName(id))
+	cmd := d.commandContext(processCtx, "-C", "attach-session", "-t", sessionName(id))
 	configureBoundedCommand(cmd)
 	cmd.WaitDelay = commandTimeout
 	stdin, err := cmd.StdinPipe()
@@ -476,8 +478,7 @@ func (c *Control) readLoop(stdout io.Reader) {
 	inBlock := false
 	blockTag := ""
 	for scanner.Scan() {
-		// psmux -CC glues its DCS opener to the greeting; tmux -C sends none.
-		line := strings.TrimPrefix(scanner.Text(), "\x1bP1000p")
+		line := scanner.Text()
 		switch {
 		case !inBlock && strings.HasPrefix(line, "%begin "):
 			inBlock = true

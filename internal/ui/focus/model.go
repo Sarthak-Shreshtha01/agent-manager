@@ -32,6 +32,7 @@ type paneState struct {
 	sgr       bool
 	history   int
 	cursor    Cursor
+	writes    uint64
 }
 
 type displayedFrame struct {
@@ -67,6 +68,9 @@ type PaneState struct {
 	SGR       bool
 	History   int
 	Cursor    Cursor
+	// Writes is how many counted writes had landed when the frame was
+	// captured; see the root watcher's caughtUp.
+	Writes uint64
 }
 
 type Status struct {
@@ -90,6 +94,9 @@ type PaneUpdate struct {
 	SGR       bool
 	History   int
 	Cursor    Cursor
+	// Writes is how many counted writes had landed when the frame was
+	// captured; see the root watcher's caughtUp.
+	Writes uint64
 }
 
 // PaneResult says whether a watcher update belongs to the current selection
@@ -145,6 +152,7 @@ func (m *Model) ApplyPane(update PaneUpdate, currentSessionID string) PaneResult
 		return PaneResult{}
 	}
 	m.pane.cursor = update.Cursor
+	m.pane.writes = update.Writes
 	return PaneResult{UsePreview: true}
 }
 
@@ -157,6 +165,7 @@ func (m Model) Pane() PaneState {
 		SGR:       m.pane.sgr,
 		History:   m.pane.history,
 		Cursor:    m.pane.cursor,
+		Writes:    m.pane.writes,
 	}
 }
 

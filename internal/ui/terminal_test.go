@@ -16,6 +16,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -42,10 +43,15 @@ func pressTerminalKey(t *testing.T, m *Model) {
 // shellToolName is the block buildModel ships with shell = true.
 const shellToolName = "terminal"
 
-// resolved is a path as tmux reports it back: symlinks followed, which on
-// macOS is what the /var temp directories sit behind.
+// resolved is a path as the multiplexer reports it back. tmux follows
+// symlinks, which on macOS is what the /var temp directories sit behind;
+// psmux answers with the path the pane was given, so a runner's 8.3
+// temp directory (C:\Users\RUNNER~1) comes back unexpanded.
 func resolved(t *testing.T, dir string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		return dir
+	}
 	real, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		t.Fatalf("resolve %q: %v", dir, err)
@@ -428,7 +434,7 @@ func TestShellToolIsFoundByItsFlag(t *testing.T) {
 // machine does.
 func slowSpawn(t *testing.T, delay time.Duration) {
 	t.Helper()
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	realTmux, err := exec.LookPath(tmux.Binary)
 	if err != nil {
 		t.Skip(tmux.Binary + " not installed")

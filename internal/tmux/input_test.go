@@ -3,6 +3,7 @@ package tmux
 import (
 	"context"
 	"errors"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"slices"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestSendText(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "send" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat", nil, 0, 0); err != nil {
@@ -63,7 +64,7 @@ func TestSubmitTextReturnsAComposerItCouldNotRead(t *testing.T) {
 const pasteReady = "paste-ready"
 
 func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "bracket" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-bracket-" + id
@@ -99,7 +100,7 @@ func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
 // as part of the bracketed paste, so the Enter has to reach it as a read of
 // its own, however late the pane gets around to reading.
 func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "late" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	reads := "/tmp/am-late-" + id
@@ -138,7 +139,7 @@ func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
 // text already on screen would pass for it, so the Enter waits the window out
 // rather than matching against nothing.
 func TestSendTextWaitsOutTheWindowWhenTheBaselineCaptureFails(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -173,7 +174,7 @@ func TestSendTextWaitsOutTheWindowWhenTheBaselineCaptureFails(t *testing.T) {
 // pane's bracketed-paste markers with no Enter after it, so agent composers
 // keep multi-line text instead of submitting on the first newline.
 func TestPasteDeliversWithoutSubmitting(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "paste" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-paste-nosubmit-" + id
@@ -216,7 +217,7 @@ func TestPasteDeliversWithoutSubmitting(t *testing.T) {
 // tmux keeps paste buffers per server, where the manager and every agent's MCP
 // process paste side by side.
 func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -243,7 +244,7 @@ func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
 // press Enter. Interleaved, the second paste lands before the first Enter and
 // both texts submit as one prompt.
 func TestSendTextHoldsASecondSendToThePaneUntilTheFirstSubmits(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	held := dir + "/held"

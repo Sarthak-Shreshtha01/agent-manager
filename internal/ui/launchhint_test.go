@@ -17,6 +17,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/testfixture"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -377,7 +378,13 @@ func TestFormSpawnErrorInTheBarKeepsItsImages(t *testing.T) {
 	// AddWorktree checks out into <repo>-worktrees/<session>, and refuses a
 	// path that is already there. Taking the name it would pick is what
 	// fails this spawn, on the far side of every field the form validates.
-	taken := filepath.Join(filepath.Dir(dir), filepath.Base(dir)+"-worktrees", "agent")
+	// The path is built from git's repo root, which has symlinks followed
+	// and Windows short names expanded.
+	root, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	taken := filepath.Join(filepath.Dir(root), filepath.Base(root)+"-worktrees", "agent")
 	if err := os.MkdirAll(taken, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -618,7 +625,7 @@ func imageExists(t *testing.T, path string) bool {
 
 func fakeInstallCommand(t *testing.T) string {
 	t.Helper()
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	bin := t.TempDir()
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	target := filepath.Join(bin, "am-fake-cli")

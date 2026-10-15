@@ -12,6 +12,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
@@ -338,10 +339,12 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// cat -v writes what it reads in caret notation, so the arrows
 		// read back as the escape sequences the pane was handed.
-		if err := m.services.tmux.SendKeys(sess.ID, testfixture.Cat()+" -v", "Enter"); err != nil {
+		ready := filepath.Join(t.TempDir(), "ready")
+		command := "$env:" + testfixture.ReadyEnv + " = " + tmux.ShellQuote(ready) + "; " + testfixture.Cat() + " -v"
+		if err := m.services.tmux.SendKeys(sess.ID, command, "Enter"); err != nil {
 			t.Fatalf("start key reader: %v", err)
 		}
-		waitForPaneChild(t, m, sess.ID, "cat")
+		testfixture.WaitForReady(t, ready)
 	} else {
 		ready := filepath.Join(t.TempDir(), "ready")
 		reader := "touch " + tmux.ShellQuote(ready) + "; od -An -tx1 -N7"
@@ -392,7 +395,7 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 // A program that owns its screen, or a pane with no history to page,
 // gets the page keys itself.
 func TestFocusPageKeysReachOtherAgents(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	for _, tc := range []struct {
 		name    string
 		command string
@@ -1117,6 +1120,28 @@ func TestCaretAtInputStartNeedsCurrentPane(t *testing.T) {
 	}
 }
 
+// Keys counted to a polled pane land after the frame the mirror holds, so
+// that frame's caret cannot put Left at the prompt head: a Left typed right
+// behind a word would leave focus instead of moving through it.
+func TestCaretAtInputStartWaitsForQueuedKeys(t *testing.T) {
+	m := caretModel(t, paneCursor{x: 2, y: 0, ok: true}, "❯")
+	watch := newFocusWatch(nil, func(tea.Msg) {})
+	m.focus.runtime.watch = watch
+	if !m.caretAtInputStart("s1", "claude") {
+		t.Fatal("test setup: the empty prompt's caret is not at its head")
+	}
+	watch.mu.Lock()
+	watch.queued = 1
+	watch.mu.Unlock()
+	if m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame taken before a queued key decided the caret")
+	}
+	updateFocusPane(m, "s1", func(update *uifocus.PaneUpdate) { update.Writes = 1 })
+	if !m.caretAtInputStart("s1", "claude") {
+		t.Fatal("a frame showing every queued key did not decide the caret")
+	}
+}
+
 // Left leaves focus at the head of the prompt and reaches the agent
 // anywhere else, so a typed prompt keeps its caret movement.
 func TestFocusLeftUnfocusesAtPromptHead(t *testing.T) {
@@ -1477,8 +1502,8 @@ func TestFocusLeftUnfocusesOnCommandCodesParkedCaret(t *testing.T) {
 	hidden := focusPreviewMsg{
 		sessID:  sess.ID,
 		preview: "✻ Thought for 2 seconds [ctrl+o to expand]\n\n────────────\n❯ Ask your question...\n────────────\n  ? for shortcuts\n\n\n\n",
+		cursorX: 0, cursorY: 6, paneStateOK: true,
 	}
-	applyPaneState(&hidden, "0,6,0,000,0,0,0,0")
 	updated, _ = m.Update(hidden)
 	m.drainEffects(t)
 	*m = *updated.(*Model)
@@ -1680,7 +1705,6 @@ func TestFocusKeyRetriesADeadWatcher(t *testing.T) {
 // client there is not a failure to report; only a client that dies under
 // the watcher is.
 func TestKillingTheFocusedSessionReportsNoLoss(t *testing.T) {
-	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "doomed-focus", t.TempDir(), "")
 	m.selectSessionRow(t, "doomed-focus")

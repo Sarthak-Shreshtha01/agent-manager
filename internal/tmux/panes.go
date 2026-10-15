@@ -31,6 +31,12 @@ func (d *Driver) capturePlainContext(ctx context.Context, target string) (string
 	return d.runContext(ctx, "capture-pane", "-p", "-t", target)
 }
 
+// Display expands a format against the session's agent pane, for callers
+// that read pane state without a control client.
+func (d *Driver) Display(id, format string) (string, error) {
+	return d.run("display-message", "-p", "-t", PaneTarget(id), format)
+}
+
 // Cursor reports where the session's caret sits in its visible pane, in
 // cells from the top left. A capture carries no cursor, so a caller that
 // has to tell an empty prompt from a half-written line asks tmux for it.

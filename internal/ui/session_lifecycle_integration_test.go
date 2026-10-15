@@ -6,6 +6,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"os"
 	"runtime"
 	"strings"
@@ -167,7 +168,7 @@ func waitForPane(t *testing.T, m *Model, id, marker string) {
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		pane, err := m.services.tmux.CapturePane(id)
-		if err == nil && strings.Contains(pane, marker) {
+		if err == nil && strings.Contains(ansi.Strip(pane), marker) {
 			return
 		}
 		if time.Now().After(deadline) {

@@ -329,7 +329,8 @@ func run() (resultErr error) {
 		if finished, ok := final.(*ui.Model); ok && finished.RestartPath() != "" {
 			// A self-update swapped the binary on disk; restart hands over
 			// to the new build so the manager comes back updated without
-			// touching the tmux sessions it manages.
+			// touching the tmux sessions it manages. On Windows this process
+			// waits as the new one's parent, so its poll stops first.
 			stopRuntime()
 			if err := local.Close(); err != nil {
 				return err

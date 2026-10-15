@@ -143,6 +143,11 @@ func (m *Model) caretAtInputStart(sessID, tool string) bool {
 	if m.services.engine == nil || pane.SessionID != sessID || m.focus.pane.ScrolledBack() {
 		return false
 	}
+	// A frame taken before keys still on their way shows the caret where
+	// typing was, not where it is.
+	if watch := m.focus.runtime.watch; watch != nil && !watch.caughtUp(pane.Writes) {
+		return false
+	}
 	_, bareInput := m.services.engine.InputPrefix(tool, "")
 	caretCellKnown := pane.Cursor.Visible ||
 		(pane.Cursor.PositionKnown && (m.services.engine.ParksItsCaret(tool) || bareInput))

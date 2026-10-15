@@ -11,14 +11,9 @@ import (
 	"strings"
 	"testing"
 	"time"
-)
 
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
-}
+	"github.com/YoanWai/agent-manager/internal/testenv"
+)
 
 // helperProcessEnv selects a fixture in TestHelperProcess when the test
 // binary re-executes itself as a child process with a chosen cwd.
@@ -1046,7 +1041,7 @@ func gitFailingOn(t *testing.T, arg string) string {
 
 func gitShim(t *testing.T, arg, action string) string {
 	t.Helper()
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	real, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git not installed")
@@ -1998,7 +1993,7 @@ func TestRemoveWorktreeMissingDirKeeps(t *testing.T) {
 }
 
 func TestRunCannotPromptOnTheManagersTerminal(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	fake := filepath.Join(dir, "git")
 	script := "#!/bin/sh\nprintf '%s %s ' \"$GIT_TERMINAL_PROMPT\" \"$SSH_ASKPASS_REQUIRE\"\n(: </dev/tty) 2>/dev/null && echo tty || echo notty\n"

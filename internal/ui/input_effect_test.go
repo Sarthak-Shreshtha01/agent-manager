@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -210,7 +211,7 @@ func TestFocusPasteUpdateDefersIO(t *testing.T) {
 }
 
 func TestInputPasteCannotBeOvertakenByEnter(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	m := buildModel(t)
 	createSession(t, m, "input-target", t.TempDir(), "")
 	sess := m.sessionRows()[0]

@@ -103,11 +103,36 @@
 		$deps = @(
 			@{ Command = 'psmux'; Reason = 'runs its sessions in psmux'; Install = 'winget install psmux' },
 			@{ Command = 'git'; Reason = 'reviews diffs with git'; Install = 'winget install --id Git.Git -e' },
-			@{ Command = 'pwsh'; Reason = 'scripts its sessions with PowerShell 7'; Install = 'winget install Microsoft.PowerShell' }
+			@{ Command = 'pwsh'; Reason = 'scripts its sessions with PowerShell 7.3+'; Install = 'winget install Microsoft.PowerShell' }
 		)
 		foreach ($dep in $deps) {
 			if (-not (Get-Command $dep.Command -ErrorAction SilentlyContinue)) {
 				Write-Host "agent-manager $($dep.Reason), which is missing; install it with: $($dep.Install)" -ForegroundColor Yellow
+			}
+		}
+		if (Get-Command psmux -ErrorAction SilentlyContinue) {
+			$version = $null
+			foreach ($line in (& psmux -V 2>$null)) {
+				if ($line -like 'psmux *') {
+					$version = ($line -split '\s+')[1]
+					break
+				}
+			}
+			$minimum = [version]'3.4.0'
+			$parsed = $null
+			if ($version -and -not [version]::TryParse($version, [ref]$parsed)) { $parsed = $null }
+			if (-not $parsed -or $parsed -lt $minimum) {
+				Write-Host "agent-manager needs psmux $minimum or newer; upgrade it with: winget upgrade psmux" -ForegroundColor Yellow
+			}
+		}
+		if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+			# ToString prints the bare version; the object formats as a table.
+			$text = & pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>$null | Select-Object -First 1
+			$minimum = [version]'7.3'
+			$parsed = $null
+			if (-not $text -or -not [version]::TryParse(($text -split '-')[0], [ref]$parsed)) { $parsed = $null }
+			if (-not $parsed -or $parsed -lt $minimum) {
+				Write-Host "agent-manager needs PowerShell 7.3 or newer and refuses older ones; upgrade it with: winget upgrade Microsoft.PowerShell" -ForegroundColor Yellow
 			}
 		}
 	}

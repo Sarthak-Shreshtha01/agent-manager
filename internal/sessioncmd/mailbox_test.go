@@ -18,13 +18,6 @@ import (
 
 const reviewTestComment = "0123456789abcdef"
 
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if goruntime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
-}
-
 // skipUntracked skips a test of the agent record a Windows launch does not
 // write: PowerShell has no exec to run the agent under a recorded pid.
 func skipUntracked(t *testing.T) {

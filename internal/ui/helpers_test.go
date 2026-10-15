@@ -23,16 +23,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// skipPOSIXShell skips a test whose fixture only a POSIX shell runs: a
-// `#!/bin/sh` stub, an `sh -c` line, POSIX syntax typed into a pane, or the
-// cat the test tools launch, which PowerShell reads as Get-Content.
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
-}
-
 func buildModel(t *testing.T) *Model {
 	t.Helper()
 	return buildModelWithStorePath(t, filepath.Join(t.TempDir(), "state.db"))
@@ -527,6 +517,21 @@ func (m *Model) spawnSession(toolName, name, dir, group, prompt string, autoName
 	result, err := services.runSpawn(request)
 	m.applySpawnEffect(request, result.(spawnEffectResult), err)
 	return err
+}
+
+// waitForPreview refreshes until the selected session's pane has drawn:
+// psmux's PowerShell takes a moment to start, and a blank pane paints no
+// box to click.
+func waitForPreview(t *testing.T, m *Model) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for !paneBooted(m.workspace.preview) {
+		if time.Now().After(deadline) {
+			t.Fatal("the selected pane never drew")
+		}
+		time.Sleep(50 * time.Millisecond)
+		m.applyCmd(t, m.refreshCmd())
+	}
 }
 
 // waitForPaneChild waits for a pane to run a named program, which is a

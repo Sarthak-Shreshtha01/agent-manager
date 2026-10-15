@@ -37,16 +37,6 @@ func goneSessionOutcome() store.DeliveryOutcome {
 	return store.DeliveryUncertain
 }
 
-// skipPOSIXShell skips a test whose fixture only a POSIX shell runs: a
-// `#!/bin/sh` stub, an `sh -c` line, POSIX syntax typed into a pane, or the
-// cat the test tools launch, which PowerShell reads as Get-Content.
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
-}
-
 const testSocket = "amexectest"
 
 func tmuxCmd(args ...string) *exec.Cmd {

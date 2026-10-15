@@ -16,9 +16,6 @@ import (
 // Binary is the multiplexer the manager drives.
 const Binary = "tmux"
 
-// controlFlag attaches a control-mode client.
-const controlFlag = "-C"
-
 // hiddenWindowStatus is a window-status format that draws nothing.
 const hiddenWindowStatus = ""
 
@@ -38,6 +35,15 @@ func controlUnavailable() error {
 func sessionMissingExit(error) bool {
 	return false
 }
+
+// checkVersion gates the multiplexer's own minimum; tmux needs none here.
+func checkVersion(bin string) error {
+	return nil
+}
+
+// ReportsCursorFlag: tmux's #{cursor_flag} says whether the pane's
+// application shows its cursor.
+const ReportsCursorFlag = true
 
 // rootBinding binds a key inside managed sessions only; anywhere else on
 // the server the key goes through to the pane as itself. That branch is a

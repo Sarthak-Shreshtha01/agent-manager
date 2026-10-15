@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"strconv"
 	"strings"
@@ -52,7 +53,7 @@ func TestPrepareAttachRestoresAutoSize(t *testing.T) {
 // tmux that rejects "latest" stands in for the old server and logs its
 // calls, so the test also proves the second attach skips the doomed try.
 func TestPrepareAttachFallsBackWhenLatestRejected(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -92,7 +93,7 @@ func TestPrepareAttachFallsBackWhenLatestRejected(t *testing.T) {
 // line it holds, and one that loses height clears a Codex scrollback
 // (#369). The other axis is the window's own and every pane follows it.
 func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	for _, split := range []struct {
 		axis string
 		flag string
@@ -138,7 +139,7 @@ func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
 // A geometry line tmux did not answer in numbers leaves the agent pane at
 // whatever the split gave it, so the resize reports rather than returns.
 func TestResizeReportsUnreadableGeometry(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *display-message*) echo 'no geometry here';; esac\nexit 0\n"
@@ -176,7 +177,7 @@ func teammateSize(t *testing.T, id string) [2]int {
 // window, which is not the one the agent runs in. Everything the preview
 // pins has to stay on the agent's window through that.
 func TestResizePinsTheAgentWindowNotTheCurrentOne(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "window" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat", nil, 80, 24); err != nil {

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +48,7 @@ func TestASessionAskingToBeArchivedGoesOnceItsTurnEnds(t *testing.T) {
 	if got.AfterTurn != "" {
 		t.Fatalf("the request outlived its archive: %q", got.AfterTurn)
 	}
-	if snapshot, _ := m.services.store.Snapshot(sess.ID); !strings.Contains(snapshot, "last words") {
+	if snapshot, _ := m.services.store.Snapshot(sess.ID); !strings.Contains(ansi.Strip(snapshot), "last words") {
 		t.Fatalf("the archived row lost its last screen: %q", snapshot)
 	}
 	if len(m.sessionRows()) != 0 {

@@ -3,6 +3,7 @@
 package tmux
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/proctree"
@@ -22,9 +25,89 @@ import (
 // language on Windows.
 const Binary = "psmux"
 
-// controlFlag attaches a control-mode client. psmux's -C echoes every
-// command back; -CC answers in the plain block protocol tmux -C speaks.
-const controlFlag = "-CC"
+// psmuxMinimum is the oldest psmux the manager works with: 3.4.0 carries
+// the behaviour the suite runs against and is the first tagged release with
+// one (earlier winget builds, 3.3.x, misbehave and print no psmux version).
+const psmuxMinimum = "3.4.0"
+
+// checkVersion refuses a psmux older than the floor. A pass is cached, since
+// tmux.New runs on every subcommand and from the poller; a failure is not,
+// so a probe that timed out once does not refuse every later driver.
+var (
+	versionMu     sync.Mutex
+	versionPassed bool
+)
+
+func checkVersion(bin string) error {
+	versionMu.Lock()
+	defer versionMu.Unlock()
+	if versionPassed {
+		return nil
+	}
+	if err := probePsmuxVersion(bin); err != nil {
+		return err
+	}
+	versionPassed = true
+	return nil
+}
+
+// probePsmuxVersion asks psmux -V, which prints a tmux compatibility line
+// and, from 3.4.0 on, its own version as a second line.
+func probePsmuxVersion(bin string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "-V")
+	cmd.Env = commandEnv()
+	out, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	return parsePsmuxVersion(string(out))
+}
+
+// parsePsmuxVersion compares the psmux line's version against
+// psmuxMinimum. Without a psmux line, or with an unparseable one, the
+// build is an older one: refuse as too old rather than guess.
+func parsePsmuxVersion(out string) error {
+	found := "unknown"
+	for _, line := range strings.FieldsFunc(out, func(r rune) bool { return r == '\n' || r == '\r' }) {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "psmux" {
+			continue
+		}
+		found = fields[1]
+		break
+	}
+	gotMajor, gotMinor, ok := splitVersion(found)
+	wantMajor, wantMinor, _ := splitVersion(psmuxMinimum)
+	if ok && (gotMajor > wantMajor || (gotMajor == wantMajor && gotMinor >= wantMinor)) {
+		return nil
+	}
+	return fmt.Errorf("psmux %s is too old; agent-manager needs psmux %s or newer; upgrade it with: winget upgrade psmux", found, psmuxMinimum)
+}
+
+// splitVersion reads "3.4.0" (any suffix after the first two numbers
+// ignored) as major.minor.
+func splitVersion(s string) (int, int, bool) {
+	dot := strings.Index(s, ".")
+	if dot <= 0 {
+		return 0, 0, false
+	}
+	major, err := strconv.Atoi(s[:dot])
+	if err != nil {
+		return 0, 0, false
+	}
+	rest := s[dot+1:]
+	dot = strings.Index(rest, ".")
+	if dot < 0 {
+		dot = len(rest)
+	}
+	minor, err := strconv.Atoi(rest[:dot])
+	if err != nil {
+		return 0, 0, false
+	}
+	return major, minor, true
+}
 
 // firstWindow is the window spec for a session's first window. psmux reads
 // "^" in a target as a window name, so it is named by id instead: each
@@ -43,15 +126,13 @@ const hiddenWindowStatus = "#[default]"
 // window is sized to the preview whole, the panes keeping their shares.
 const pinsSplitPane = false
 
-// errControlUnavailable keeps the manager off psmux's control client. Its
+// controlUnavailable keeps the manager off psmux's control client. Its
 // output thread slices each line at byte 200 for a debug log and panics
 // when that cuts a multibyte character, which an agent's box-drawn UI does
 // on nearly every capture; the client then goes silent while still
 // attached. Previews poll capture-pane instead.
-var errControlUnavailable = errors.New("psmux control mode is not used: its client panics on wide pane lines")
-
 func controlUnavailable() error {
-	return errControlUnavailable
+	return fmt.Errorf("%w: its client panics on wide pane lines", ErrControlUnavailable)
 }
 
 // sessionMissingExit reports has-session's answer for a session that is
@@ -61,6 +142,11 @@ func sessionMissingExit(err error) bool {
 	var exit *exec.ExitError
 	return errors.As(err, &exit) && exit.ExitCode() == 1
 }
+
+// ReportsCursorFlag is off: psmux answers #{cursor_flag} with a constant 0
+// whether the pane's application shows its cursor or hides it, so the flag
+// says nothing and the reported position is taken as the caret.
+const ReportsCursorFlag = false
 
 // commandEnv keeps psmux from parking a warm standby server per namespace:
 // every managed session passes its own directory and size, which a warm
@@ -284,7 +370,7 @@ func (d *Driver) RunInPane(id string, env map[string]string, command string) err
 		return fmt.Errorf("relaunch script: %w", err)
 	}
 	path := script.Name()
-	_, err = script.Write(pwsh.ScriptFile("Remove-Item -LiteralPath $PSCommandPath\n" + command + "\n"))
+	_, err = script.Write(pwsh.ScriptFile("Remove-Item -LiteralPath $PSCommandPath\n" + standardArgumentPassing + command + "\n"))
 	if closeErr := script.Close(); err == nil {
 		err = closeErr
 	}
@@ -309,6 +395,13 @@ func exportLines(env map[string]string) string {
 	return lines.String()
 }
 
+// standardArgumentPassing opens every pane script. PowerShell 7.3+ escapes
+// a double quote inside an argument it passes to a native program, but its
+// default mode drops back to the old unescaped form for .cmd and .bat
+// files, the shims npm installs a CLI behind, so a prompt holding `"` would
+// still split into several arguments there.
+const standardArgumentPassing = "$PSNativeCommandArgumentPassing = 'Standard'\n"
+
 func launchScriptPath(id string) string {
 	return filepath.Join(os.TempDir(), "am-launch-"+id+".ps1")
 }
@@ -322,7 +415,7 @@ func writeLaunchScript(id string, env map[string]string, command, colorFgBg stri
 	if colorFgBg != "" {
 		header = "$env:COLORFGBG = " + ShellQuote(colorFgBg) + "\n"
 	}
-	body := header + exportLines(env) + command + "\n" +
+	body := standardArgumentPassing + header + exportLines(env) + command + "\n" +
 		"Write-Host " + ShellQuote(relaunchHint) + "\n"
 	if err := os.WriteFile(path, pwsh.ScriptFile(body), 0o600); err != nil {
 		return "", fmt.Errorf("launch script: %w", err)

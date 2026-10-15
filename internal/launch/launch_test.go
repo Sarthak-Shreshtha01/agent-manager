@@ -15,15 +15,9 @@ import (
 	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/mcpreg"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 )
-
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
-}
 
 func TestPromptInjectsDirectiveOnlyForAutoNamedWithPrompt(t *testing.T) {
 	withDirective := Prompt("", "build the api", true)
@@ -196,7 +190,7 @@ func TestReviveCommandQuotesAnIDThatSpellsAnotherCommand(t *testing.T) {
 func TestReviveCommandKeepsACapturedIDOutOfTheShell(t *testing.T) {
 	// The fixture leans on POSIX echo printing its arguments on one line and
 	// on touch; PowerShell's echo prints one argument per line.
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not installed")
 	}
@@ -293,7 +287,7 @@ func skipUntracked(t *testing.T) {
 // line ran in marks the record once the agent has quit, and a shell-only
 // launch stays a plain shell.
 func TestEnvironmentRunsTheAgentUnderThePIDItExports(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	manager := hooks.NewManager(t.TempDir())
 	probe := config.Tool{Command: "sh -c 'echo $$ $" + hooks.EnvAgentPID + "'", MCP: mcpreg.StyleNone}
 	command, _, err := Environment(manager, "probe", probe, probe.Command, "abcd1234", t.TempDir(), time.Time{})

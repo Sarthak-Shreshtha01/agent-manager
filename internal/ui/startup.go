@@ -29,11 +29,17 @@ type startupState struct {
 	startupPhase     int
 	startupAnimating bool
 	booting          bool
-	pendingTyped     *typedPromptCandidate
+	pendingTyped     map[string]typedPromptCandidate
 }
 
 func (m *Model) routeStartupMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
+	case paneShellMsg:
+		if msg.warning != "" {
+			m.reportWarn(msg.warning)
+		}
+		return routed(m, nil)
+
 	case bannerTickMsg:
 		m.startup.bannerPhase++
 		return routed(m, m.bannerTick())
@@ -51,4 +57,14 @@ func (m *Model) routeStartupMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return routed(m, m.startupTick())
 	}
 	return nil, nil, false
+}
+
+// paneShellMsg carries a warning about the pane shell, empty when it has
+// none.
+type paneShellMsg struct{ warning string }
+
+// checkPaneShell runs the pane shell's version probe off the update path:
+// it starts a PowerShell.
+func checkPaneShell() tea.Msg {
+	return paneShellMsg{warning: paneShellWarning()}
 }

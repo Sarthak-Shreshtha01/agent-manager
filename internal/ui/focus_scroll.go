@@ -69,11 +69,20 @@ func (m *Model) focusRegionRequestCmd(request uifocus.RegionRequest) tea.Cmd {
 			return focusScrollMsg{sessID: request.SessionID, offset: request.Offset, rows: request.Rows}
 		}
 		out, ok := watch.query(command)
+		if ok {
+			out = matchExecShape(out)
+		} else {
+			// No control client: a forked capture of the same rows comes
+			// back in the exec shape already.
+			var err error
+			out, err = watch.driver.CapturePaneHistory(request.SessionID, request.Offset+request.Rows)
+			ok = err == nil
+		}
 		return focusScrollMsg{
 			sessID:  request.SessionID,
 			offset:  request.Offset,
 			rows:    request.Rows,
-			preview: bottomWindow(matchExecShape(out), request.Rows, request.Offset),
+			preview: bottomWindow(out, request.Rows, request.Offset),
 			ok:      ok,
 		}
 	}

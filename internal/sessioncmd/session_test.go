@@ -183,8 +183,8 @@ func (h *sessionHarness) addSessionRow(t *testing.T, name string) string {
 
 func newSessionHarness(t *testing.T) *sessionHarness {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	configDir := t.TempDir()
 	driver, err := tmux.NewWithSocket("amsesstest-" + uuid.NewString()[:8])
@@ -286,7 +286,7 @@ func TestSessionHarnessCleanupRemovesSocket(t *testing.T) {
 		socket = newSessionHarness(t).driver.SocketPath()
 	})
 	if socket == "" {
-		t.Skip("tmux not installed")
+		t.Skip(tmux.Binary + " not installed")
 	}
 	if _, err := os.Stat(socket); !os.IsNotExist(err) {
 		t.Fatalf("socket %q survived harness cleanup: %v", socket, err)

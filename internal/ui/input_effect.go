@@ -29,6 +29,9 @@ type inputRequest struct {
 	// echo asks the focus watcher for a prompt capture once the input lands,
 	// so the pane's echo of it shows without waiting out the frame budget.
 	echo bool
+	// counted marks a write the polled focus watcher counted, so it must
+	// hear the write land whatever its outcome.
+	counted bool
 }
 
 func (inputRequest) effectRequest() {}
@@ -44,10 +47,16 @@ func (inputEffectResult) effectResult() {}
 
 func (m *Model) dispatchInput(request inputRequest) {
 	request.args = slices.Clone(request.args)
+	if watch := m.focus.runtime.watch; watch != nil && request.kind != inputPrompt {
+		request.counted = watch.countWrite(request.session.ID)
+	}
 	m.enqueueEffect(request, 0, false)
 }
 
 func (s effectServices) runInput(request inputRequest) (effectResult, error) {
+	if request.counted {
+		defer s.watch.writeLanded(request.session.ID)
+	}
 	result := inputEffectResult{}
 	current, err := s.store.Get(request.session.ID)
 	if err != nil {
@@ -111,7 +120,7 @@ func (m *Model) applyInputEffect(result inputEffectResult, err error) {
 		}
 	}
 	if result.candidate != nil {
-		m.startup.pendingTyped = result.candidate
+		m.holdTypedPrompt(*result.candidate)
 	}
 	if result.promptID != "" {
 		for i := range m.workspace.sessions {

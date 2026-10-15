@@ -58,7 +58,11 @@ func Trees(rootPIDs []int) map[int]ProcStat {
 				walk(child.PID, childCreated)
 			}
 		}
-		created, _ := sampleProcess(root, 0, &stat)
+		// An unreadable root gets no entry, as on Unix, not a partial one.
+		created, ok := sampleProcess(root, 0, &stat)
+		if !ok {
+			continue
+		}
 		walk(root, created)
 		// Leave CPUPercent 0 until the caller applies interval or fallback.
 		stats[root] = stat

@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"github.com/YoanWai/agent-manager/internal/testenv"
 	"os"
 	"os/exec"
 	"runtime"
@@ -15,7 +16,7 @@ import (
 // stale socket); that error must reach the caller, not just the
 // session-scoped read's.
 func TestResolvedOptionPropagatesTheGlobalFallbackError(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *'-g -v prefix'*) echo 'no server running' >&2; exit 1;; esac\nexit 0\n"
@@ -33,7 +34,7 @@ func TestResolvedOptionPropagatesTheGlobalFallbackError(t *testing.T) {
 // straight after, and only the command list finds none. That is not an
 // error: Create installs the bindings once a session starts the server.
 func TestEnsureBindingsIgnoresAMissingServer(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *list-keys*) exit 0;; esac\necho 'no server running on /tmp/agentmgr' >&2; exit 1\n"
@@ -50,7 +51,7 @@ func TestEnsureBindingsIgnoresAMissingServer(t *testing.T) {
 // Create runs on the UI's update path, and a new session cannot carry a pin,
 // so with tmux_prefix off only a refresh looks for one.
 func TestOnlyARefreshLooksForAPinnedPrefix(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *" + pinnedPrefixOption + "*) echo 'pin read' >&2; exit 1;; esac\nexit 0\n"

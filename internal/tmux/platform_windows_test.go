@@ -3,7 +3,6 @@
 package tmux
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +18,7 @@ import (
 // pane to show want.
 func psmuxSession(t *testing.T, driver *Driver, prefix, command, want string) string {
 	t.Helper()
-	id := prefix + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
+	id := prefixedID(prefix)
 	if err := driver.Create(id, paneDir(), command, nil, 100, 30); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -28,6 +27,11 @@ func psmuxSession(t *testing.T, driver *Driver, prefix, command, want string) st
 		waitForPaneLine(t, driver, id, want)
 	}
 	return id
+}
+
+// prefixedID names a test session: prefix plus the time, unique per run.
+func prefixedID(prefix string) string {
+	return prefix + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 }
 
 // waitForPaneLine waits for a pane line that is exactly want, so a typed
@@ -161,29 +165,6 @@ func TestPsmuxRequestMarkerIsPerSession(t *testing.T) {
 	}
 }
 
-// The manager stays off psmux's control client, whose output thread panics
-// on wide lines; the protocol itself still parses, which a reply short of
-// that limit shows.
-func TestPsmuxControlModeAnswersCommands(t *testing.T) {
-	driver := requireTmux(t)
-	id := psmuxSession(t, driver, "ctl", "", "")
-	if _, err := driver.OpenControl(id); err == nil {
-		t.Fatal("OpenControl should refuse psmux's control client")
-	}
-	control, err := driver.openControlContext(context.Background(), id)
-	if err != nil {
-		t.Fatalf("openControlContext: %v", err)
-	}
-	defer control.Close()
-	got, err := control.Command("display-message -p '#{session_name}'")
-	if err != nil {
-		t.Fatalf("Command: %v", err)
-	}
-	if strings.TrimSpace(got) != "am_"+id {
-		t.Fatalf("session name over control = %q, want am_%s", got, id)
-	}
-}
-
 // A pane's $TMUX names its server's pid; that and the pane id pick the
 // session, and a pid from any other server answers empty.
 func TestPsmuxSessionOfPaneUsesTheServerPid(t *testing.T) {
@@ -252,5 +233,60 @@ func TestPsmuxRunInPaneDeliversALongCommand(t *testing.T) {
 	}
 	if len(left) != 0 {
 		t.Fatalf("relaunch scripts left behind: %v", left)
+	}
+}
+
+// A prompt holding double quotes reaches the agent CLI as the one argument
+// it was quoted as, not split around the quotes into flags of its own.
+func TestPsmuxPromptWithQuotesStaysOneArgument(t *testing.T) {
+	driver := requireTmux(t)
+	if _, err := pwsh.Path(); err != nil {
+		t.Skip(err)
+	}
+	file := filepath.Join(t.TempDir(), "args")
+	prompt := `x " --dangerously-skip-permissions " y`
+	command := "& " + ShellQuote(os.Args[0]) + " " + ShellQuote(prompt)
+	id := prefixedID("quotes")
+	if err := driver.Create(id, paneDir(), command, map[string]string{argsFileEnv: file}, 100, 30); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { driver.Kill(id) })
+	var got []byte
+	for deadline := time.Now().Add(15 * time.Second); got == nil && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		got, _ = os.ReadFile(file)
+	}
+	if string(got) != prompt {
+		pane, _ := driver.CapturePane(id)
+		t.Fatalf("the agent got arguments %q, want the one argument %q; pane:\n%s", strings.Split(string(got), "\n"), prompt, pane)
+	}
+}
+
+func TestParsePsmuxVersion(t *testing.T) {
+	cases := []struct {
+		name    string
+		out     string
+		wantErr string
+	}{
+		{"current release", "tmux 3.4.0\npsmux 3.4.0 (20ef00fb 2026-10-14)\n", ""},
+		{"newer", "psmux 3.5.1", ""},
+		{"too old", "psmux 3.3.8", "psmux 3.4.0"},
+		{"no psmux line, the 3.3.x shape", "tmux 3.3.6", "unknown"},
+		{"unparseable", "psmux banana", "banana"},
+	}
+	for _, tc := range cases {
+		err := parsePsmuxVersion(tc.out)
+		if tc.wantErr == "" {
+			if err != nil {
+				t.Errorf("%s: parsePsmuxVersion(%q) = %v, want nil", tc.name, tc.out, err)
+			}
+			continue
+		}
+		if err == nil {
+			t.Errorf("%s: parsePsmuxVersion(%q) = nil, want an error", tc.name, tc.out)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.wantErr) {
+			t.Errorf("%s: error %q does not mention %q", tc.name, err, tc.wantErr)
+		}
 	}
 }
