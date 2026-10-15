@@ -58,6 +58,8 @@ func probePsmuxVersion(bin string) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, "-V")
 	cmd.Env = commandEnv()
+	configureBoundedCommand(cmd)
+	cmd.WaitDelay = commandTimeout
 	out, err := cmd.Output()
 	if err != nil {
 		return err

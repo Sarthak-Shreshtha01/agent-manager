@@ -338,7 +338,7 @@ func (w *focusWatch) watch(ctx context.Context, id string, stop <-chan struct{},
 	control, err := w.driver.OpenControlContext(openCtx, id)
 	cancelOpen()
 	if errors.Is(err, tmux.ErrControlUnavailable) {
-		w.poll(id, stop, input)
+		w.poll(ctx, id, stop, input)
 		return
 	}
 	if err != nil {
@@ -475,7 +475,7 @@ func (w *focusWatch) watch(ctx context.Context, id string, stop <-chan struct{},
 // the pane changes or the frame budget passes; otherwise a changing pane
 // is looked at on the live tick cadence and a still one after
 // focusPollQuiet.
-func (w *focusWatch) poll(id string, stop <-chan struct{}, input chan struct{}) {
+func (w *focusWatch) poll(ctx context.Context, id string, stop <-chan struct{}, input chan struct{}) {
 	w.mu.Lock()
 	current := w.stop == stop
 	if current {
@@ -485,7 +485,7 @@ func (w *focusWatch) poll(id string, stop <-chan struct{}, input chan struct{}) 
 	if !current {
 		return
 	}
-	previous, ok := w.look(id, stop, "", true)
+	previous, ok := w.look(ctx, id, stop, "", true)
 	if !ok {
 		w.clearIfCurrent(id, stop)
 		return
@@ -511,7 +511,7 @@ func (w *focusWatch) poll(id string, stop <-chan struct{}, input chan struct{}) 
 		case <-timer.C:
 		}
 		echo := time.Now().Before(echoUntil)
-		pane, ok := w.look(id, stop, previous, echo)
+		pane, ok := w.look(ctx, id, stop, previous, echo)
 		if !ok {
 			w.clearIfCurrent(id, stop)
 			return
@@ -534,11 +534,13 @@ func (w *focusWatch) poll(id string, stop <-chan struct{}, input chan struct{}) 
 // pane unchanged since previous costs the capture alone and pushes
 // nothing, unless force asks for the state anyway: a write can move the
 // caret without changing a character.
-func (w *focusWatch) look(id string, stop <-chan struct{}, previous string, force bool) (string, bool) {
+func (w *focusWatch) look(ctx context.Context, id string, stop <-chan struct{}, previous string, force bool) (string, bool) {
 	w.mu.Lock()
 	landed := w.landed
 	w.mu.Unlock()
-	pane, err := w.driver.CapturePane(id)
+	callCtx, cancelCall := context.WithTimeout(ctx, focusControlCallTimeout)
+	pane, err := w.driver.CapturePaneContext(callCtx, id)
+	cancelCall()
 	if err != nil {
 		w.report(stop, fmt.Errorf("preview of %s: %w", id, err))
 		return "", false
@@ -547,7 +549,10 @@ func (w *focusWatch) look(id string, stop <-chan struct{}, previous string, forc
 		return pane, true
 	}
 	msg := focusPreviewMsg{sessID: id, preview: pane, writes: landed}
-	if state, err := w.driver.Display(id, paneStateFormat); err == nil {
+	callCtx, cancelCall = context.WithTimeout(ctx, focusControlCallTimeout)
+	state, err := w.driver.DisplayContext(callCtx, id, paneStateFormat)
+	cancelCall()
+	if err == nil {
 		applyPaneState(&msg, state)
 	}
 	return pane, w.push(stop, msg)

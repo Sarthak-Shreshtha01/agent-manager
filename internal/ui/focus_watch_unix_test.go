@@ -156,3 +156,37 @@ exit 0
 	}
 	release()
 }
+
+// A polled look is cut short by its watcher's context, so a capture in
+// flight cannot outlive the close that cancelled it.
+func TestFocusWatchLookStopsWithItsContext(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "tmux")
+	script := `#!/bin/sh
+case " $* " in
+  *" capture-pane "*) exec sleep 30 ;;
+esac
+exit 0
+`
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("TMUX_TMPDIR", dir)
+	driver, err := tmux.NewWithSocket("focus-watch-look-cancel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	watch := newFocusWatch(driver, func(tea.Msg) {})
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(50*time.Millisecond, cancel)
+	defer cancel()
+
+	started := time.Now()
+	if _, ok := watch.look(ctx, "fixture", make(chan struct{}), "", true); ok {
+		t.Fatal("look reported a frame from a capture that never finished")
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("look outlived its cancelled context by %v", elapsed)
+	}
+}

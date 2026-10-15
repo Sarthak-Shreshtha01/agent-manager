@@ -14,11 +14,22 @@ func (d *Driver) CapturePane(id string) (string, error) {
 	return d.run("capture-pane", "-p", "-e", "-t", PaneTarget(id))
 }
 
+// CapturePaneContext is CapturePane bounded by ctx, for a watcher whose
+// close must not wait on a capture still in flight.
+func (d *Driver) CapturePaneContext(ctx context.Context, id string) (string, error) {
+	return d.runContext(ctx, "capture-pane", "-p", "-e", "-t", PaneTarget(id))
+}
+
 // CapturePaneHistory captures the pane with up to `lines` history rows
 // above the visible ones, for extractions whose anchor — a message
 // bullet, a prompt echo — can scroll off the visible screen.
 func (d *Driver) CapturePaneHistory(id string, lines int) (string, error) {
 	return d.run("capture-pane", "-p", "-e", "-S", "-"+strconv.Itoa(lines), "-t", PaneTarget(id))
+}
+
+// CapturePaneHistoryContext is CapturePaneHistory bounded by ctx.
+func (d *Driver) CapturePaneHistoryContext(ctx context.Context, id string, lines int) (string, error) {
+	return d.runContext(ctx, "capture-pane", "-p", "-e", "-S", "-"+strconv.Itoa(lines), "-t", PaneTarget(id))
 }
 
 // capturePlain drops the escapes CapturePane keeps, which an application is
@@ -35,6 +46,11 @@ func (d *Driver) capturePlainContext(ctx context.Context, target string) (string
 // that read pane state without a control client.
 func (d *Driver) Display(id, format string) (string, error) {
 	return d.run("display-message", "-p", "-t", PaneTarget(id), format)
+}
+
+// DisplayContext is Display bounded by ctx.
+func (d *Driver) DisplayContext(ctx context.Context, id, format string) (string, error) {
+	return d.runContext(ctx, "display-message", "-p", "-t", PaneTarget(id), format)
 }
 
 // Cursor reports where the session's caret sits in its visible pane, in
