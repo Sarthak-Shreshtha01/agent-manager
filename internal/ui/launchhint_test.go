@@ -306,7 +306,13 @@ func TestFormSpawnErrorInTheBarKeepsItsImages(t *testing.T) {
 	// AddWorktree checks out into <repo>-worktrees/<session>, and refuses a
 	// path that is already there. Taking the name it would pick is what
 	// fails this spawn, on the far side of every field the form validates.
-	taken := filepath.Join(filepath.Dir(dir), filepath.Base(dir)+"-worktrees", "agent")
+	// The path is built from git's repo root, which has symlinks followed
+	// and Windows short names expanded.
+	root, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	taken := filepath.Join(filepath.Dir(root), filepath.Base(root)+"-worktrees", "agent")
 	if err := os.MkdirAll(taken, 0o755); err != nil {
 		t.Fatal(err)
 	}
