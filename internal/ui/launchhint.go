@@ -248,7 +248,7 @@ func (m *Model) settleInstall() {
 
 func (d *launchHintDialog) view(h launchHintHost) string {
 	width := h.cardWidth()
-	tone := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-	card := d.prompt().View(cardInnerWidth(width), tone, mutedStyle)
+	tone := lipgloss.NewStyle().Foreground(colorAccent()).Bold(true)
+	card := d.prompt().View(cardInnerWidth(width), tone, mutedStyle())
 	return h.cardSized(width, card.Title, card.Body, card.Hints)
 }

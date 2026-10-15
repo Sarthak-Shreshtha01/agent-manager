@@ -239,7 +239,7 @@ func TestHandledCommentsStayVisibleWithAMutedColor(t *testing.T) {
 	if annotationBg() == handledAnnotationBg() || !strings.Contains(rendered, annotationBg()) || !strings.Contains(rendered, handledAnnotationBg()) {
 		t.Fatalf("open and handled comments should use different washes: %q", rendered)
 	}
-	if handledAnnotationBg() != bgSeq(mix(current.Bg, current.Finished, 0.14)) || !strings.Contains(rendered, fgSeq(current.Finished)) {
+	if handledAnnotationBg() != bgSeq(mix(current().Bg, current().Finished, 0.14)) || !strings.Contains(rendered, fgSeq(current().Finished)) {
 		t.Fatalf("handled comment should use the theme's finished green: %q", rendered)
 	}
 }

@@ -150,8 +150,8 @@ func TestOpenSettingsReadsWhatTheShellChanged(t *testing.T) {
 	if themes[m.settings.dialog.ThemeIndex].Name != "nord" {
 		t.Fatalf("Settings opened on %q, want the shell's nord", themes[m.settings.dialog.ThemeIndex].Name)
 	}
-	if current.Name != "nord" {
-		t.Fatalf("the palette stayed %q after Settings read nord", current.Name)
+	if current().Name != "nord" {
+		t.Fatalf("the palette stayed %q after Settings read nord", current().Name)
 	}
 	if m.settings.dialog.Editor.Line() != "code -n" {
 		t.Fatalf("editor row opened on %q", m.settings.dialog.Editor.Line())

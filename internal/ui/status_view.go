@@ -19,21 +19,21 @@ func (m *Model) statusLine() string {
 		if sess, ok := m.selected(); ok && m.focus.pane.PagesScrollback(sess.ID) {
 			catchUp = "wheel down, pgdn or type"
 		}
-		return keyStyle.Render("scrolled ") +
-			subtleStyle.Render(fmt.Sprintf("%d lines back · %s to catch up", focusStatus.ScrollOffset, catchUp))
+		return keyStyle().Render("scrolled ") +
+			subtleStyle().Render(fmt.Sprintf("%d lines back · %s to catch up", focusStatus.ScrollOffset, catchUp))
 	case m.mode == modeFocus && focusStatus.CopiedChars > 0:
-		return keyStyle.Render("copied ") +
-			subtleStyle.Render(fmt.Sprintf("%d chars to clipboard", focusStatus.CopiedChars))
+		return keyStyle().Render("copied ") +
+			subtleStyle().Render(fmt.Sprintf("%d chars to clipboard", focusStatus.CopiedChars))
 	case m.layout.split.resizeMode || m.layout.split.dragging:
 		hint := "←→ resize · drag divider · enter set · esc cancel"
 		if m.layout.split.dragging {
 			hint = "release to set · esc cancels"
 		}
-		return keyStyle.Render("resize ") + subtleStyle.Render(hint)
+		return keyStyle().Render("resize ") + subtleStyle().Render(hint)
 	case m.errBar.text != "":
 		return m.statusMessage("✕", "●", "▲")
 	case m.review.Snapshot().Notice != "":
-		return doneStyle.Render("● " + escapeControlsInline(m.review.Snapshot().Notice))
+		return doneStyle().Render("● " + escapeControlsInline(m.review.Snapshot().Notice))
 	default:
 		return ""
 	}
@@ -47,9 +47,9 @@ func (m *Model) statusMessage(fail, done, warn string) string {
 	text := escapeControlsInline(m.errBar.text)
 	switch {
 	case m.errBar.worked():
-		return doneStyle.Render(done + " " + text)
+		return doneStyle().Render(done + " " + text)
 	case m.errBar.warned():
-		return warnStyle.Render(warn + " " + text)
+		return warnStyle().Render(warn + " " + text)
 	}
-	return errStyle.Render(fail + " " + text)
+	return errStyle().Render(fail + " " + text)
 }

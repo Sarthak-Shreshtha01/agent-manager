@@ -98,6 +98,11 @@ see copied pane facts and hand back typed outcomes. That keeps the child package
 testable without tmux or a terminal, and keeps one place that closes what it
 opened on quit.
 
+**Theme styles are published whole.** `applyTheme` builds a palette's styles
+and swaps them in with one atomic pointer (`internal/ui/theme_styles.go`), so
+Models on several goroutines never race on them; a `Styles` value on `Model`
+would have to thread through every free render helper for no other gain.
+
 **Platform differences live in `*_unix.go` and `*_windows.go` files.** A
 branch on `runtime.GOOS` in shared code hides the other platform. Instead each
 package splits the difference into a file pair behind a build tag

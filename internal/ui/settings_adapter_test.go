@@ -182,7 +182,7 @@ func TestSettingsShowsVersion(t *testing.T) {
 	}
 	m.settings.dialog.Field = uisettings.FieldUpdate
 	out = m.viewSettings()
-	if !strings.Contains(out, keyStyle.Render("↵")+mutedStyle.Render(" update to")) {
+	if !strings.Contains(out, keyStyle().Render("↵")+mutedStyle().Render(" update to")) {
 		t.Errorf("focused update row should hint enter: %q", out)
 	}
 }
@@ -300,11 +300,11 @@ func TestSettingsBugReportRowIsHighlighted(t *testing.T) {
 	}
 	// Unfocused labels use accent2 + bold; prove that SGR lands on each label.
 	styled := m.viewSettings()
-	bugLabel := lipgloss.NewStyle().Foreground(colorAccent2).Bold(true).Render("report a bug")
+	bugLabel := lipgloss.NewStyle().Foreground(colorAccent2()).Bold(true).Render("report a bug")
 	if !strings.Contains(styled, bugLabel) {
 		t.Fatalf("unfocused bug report label should use accent2 bold styling")
 	}
-	ideaLabel := lipgloss.NewStyle().Foreground(colorAccent2).Bold(true).Render("suggest a change")
+	ideaLabel := lipgloss.NewStyle().Foreground(colorAccent2()).Bold(true).Render("suggest a change")
 	if !strings.Contains(styled, ideaLabel) {
 		t.Fatalf("unfocused feature request label should use accent2 bold styling")
 	}
@@ -642,7 +642,7 @@ func TestSettingsHasNoTerminalRows(t *testing.T) {
 func otherWriterTheme(t *testing.T) string {
 	t.Helper()
 	for _, theme := range themes {
-		if theme.Name != current.Name {
+		if theme.Name != current().Name {
 			return theme.Name
 		}
 	}

@@ -136,8 +136,8 @@ func TestViewPaintsEveryCellWithTheThemeColors(t *testing.T) {
 			}
 		}
 	}
-	if corner := backgrounds[m.layout.height-1][m.layout.width-1]; !sameColor(corner, hexColor(current.Bg)) {
-		t.Errorf("bottom right cell = %v, want the backdrop %s", corner, current.Bg)
+	if corner := backgrounds[m.layout.height-1][m.layout.width-1]; !sameColor(corner, hexColor(current().Bg)) {
+		t.Errorf("bottom right cell = %v, want the backdrop %s", corner, current().Bg)
 	}
 }
 

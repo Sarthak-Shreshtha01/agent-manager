@@ -105,7 +105,7 @@ func TestQuickFooterFillsEveryBandCell(t *testing.T) {
 					t.Fatalf("band row %d width = %d, want %d", y, cells, m.layout.width)
 				}
 				for x := 0; x < m.layout.width; x++ {
-					if y == m.layout.height-keysHeight && x >= quickGutter && x < quickGutter+ansi.StringWidth(legendBadgeStyle.Render(quickModeTitle)) {
+					if y == m.layout.height-keysHeight && x >= quickGutter && x < quickGutter+ansi.StringWidth(legendBadgeStyle().Render(quickModeTitle)) {
 						continue
 					}
 					want := quickModeHex()

@@ -153,7 +153,7 @@ func TestHelpMatchesBaselineContentAndLayout(t *testing.T) {
 	previousProfile := lipgloss.ColorProfile()
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.SetColorProfile(previousProfile) })
-	previousTheme := current
+	previousTheme := current()
 	applyTheme(themes[0])
 	t.Cleanup(func() { applyTheme(previousTheme) })
 

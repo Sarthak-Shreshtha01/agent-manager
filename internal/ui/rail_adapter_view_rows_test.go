@@ -298,11 +298,11 @@ func TestRootRowIsDimmerThanNamedGroups(t *testing.T) {
 		t.Fatal("no rows, want root")
 	}
 	root := m.renderTreeRow(railRows(m)[0], false, 40, 0, panelHex())
-	dimmed := strings.TrimPrefix(fgSeq(mix(current.Accent2, current.Subtle, 0.5)), "\x1b[")
+	dimmed := strings.TrimPrefix(fgSeq(mix(current().Accent2, current().Subtle, 0.5)), "\x1b[")
 	if !strings.Contains(root, dimmed) {
 		t.Fatalf("root is not painted in the dimmed tone: %q", root)
 	}
-	if accent := strings.TrimPrefix(fgSeq(current.Accent2), "\x1b["); strings.Contains(root, accent) {
+	if accent := strings.TrimPrefix(fgSeq(current().Accent2), "\x1b["); strings.Contains(root, accent) {
 		t.Fatalf("root still carries the group accent: %q", root)
 	}
 }
@@ -326,8 +326,8 @@ func TestSelectedRowMetaUsesBrightNotSubtle(t *testing.T) {
 	if !strings.Contains(selected, "\x1b[") {
 		t.Fatal("selected row has no SGR; color profile not active")
 	}
-	subtleSeq := sgrOf(subtleStyle.Render("x"))
-	brightSeq := sgrOf(lipgloss.NewStyle().Foreground(colorBright).Render("x"))
+	subtleSeq := sgrOf(subtleStyle().Render("x"))
+	brightSeq := sgrOf(lipgloss.NewStyle().Foreground(colorBright()).Render("x"))
 	if strings.Contains(selected, subtleSeq) {
 		t.Fatalf("selected row still uses the subtle fg %q:\n%q", subtleSeq, selected)
 	}

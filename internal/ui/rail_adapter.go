@@ -270,7 +270,7 @@ func (m *Model) prepareRailFrame(width, height int) {
 	m.layout.displayedRail = m.rail.Render(ctx, m.layout.displayedRail)
 }
 
-func (m *Model) railTheme() uirail.Theme { return current }
+func (m *Model) railTheme() uirail.Theme { return current() }
 
 func railContentLines(lines []uirail.Line) []contentLine {
 	out := make([]contentLine, len(lines))

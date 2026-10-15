@@ -140,14 +140,14 @@ func (p pathField) Hint() [][2]string { return pathSuggestHint(p.pc.chosen) }
 // spawnStyles copies the active theme for one paint.
 func spawnStyles() spawn.Styles {
 	return spawn.Styles{
-		Subtle:      subtleStyle,
-		Value:       valueStyle,
-		Muted:       mutedStyle,
-		Warn:        warnStyle,
-		Label:       labelStyle,
-		SubtleColor: colorSubtle,
-		Accent:      colorAccent,
-		Accent2:     colorAccent2,
+		Subtle:      subtleStyle(),
+		Value:       valueStyle(),
+		Muted:       mutedStyle(),
+		Warn:        warnStyle(),
+		Label:       labelStyle(),
+		SubtleColor: colorSubtle(),
+		Accent:      colorAccent(),
+		Accent2:     colorAccent2(),
 		Input:       textInputView,
 	}
 }
@@ -179,7 +179,7 @@ func formField(label, value string, focused bool) string {
 }
 
 func groupBadge(path string) string {
-	return lipgloss.NewStyle().Foreground(colorAccent2).Render(path)
+	return lipgloss.NewStyle().Foreground(colorAccent2()).Render(path)
 }
 
 func pathSuggestHint(chosen bool) [][2]string {

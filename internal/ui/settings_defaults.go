@@ -226,23 +226,23 @@ func (m *Model) pendingWorktreeSpawn() (dir, group string, ok bool) {
 func (m *Model) spawnBaseLabel(dir, group string) string {
 	override := m.groupBase(group)
 	fetch := m.ledger.baseFetches[baseFetchKey{dir: dir, override: override}]
-	label := valueStyle.Render(override) + subtleStyle.Render(" (group)")
+	label := valueStyle().Render(override) + subtleStyle().Render(" (group)")
 	if override == "" {
 		switch {
 		case !fetch.resolved:
-			label = subtleStyle.Render("…")
+			label = subtleStyle().Render("…")
 		case fetch.detected == "":
-			label = valueStyle.Render("HEAD") + subtleStyle.Render(" (auto)")
+			label = valueStyle().Render("HEAD") + subtleStyle().Render(" (auto)")
 		default:
-			label = valueStyle.Render(fetch.detected) + subtleStyle.Render(" (auto)")
+			label = valueStyle().Render(fetch.detected) + subtleStyle().Render(" (auto)")
 		}
 	}
 	switch {
 	case m.prefs.baseFetchOff:
 	case !fetch.fetched:
-		label += subtleStyle.Render(" · fetching")
+		label += subtleStyle().Render(" · fetching")
 	case fetch.err != nil:
-		label += subtleStyle.Render(" · fetch failed")
+		label += subtleStyle().Render(" · fetch failed")
 	}
 	return label
 }

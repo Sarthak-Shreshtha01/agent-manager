@@ -169,10 +169,10 @@ func (pc *pathComplete) view() string {
 	var b strings.Builder
 	for i, path := range pc.suggestions {
 		marker := "  "
-		style := mutedStyle
+		style := mutedStyle()
 		if i == pc.index {
-			marker = lipgloss.NewStyle().Foreground(colorAccent).Render("❯ ")
-			style = lipgloss.NewStyle().Foreground(colorAccent2).Bold(true)
+			marker = lipgloss.NewStyle().Foreground(colorAccent()).Render("❯ ")
+			style = lipgloss.NewStyle().Foreground(colorAccent2()).Bold(true)
 		}
 		b.WriteString("      " + marker + style.Render(truncateTail(path, 40)) + "\n")
 	}

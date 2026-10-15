@@ -21,35 +21,35 @@ import (
 func backdropHex() string { return "" }
 
 // panelHex is the rail's fill: one step above the backdrop.
-func panelHex() string { return mix(current.Bg, current.Surface, 0.55) }
+func panelHex() string { return mix(current().Bg, current().Surface, 0.55) }
 
 // blockHex is a section block inside the content area, quieter than the
 // rail so it groups without announcing itself.
-func blockHex() string { return mix(current.Bg, current.Surface, 0.35) }
+func blockHex() string { return mix(current().Bg, current().Surface, 0.35) }
 
 // selectedHex is the band under the cursor's entry.
-func selectedHex() string { return current.Surface }
+func selectedHex() string { return current().Surface }
 
 func quickModeHex() string { return panelHex() }
 
 // searchFieldHex is the band under the open search field.
-func searchFieldHex() string { return mix(panelHex(), current.Accent, 0.2) }
+func searchFieldHex() string { return mix(panelHex(), current().Accent, 0.2) }
 
 // liftedHex is the band under a row lifted for reordering: the selection
 // tone pulled toward the accent, so the row reads as picked up.
-func liftedHex() string { return mix(current.Surface, current.Accent, 0.3) }
+func liftedHex() string { return mix(current().Surface, current().Accent, 0.3) }
 
 // dropHex is the band under the row a drag would land on: the selection
 // tone pulled toward the second accent, apart from the lifted row's.
-func dropHex() string { return mix(current.Surface, current.Accent2, 0.3) }
+func dropHex() string { return mix(current().Surface, current().Accent2, 0.3) }
 
 // restingMarkHex is a row handle's and menu button's tone away from the
 // cursor: present, but quieter than the row's text.
-func restingMarkHex() string { return mix(current.Bg, current.Text, 0.3) }
+func restingMarkHex() string { return mix(current().Bg, current().Text, 0.3) }
 
 // ruleHex is the hairline tone: lifted just far enough off the backdrop to
 // draw a seam without becoming a border.
-func ruleHex() string { return mix(current.Bg, current.Text, 0.22) }
+func ruleHex() string { return mix(current().Bg, current().Text, 0.22) }
 
 // hrule is a horizontal seam across a painted row.
 func hrule(width int) string {
@@ -68,8 +68,8 @@ func (m *Model) railTopRow(paneWidth, width int) string {
 	}
 	fill := lipgloss.NewStyle().Foreground(lipgloss.Color(panelHex()))
 	first := plain(fill.Render("🬹"), 1)
-	interior := lipgloss.NewStyle().Foreground(colorBg).Render(strings.Repeat("🬂", paneWidth-1))
-	last := lipgloss.NewStyle().Foreground(colorBg).Render("🬨")
+	interior := lipgloss.NewStyle().Foreground(colorBg()).Render(strings.Repeat("🬂", paneWidth-1))
+	last := lipgloss.NewStyle().Foreground(colorBg()).Render("🬨")
 	return first + paint(interior, paneWidth-1, panelHex()) + paint(last, 1, panelHex()) +
 		paint(hrule(width-paneWidth-1), width-paneWidth-1, backdropHex())
 }
@@ -96,9 +96,9 @@ func (m *Model) boundedRuleRow(paneWidth, width int, edge string) string {
 		facing, corner = "▀", "▟"
 	}
 	first := plain(lipgloss.NewStyle().Foreground(lipgloss.Color(panelHex())).Render(facing), 1)
-	interior := lipgloss.NewStyle().Foreground(colorBg).
+	interior := lipgloss.NewStyle().Foreground(colorBg()).
 		Render(strings.Repeat(edge, paneWidth-1))
-	last := lipgloss.NewStyle().Foreground(colorBg).Render(corner)
+	last := lipgloss.NewStyle().Foreground(colorBg()).Render(corner)
 	return first + paint(interior, paneWidth-1, panelHex()) + paint(last, 1, panelHex()) +
 		paint(hrule(width-paneWidth-1), width-paneWidth-1, backdropHex())
 }
@@ -124,7 +124,7 @@ func (m *Model) vruleColumn(height int) []string {
 // bleedColumn finishes a pane's right edge: a half block in the pane's
 // tone on the backdrop, extending the fill half a cell past the seam.
 func (m *Model) bleedColumn(height int) []string {
-	cell := paint(lipgloss.NewStyle().Foreground(colorBg).Render("▐"), 1, panelHex())
+	cell := paint(lipgloss.NewStyle().Foreground(colorBg()).Render("▐"), 1, panelHex())
 	lines := make([]string, height)
 	for i := range lines {
 		lines[i] = cell
@@ -134,8 +134,8 @@ func (m *Model) bleedColumn(height int) []string {
 	// top corner sits on the rule row just above the capture.
 	box := m.focus.pane.FrameBox()
 	if m.mode == modeFocus && box.Valid {
-		edge := paint(focusEdgeStyle.Render("│"), 1, panelHex())
-		corner := paint(focusEdgeStyle.Render("╭"), 1, panelHex())
+		edge := paint(focusEdgeStyle().Render("│"), 1, panelHex())
+		corner := paint(focusEdgeStyle().Render("╭"), 1, panelHex())
 		top := box.Y - m.listChromeRows()
 		if top-1 >= 0 && top-1 < len(lines) {
 			lines[top-1] = corner
@@ -158,10 +158,10 @@ func (m *Model) focusBottomRule(paneWidth, width int) string {
 		return m.boundedRuleRow(paneWidth, width, "▄")
 	}
 	first := plain(lipgloss.NewStyle().Foreground(lipgloss.Color(panelHex())).Render("▀"), 1)
-	interior := lipgloss.NewStyle().Foreground(colorBg).Render(strings.Repeat("▄", paneWidth-1))
-	corner := focusEdgeStyle.Render("╰")
+	interior := lipgloss.NewStyle().Foreground(colorBg()).Render(strings.Repeat("▄", paneWidth-1))
+	corner := focusEdgeStyle().Render("╰")
 	return first + paint(interior, paneWidth-1, panelHex()) + paint(corner, 1, panelHex()) +
-		paint(focusEdgeStyle.Render(strings.Repeat("─", tail)), tail, backdropHex())
+		paint(focusEdgeStyle().Render(strings.Repeat("─", tail)), tail, backdropHex())
 }
 
 // seamCell is one row of the vertical seam. The column is the pane's own
@@ -170,9 +170,9 @@ func (m *Model) focusBottomRule(paneWidth, width int) string {
 func (m *Model) seamCell(railRule bool) string {
 	// While the divider is being moved the seam becomes the grip.
 	if m.layout.split.dragging || m.layout.split.resizeMode {
-		color := colorAccent
+		color := colorAccent()
 		if m.layout.split.dragging {
-			color = colorAccent2
+			color = colorAccent2()
 		}
 		return paint(lipgloss.NewStyle().Foreground(color).Render("║"), 1, panelHex())
 	}

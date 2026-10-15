@@ -87,7 +87,7 @@ func TestViewLegendPaintsWaitingMessagesWarm(t *testing.T) {
 		update:   updateInfo{latest: "v0.41.0", version: "0.40.0"},
 	}
 	bar := legendBar([]legendSection{waiting.viewLegend()}, 160)
-	if !strings.Contains(bar, legendAlertStyle.Render("M unread")) {
+	if !strings.Contains(bar, legendAlertStyle().Render("M unread")) {
 		t.Fatalf("waiting messages should use the working color:\n%s", bar)
 	}
 	idle := &Model{
