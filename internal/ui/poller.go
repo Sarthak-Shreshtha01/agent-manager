@@ -50,6 +50,8 @@ type poller struct {
 	binaries      toolBinaries
 	interval      time.Duration
 	poke          chan struct{}
+	stop          chan struct{}
+	stopped       chan struct{}
 
 	mu              sync.Mutex
 	includeArchived bool
@@ -327,6 +329,8 @@ func newPoller(st *store.Store, driver *tmux.Driver, engine *status.Engine, hook
 		binaries:      binaries,
 		interval:      interval,
 		poke:          make(chan struct{}, 1),
+		stop:          make(chan struct{}),
+		stopped:       make(chan struct{}),
 		paneHashes:    map[string]uint64{},
 		claudeTails:   map[string]claudeTailCache{},
 		quietSince:    map[string]quietTimer{},
@@ -360,14 +364,16 @@ func (p *poller) requestRefresh() {
 	}
 }
 
-// run polls until the program exits, pushing each result into the UI.
+// run polls until halt, pushing each result into the UI.
 // Sends run on their own goroutine because the UI stops receiving while
 // suspended inside a tmux attach; the store writes in refreshOnce must
 // never wait on the UI.
 func (p *poller) run(send func(tea.Msg)) {
+	defer close(p.stopped)
 	ticker := time.NewTicker(p.interval)
 	defer ticker.Stop()
 	pending := make(chan tea.Msg, 1)
+	defer close(pending)
 	go func() {
 		for msg := range pending {
 			send(msg)
@@ -388,8 +394,16 @@ func (p *poller) run(send func(tea.Msg)) {
 		select {
 		case <-ticker.C:
 		case <-p.poke:
+		case <-p.stop:
+			return
 		}
 	}
+}
+
+// halt ends run and waits out the pass in flight.
+func (p *poller) halt() {
+	close(p.stop)
+	<-p.stopped
 }
 
 // ignoreDeletedSession drops the error a store write returns when the
