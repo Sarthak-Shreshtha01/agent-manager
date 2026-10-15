@@ -132,7 +132,7 @@
 			$parsed = $null
 			if (-not $text -or -not [version]::TryParse(($text -split '-')[0], [ref]$parsed)) { $parsed = $null }
 			if (-not $parsed -or $parsed -lt $minimum) {
-				Write-Host "PowerShell before 7.3 splits a prompt containing `" into several arguments to agent CLIs; upgrade it with: winget install Microsoft.PowerShell" -ForegroundColor Yellow
+				Write-Host "agent-manager needs PowerShell 7.3 or newer and refuses older ones; upgrade it with: winget upgrade Microsoft.PowerShell" -ForegroundColor Yellow
 			}
 		}
 	}
