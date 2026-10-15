@@ -91,6 +91,11 @@ tmux silently falls back to the default socket. The directory must exist
 before tmux starts, for the same reason. Never run `tmux kill-server` or
 `kill-session` against the default socket; kill stray processes by PID.
 
+Panes fall back to `$SHELL` when their agent exits, and a shell whose startup
+files fork or print throws off the timing tests. `internal/ui` pins
+`SHELL=/bin/sh` in its `TestMain`; for the other packages that drive tmux, run
+with `SHELL=/bin/sh` as CI does.
+
 On Windows, see Checks in [CONTRIBUTING.md](.github/CONTRIBUTING.md) for
 what the suite needs.
 
