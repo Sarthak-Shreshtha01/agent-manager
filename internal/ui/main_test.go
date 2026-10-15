@@ -43,6 +43,12 @@ func runTests(m *testing.M) int {
 		return 1
 	}
 	defer cleanup()
+	removeTemplate, err := prepareStoreTemplate()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer removeTemplate()
 	// The suite runs as if at the machine it runs on, even when the
 	// developer reached it over SSH.
 	remoteTerminal = localTerminal

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +27,56 @@ import (
 func buildModel(t *testing.T) *Model {
 	t.Helper()
 	return buildModelWithStorePath(t, filepath.Join(t.TempDir(), "state.db"))
+}
+
+// storeTemplate is the database a fresh store.Open leaves behind in an empty
+// directory. Running every schema migration costs a test about half a second
+// under -race, so openTestStore copies this file instead.
+var storeTemplate []byte
+
+func prepareStoreTemplate() (func(), error) {
+	dir, err := os.MkdirTemp("", "amuitest-store-")
+	if err != nil {
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	remove := func() { os.RemoveAll(dir) }
+	path := filepath.Join(dir, "state.db")
+	st, err := store.Open(path)
+	if err != nil {
+		remove()
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	if err := st.Close(); err != nil {
+		remove()
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	// A closed store has folded its WAL back into the file; one left
+	// behind means the file alone is not the whole database.
+	if _, err := os.Stat(path + "-wal"); err == nil {
+		remove()
+		return nil, fmt.Errorf("store template: %s-wal outlived Close", path)
+	}
+	if storeTemplate, err = os.ReadFile(path); err != nil {
+		remove()
+		return nil, fmt.Errorf("store template: %w", err)
+	}
+	return remove, nil
+}
+
+// openTestStore opens a store at path, seeding a path that holds nothing yet
+// with the migrated template, which is what Open would have built there.
+func openTestStore(t *testing.T, path string) *store.Store {
+	t.Helper()
+	if _, err := os.Stat(path); os.IsNotExist(err) && storeTemplate != nil {
+		if err := os.WriteFile(path, storeTemplate, 0o600); err != nil {
+			t.Fatalf("seed store: %v", err)
+		}
+	}
+	st, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("store open: %v", err)
+	}
+	return st
 }
 
 func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
@@ -155,10 +206,7 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 			cfg.Tools[name] = tool
 		}
 	}
-	st, err := store.Open(dbPath)
-	if err != nil {
-		t.Fatalf("store open: %v", err)
-	}
+	st := openTestStore(t, dbPath)
 	t.Cleanup(func() { st.Close() })
 
 	driver, err := tmux.NewWithSocket(testSocket)

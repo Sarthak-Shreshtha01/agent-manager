@@ -25,10 +25,7 @@ import (
 
 func noticeStore(t *testing.T) *store.Store {
 	t.Helper()
-	st, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatalf("store open: %v", err)
-	}
+	st := openTestStore(t, filepath.Join(t.TempDir(), "state.db"))
 	t.Cleanup(func() { st.Close() })
 	return st
 }

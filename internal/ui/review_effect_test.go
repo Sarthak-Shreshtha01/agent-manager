@@ -15,10 +15,7 @@ import (
 
 func openReviewTestStore(t *testing.T) *store.Store {
 	t.Helper()
-	st, err := store.Open(filepath.Join(t.TempDir(), "review.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := openTestStore(t, filepath.Join(t.TempDir(), "review.db"))
 	t.Cleanup(func() { st.Close() })
 	return st
 }
