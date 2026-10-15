@@ -58,7 +58,13 @@ func Trees(rootPIDs []int) map[int]ProcStat {
 				walk(child.PID, childCreated)
 			}
 		}
-		created, _ := sampleProcess(root, 0, &stat)
+		// A root that cannot be sampled leaves no entry, as a pid ps does
+		// not list leaves none on Unix: a reading with its own process
+		// missing would stand for the tree while describing only part of it.
+		created, ok := sampleProcess(root, 0, &stat)
+		if !ok {
+			continue
+		}
 		walk(root, created)
 		// Leave CPUPercent 0 until the caller applies interval or fallback.
 		stats[root] = stat
