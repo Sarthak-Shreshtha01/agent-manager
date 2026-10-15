@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -317,7 +318,7 @@ type Model struct {
 	startupPhase     int
 	startupAnimating bool
 	booting          bool
-	pendingTyped     *typedPromptCandidate
+	pendingTyped     map[string]typedPromptCandidate
 
 	update updateInfo
 
@@ -726,6 +727,15 @@ const typedPromptGrace = 5 * time.Second
 // from behind the watcher's write queue.
 type typedPromptMsg struct{ candidate typedPromptCandidate }
 
+// holdTypedPrompt keeps cand as its session's candidate, replacing only
+// an earlier one for the same session.
+func (m *Model) holdTypedPrompt(cand typedPromptCandidate) {
+	if m.pendingTyped == nil {
+		m.pendingTyped = make(map[string]typedPromptCandidate)
+	}
+	m.pendingTyped[cand.id] = cand
+}
+
 // stashTypedPrompt snapshots the composer draft as enter goes into the
 // focused pane, from a fresh capture so the newest keystrokes are in it.
 // Behind a polling watcher the capture queues after the keystrokes still
@@ -750,38 +760,34 @@ func (m *Model) stashTypedPrompt(sess store.Session) {
 		return
 	}
 	if typed, ok := read().(typedPromptMsg); ok {
-		m.pendingTyped = &typed.candidate
+		m.holdTypedPrompt(typed.candidate)
 	}
 }
 
-// commitTypedPrompt records a stashed draft as the session's last prompt
-// once the session runs with it: an enter that opened a menu or answered
-// a dialog never turns the session working while its draft is fresh, so
-// that candidate just expires.
+// commitTypedPrompt records each stashed draft as its session's last
+// prompt once that session runs with it: an enter that opened a menu or
+// answered a dialog never turns the session working while its draft is
+// fresh, so that candidate just expires.
 func (m *Model) commitTypedPrompt() {
-	cand := m.pendingTyped
-	if cand == nil {
-		return
-	}
-	if time.Since(cand.at) > typedPromptGrace {
-		m.pendingTyped = nil
-		return
-	}
-	for i := range m.sessions {
-		if m.sessions[i].ID != cand.id {
+	for id, cand := range m.pendingTyped {
+		if time.Since(cand.at) > typedPromptGrace {
+			delete(m.pendingTyped, id)
+			continue
+		}
+		i := slices.IndexFunc(m.sessions, func(s store.Session) bool { return s.ID == id })
+		if i < 0 {
+			delete(m.pendingTyped, id)
 			continue
 		}
 		if m.sessions[i].Status != status.Working {
-			return
+			continue
 		}
-		if err := ignoreDeletedSession(m.store.SetLastPrompt(cand.id, cand.text)); err != nil {
+		if err := ignoreDeletedSession(m.store.SetLastPrompt(id, cand.text)); err != nil {
 			m.errBar.text = err.Error()
 		}
 		m.sessions[i].LastPrompt = cand.text
-		m.pendingTyped = nil
-		return
+		delete(m.pendingTyped, id)
 	}
-	m.pendingTyped = nil
 }
 
 // hasWorkingLoaderRow reports whether a row is animating the working
@@ -1866,7 +1872,7 @@ func (m *Model) handleMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case typedPromptMsg:
-		m.pendingTyped = &msg.candidate
+		m.holdTypedPrompt(msg.candidate)
 		return m, nil
 
 	case focusPreviewMsg:
