@@ -1210,6 +1210,8 @@ func TestArchiveAbortsWhenSnapshotFails(t *testing.T) {
 	}
 
 	m.selectSessionRow(t, "alpha")
+	// Archive snapshots only a pane that has drawn.
+	waitForPreview(t, m)
 	m.archiveSelected()
 	_, cmd := m.handleConfirmKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
 	m.applyCmd(t, cmd)
