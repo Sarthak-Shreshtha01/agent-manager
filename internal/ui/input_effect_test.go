@@ -40,9 +40,9 @@ func TestInputKeysUseServingControlWithoutDriverFallback(t *testing.T) {
 	}
 	watch := newFocusWatch(driver, func(tea.Msg) {})
 	t.Cleanup(watch.Close)
-	watch.setFocus(sess.ID)
+	watch.SetFocus(sess.ID)
 	deadline := time.Now().Add(5 * time.Second)
-	for !watch.serving(sess.ID) {
+	for !watch.Serving(sess.ID) {
 		if time.Now().After(deadline) {
 			t.Fatal("control client never served the session")
 		}
@@ -129,9 +129,9 @@ exit 0
 	}
 	watch := newFocusWatch(driver, func(tea.Msg) {})
 	t.Cleanup(watch.Close)
-	watch.setFocus(sess.ID)
+	watch.SetFocus(sess.ID)
 	deadline := time.Now().Add(5 * time.Second)
-	for !watch.serving(sess.ID) {
+	for !watch.Serving(sess.ID) {
 		if time.Now().After(deadline) {
 			t.Fatal("control client never served the session")
 		}

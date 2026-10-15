@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -13,11 +12,12 @@ import (
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
+	focuswatch "github.com/YoanWai/agent-manager/internal/ui/focus/watch"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type focusRuntimeState struct {
-	watch             *focusWatch
+	watch             *focuswatch.Watcher
 	imeCursor         *cursorAnchor
 	lastPaneSizes     map[string][2]int
 	lastPanePIDs      map[string]int
@@ -133,7 +133,7 @@ func (m *Model) caretAtInputStart(sessID, tool string) bool {
 	return m.focus.pane.CaretAtInputStart(uifocus.CaretContext{
 		SessionID: sessID,
 		Preview:   m.workspace.preview,
-		CaughtUp:  watch == nil || watch.caughtUp(m.focus.pane.Pane().Writes),
+		CaughtUp:  watch == nil || watch.CaughtUp(m.focus.pane.Pane().Writes),
 		Rules:     focusPromptRules{engine: m.services.engine, tool: tool},
 	})
 }
@@ -364,25 +364,12 @@ func (m *Model) focusRegionCmd(sessID string, offset int) tea.Cmd {
 }
 
 func (m *Model) focusRegionRequestCmd(request uifocus.RegionRequest) tea.Cmd {
-	command := fmt.Sprintf(`capture-pane -p -e -t %s -S %d -E -`,
-		tmux.PaneTarget(request.SessionID), -(request.Offset + request.Rows))
 	watch := m.focus.runtime.watch
 	return func() tea.Msg {
 		if watch == nil {
 			return focusScrollMsg{sessID: request.SessionID, offset: request.Offset, rows: request.Rows}
 		}
-		out, ok := watch.query(command)
-		if ok {
-			out = matchExecShape(out)
-		} else {
-			// No control client: a forked capture of the same rows comes
-			// back in the exec shape already.
-			ctx, cancel := context.WithTimeout(context.Background(), focusControlCallTimeout)
-			var err error
-			out, err = watch.driver.CapturePaneHistoryContext(ctx, request.SessionID, request.Offset+request.Rows)
-			cancel()
-			ok = err == nil
-		}
+		out, ok := watch.History(request.SessionID, request.Offset+request.Rows)
 		return focusScrollMsg{
 			sessID:  request.SessionID,
 			offset:  request.Offset,

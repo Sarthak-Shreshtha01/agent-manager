@@ -6,6 +6,7 @@ import (
 	"time"
 
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
+	focuswatch "github.com/YoanWai/agent-manager/internal/ui/focus/watch"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -149,10 +150,10 @@ func TestPushedPreviewWinsOverStalePoll(t *testing.T) {
 	sess := railSelectedSession(m)
 
 	m.focus.runtime.watch = newFocusWatch(m.services.tmux, func(tea.Msg) {})
-	m.focus.runtime.watch.setFocus(sess.ID)
+	m.focus.runtime.watch.SetFocus(sess.ID)
 	t.Cleanup(m.focus.runtime.watch.Close)
 	deadline := time.Now().Add(5 * time.Second)
-	for !m.focus.runtime.watch.serving(sess.ID) {
+	for !m.focus.runtime.watch.Serving(sess.ID) {
 		if time.Now().After(deadline) {
 			t.Skip("control client never came up on this host")
 		}
@@ -180,7 +181,7 @@ func TestPollPreviewResumesAfterWatcherStops(t *testing.T) {
 	m.selectSessionRow(t, "released")
 	sess := railSelectedSession(m)
 	m.focus.runtime.watch = newFocusWatch(m.services.tmux, func(tea.Msg) {})
-	m.focus.runtime.watch.setFocus(sess.ID)
+	m.focus.runtime.watch.SetFocus(sess.ID)
 	m.focus.runtime.watch.Close()
 
 	updated, _ := m.Update(previewMsg{sessID: sess.ID, preview: "polled"})
@@ -203,7 +204,7 @@ func TestBottomParkedCaretSurvivesControlCapture(t *testing.T) {
 	rows[41] = "  » permission bypass on [shift+tab]"
 	rows[42] = "  ? for shortcuts · PR #390 · taste on"
 	m.mode = modeFocus
-	m.workspace.preview = matchExecShape(strings.Join(rows, "\n"))
+	m.workspace.preview = focuswatch.MatchExecShape(strings.Join(rows, "\n"))
 	setFocusPaneFacts(m, "s1", false, false, false, 0, paneCursor{x: 0, y: 46, ok: true})
 	if !m.caretAtInputStart("s1", "command-code") {
 		t.Fatal("the bottom-parked caret over an empty composer was not recognised")

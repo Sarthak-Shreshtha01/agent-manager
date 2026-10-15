@@ -49,14 +49,14 @@ func (inputEffectResult) effectResult() {}
 func (m *Model) dispatchInput(request inputRequest) {
 	request.args = slices.Clone(request.args)
 	if watch := m.focus.runtime.watch; watch != nil && request.kind != inputPrompt {
-		request.counted = watch.countWrite(request.session.ID)
+		request.counted = watch.CountWrite(request.session.ID)
 	}
 	m.enqueueEffect(request, 0, false)
 }
 
 func (s effectServices) runInput(request inputRequest) (effectResult, error) {
 	if request.counted {
-		defer s.watch.writeLanded(request.session.ID)
+		defer s.watch.WriteLanded(request.session.ID)
 	}
 	result := inputEffectResult{}
 	current, err := s.store.Get(request.session.ID)
@@ -88,7 +88,7 @@ func (s effectServices) runInput(request inputRequest) (effectResult, error) {
 				// one for whichever branch it ran.
 				blocks = tmux.GuardedMouseReplies
 			}
-			available, err = s.watch.forwardBlocks(request.command, blocks)
+			available, err = s.watch.ForwardBlocks(request.command, blocks)
 			if available && err != nil {
 				err = fmt.Errorf("focused input may have reached the pane and was not replayed: %w", err)
 			}
@@ -104,7 +104,7 @@ func (s effectServices) runInput(request inputRequest) (effectResult, error) {
 		err = s.pasteInput(s.driver, current.ID, request.text)
 	}
 	if request.echo && err == nil && s.watch != nil {
-		s.watch.inputSent(current.ID)
+		s.watch.InputSent(current.ID)
 	}
 	return result, err
 }
@@ -116,7 +116,7 @@ func (m *Model) applyInputEffect(result inputEffectResult, err error) {
 	}
 	if !m.effects.quitting && result.inputID != "" && m.mode == modeFocus && m.focus.runtime.watch != nil {
 		if selected, ok := m.selected(); ok && selected.ID == result.inputID {
-			m.focus.runtime.watch.retryNow()
+			m.focus.runtime.watch.RetryNow()
 			m.watchSelection()
 		}
 	}

@@ -20,13 +20,14 @@ var (
 	diffBoundary    = boundary{"Diff model", "/internal/diff/model", []string{"/internal/diff/model", "/internal/git/value"}}
 	reviewBoundary  = boundary{"Review", "/internal/ui/review", []string{"/internal/ui/review", "/internal/diff/model", "/internal/git/value", "/internal/ui/presentation"}}
 	focusBoundary   = boundary{"Focus", "/internal/ui/focus", []string{"/internal/ui/focus"}}
+	watchBoundary   = boundary{"Focus watch", "/internal/ui/focus/watch", []string{"/internal/ui/focus/watch", "/internal/tmux", "/internal/deps", "/internal/keybind"}}
 	railBoundary    = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation"}}
 	valueBoundary   = boundary{"Git values", "/internal/git/value", []string{"/internal/git/value"}}
 	presentBoundary = boundary{"Presentation", "/internal/ui/presentation", []string{"/internal/ui/presentation"}}
 )
 
 func main() {
-	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, railBoundary, diffBoundary, valueBoundary, presentBoundary} {
+	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, watchBoundary, railBoundary, diffBoundary, valueBoundary, presentBoundary} {
 		if err := checkBoundary(feature); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

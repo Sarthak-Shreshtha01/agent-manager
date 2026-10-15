@@ -95,8 +95,8 @@ func (m *Model) syncPollInput() {
 	// pay that twenty times; the client is opened once the cursor settles
 	// instead. The watcher only exists once StartPoller has a send
 	// function; tests drive Update without one.
-	if m.focus.runtime.watch != nil && m.focus.runtime.watch.watching() != focusID {
-		m.focus.runtime.watch.setFocus("")
+	if m.focus.runtime.watch != nil && m.focus.runtime.watch.Watching() != focusID {
+		m.focus.runtime.watch.SetFocus("")
 	}
 }
 
@@ -108,10 +108,10 @@ func (m *Model) watchSelection() {
 	}
 	sess, ok := m.selected()
 	if !ok || sess.Archived {
-		m.focus.runtime.watch.setFocus("")
+		m.focus.runtime.watch.SetFocus("")
 		return
 	}
-	m.focus.runtime.watch.setFocus(sess.ID)
+	m.focus.runtime.watch.SetFocus(sess.ID)
 }
 
 // requestRefresh publishes the current UI state to the poller and asks

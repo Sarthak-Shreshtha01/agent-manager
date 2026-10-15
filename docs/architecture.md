@@ -13,6 +13,7 @@ Under `internal/`:
 - `execution`: UI-free poller and runner: capture, delivery, mailbox, status, notifications.
 - `ui`: the Bubble Tea program. One `Model` routes messages, runs effects, composes the frame.
 - `ui/help`, `ui/review`, `ui/focus`, `ui/rail`: feature packages with private models.
+- `ui/focus/watch`: the focused pane's watcher: control-mode client, polled fallback, pushed frames.
 - `ui/presentation`: pure text helpers shared by `ui`, `ui/help`, `ui/review` and `ui/rail`.
 - `store`: SQLite state: sessions, groups, settings, inbox, tasks, reservations, delivery guard.
 - `tmux`: the `Driver` on the dedicated socket, the control-mode client, bindings, attach.
@@ -40,8 +41,9 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
   other package of this module. Allowed, besides itself:
   `ui/help` and `ui/rail` import `keybind` and `ui/presentation`; `ui/review`
   imports `diff/model`, `git/value` and `ui/presentation`; `diff/model`
-  imports `git/value`; `ui/focus`, `git/value` and `ui/presentation` import
-  nothing from the module. Test imports are not checked.
+  imports `git/value`; `ui/focus/watch` imports `tmux` (with its `deps` and
+  `keybind`); `ui/focus`, `git/value` and `ui/presentation` import nothing
+  from the module. Test imports are not checked.
 - **File names.** `go run ./tools/architecture/check-file-names`. Every
   non-test file in `internal/ui` starts with a feature name from the
   `features` map in the tool (plus `keys.go`, `mouse.go`, `updates.go`,
@@ -81,8 +83,9 @@ work. There is no shared event bus or effect interpreter, because it would hide
 who owns what. Line counts and field counts do not prove a boundary; the checks
 above do.
 
-**Runtime resources stay with the root.** The tmux control client (`focus_watch.go`),
-the clipboard (`focus_selection.go`, `composer.go`) and the IME cursor
+**Runtime resources stay with the root.** The tmux control client's mechanics
+live in `ui/focus/watch`; the root holds and closes the instance (`focus_watch.go`).
+The clipboard (`focus_adapter.go`, `composer.go`) and the IME cursor
 (`frame_ime.go`) are held and published by `internal/ui`. Feature packages
 see copied pane facts and hand back typed outcomes. That keeps the child packages
 testable without tmux or a terminal, and keeps one place that closes what it
