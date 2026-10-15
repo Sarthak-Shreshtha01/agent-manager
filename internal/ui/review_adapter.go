@@ -2,10 +2,12 @@ package ui
 
 import (
 	"cmp"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/YoanWai/agent-manager/internal/deps"
 	"github.com/YoanWai/agent-manager/internal/diff"
 	"github.com/YoanWai/agent-manager/internal/git"
 	"github.com/YoanWai/agent-manager/internal/store"
@@ -184,7 +186,7 @@ func (m *Model) reviewProbeCmd(req uireview.ProbeRequest) tea.Cmd {
 
 func (m *Model) reviewHighlightCmd(req uireview.HighlightRequest) tea.Cmd {
 	return func() tea.Msg {
-		return uireview.HighlightResult{Key: req.Key, Highlight: highlightFile(&req.File)}
+		return uireview.HighlightResult{Key: req.Key, Highlight: uireview.HighlightFile(&req.File)}
 	}
 }
 
@@ -375,4 +377,229 @@ func (m *Model) routeReviewMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return routed(m, m.handleReviewSend(msg))
 	}
 	return nil, nil, false
+}
+
+type reviewReturnKind uint8
+
+const (
+	reviewReturnList reviewReturnKind = iota
+	reviewReturnFocus
+	reviewReturnAttach
+)
+
+type reviewReturn struct {
+	kind      reviewReturnKind
+	sessionID string
+}
+
+func (m *Model) diffSession() (store.Session, bool) {
+	for _, sess := range m.workspace.sessions {
+		if sess.ID == m.review.SessionID() {
+			return sess, true
+		}
+	}
+	return store.Session{}, false
+}
+
+func (m *Model) closeDiff() tea.Cmd {
+	ret := m.reviewNav.ret
+	m.reviewNav.ret = reviewReturn{}
+	gen := m.review.Close()
+	m.mode = modeList
+	switch ret.kind {
+	case reviewReturnAttach:
+		return m.reattach(ret.sessionID, gen)
+	case reviewReturnFocus:
+		if !m.focusSession(ret.sessionID) {
+			m.reportErr("the review origin is no longer listed")
+			return nil
+		}
+		_, cmd := m.focusSelected()
+		return cmd
+	default:
+		return nil
+	}
+}
+
+type reviewPreferencesReader interface {
+	ReviewScope(string) (string, error)
+	ReviewRepo(string) (string, error)
+}
+
+type reviewPreferencesMsg struct {
+	session   store.Session
+	request   uireview.LoadRequest
+	scope     git.Scope
+	preferred string
+	err       error
+}
+
+func (m *Model) openDiff() tea.Cmd { return m.openDiffWithReader(m.services.store) }
+
+func (m *Model) openDiffWithReader(reader reviewPreferencesReader) tea.Cmd {
+	if m.services.gitDrv == nil {
+		m.reportErr("git not found in PATH, " + deps.Hint("git"))
+		return nil
+	}
+	sess, ok := m.selected()
+	if !ok {
+		m.reportErr("select a session to diff")
+		return nil
+	}
+	preferred, picked := m.ledger.pickedRepos[sess.ID]
+	m.reviewNav.ret = reviewReturn{kind: reviewReturnList}
+	m.mode = modeDiff
+	m.clearErr()
+	target := reviewTarget(sess)
+	target.Cwd = m.sessionDir(sess)
+	request := m.review.Open(target, git.ScopeUncommitted, preferred)
+	return func() tea.Msg {
+		result := reviewPreferencesMsg{session: sess, request: request, scope: git.ScopeUncommitted, preferred: preferred}
+		if reader != nil {
+			scope, err := reader.ReviewScope(sess.ID)
+			result.err = err
+			if err == nil {
+				result.scope = uireview.StoredScope(scope)
+			}
+			if !picked {
+				repo, err := reader.ReviewRepo(sess.ID)
+				result.preferred = repo
+				result.err = errors.Join(result.err, err)
+			}
+		}
+		return result
+	}
+}
+
+func (m *Model) handleReviewPreferences(msg reviewPreferencesMsg) (tea.Model, tea.Cmd) {
+	if m.effects.quitting || !m.review.Active() || m.review.Generation() != msg.request.Generation || m.review.SessionID() != msg.request.Target.ID {
+		return m, nil
+	}
+	current, ok := m.diffSession()
+	if !ok || !current.CreatedAt.Equal(msg.session.CreatedAt) || !current.LaunchTime().Equal(msg.session.LaunchTime()) || current.TmuxSocket != msg.session.TmuxSocket {
+		return m, nil
+	}
+	request := m.review.Open(msg.request.Target, msg.scope, msg.preferred)
+	if msg.err != nil {
+		m.reportErr("reading review preferences: " + msg.err.Error())
+	}
+	return m, tea.Batch(m.reviewLoadCmd(request), m.startStartupTick())
+}
+
+func (m *Model) handleDiffKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	ctx := uireview.KeyContext{CodeHeight: m.diffCodeHeight(), PersistenceAvailable: m.services.store != nil}
+	if sess, ok := m.diffSession(); ok && m.isShell(sess.Tool) {
+		ctx.IsShell = true
+		ctx.SendError = shellPromptHint(sess.Name)
+	}
+	result := m.review.Key(msg, ctx)
+	if result.Error != "" {
+		m.reportErr(result.Error)
+	}
+	var navigation tea.Cmd
+	switch result.Navigation {
+	case uireview.NavigationQuit:
+		_, navigation = m.requestQuit()
+	case uireview.NavigationExit:
+		navigation = m.closeDiff()
+	case uireview.NavigationHelp:
+		m.openHelp()
+	case uireview.NavigationRepoPicker:
+		m.openRepoPick()
+	case uireview.NavigationBranchPicker:
+		navigation = m.openBranchPick()
+	case uireview.NavigationBasePicker:
+		navigation = m.openBasePick()
+	}
+	return m, tea.Batch(navigation, m.reviewCommands(result.Requests))
+}
+
+func (m *Model) applyReviewResult(result uireview.ApplyResult) tea.Cmd {
+	if !result.Accepted {
+		return nil
+	}
+	if result.Error != "" {
+		m.reportErr(result.Error)
+	}
+	if result.ForgetPreferredRepo != "" && m.ledger.pickedRepos[m.review.SessionID()] == result.ForgetPreferredRepo {
+		delete(m.ledger.pickedRepos, m.review.SessionID())
+	}
+	if result.Refresh {
+		m.requestRefresh()
+	}
+	return m.reviewCommands(result.Requests)
+}
+
+func (m *Model) handleReviewLoad(result uireview.LoadResult) tea.Cmd {
+	return m.applyReviewResult(m.review.ApplyLoad(result))
+}
+
+func (m *Model) handleReviewFile(result uireview.FileResult) tea.Cmd {
+	return m.applyReviewResult(m.review.ApplyFile(result))
+}
+
+func (m *Model) handleReviewProbe(result uireview.ProbeResult) tea.Cmd {
+	request, ok := m.review.ApplyProbe(result)
+	if !ok {
+		return nil
+	}
+	return m.reviewLoadCmd(request)
+}
+
+func (m *Model) cycleDiffScope() tea.Cmd {
+	request, ok := m.review.CycleScope()
+	if !ok {
+		return nil
+	}
+	return tea.Batch(m.reviewLoadCmd(request), m.startStartupTick())
+}
+
+func (m *Model) diffRefreshCmd() tea.Cmd {
+	if m.services.gitDrv == nil {
+		return nil
+	}
+	request, ok := m.review.RefreshRequest()
+	if !ok {
+		return nil
+	}
+	return m.reviewProbeCmd(request)
+}
+
+func (m *Model) reviewStatusesCmd() tea.Cmd {
+	if m.services.store == nil {
+		return nil
+	}
+	request, ok := m.review.StatusRequest()
+	if !ok {
+		return nil
+	}
+	return m.reviewStatusCmd(request)
+}
+
+func (m *Model) loadCurrentDiffFile() tea.Cmd {
+	return m.reviewCommands(m.review.EnsureCurrentFile())
+}
+
+func (m *Model) ensureHighlight() tea.Cmd {
+	request, ok := m.review.EnsureHighlight()
+	if !ok {
+		return nil
+	}
+	return m.reviewHighlightCmd(request)
+}
+
+func (m *Model) handleReviewStatus(result uireview.StatusResult) tea.Cmd {
+	return m.applyReviewResult(m.review.ApplyStatus(result))
+}
+
+func (m *Model) handleReviewSave(result uireview.SaveResult) tea.Cmd {
+	return m.applyReviewResult(m.review.ApplySave(result))
+}
+
+func (m *Model) handleReviewComment(result uireview.HandleCommentResult) tea.Cmd {
+	return m.applyReviewResult(m.review.ApplyHandle(result))
+}
+
+func (m *Model) handleReviewSend(result uireview.SendResult) tea.Cmd {
+	return m.applyReviewResult(m.review.ApplySend(result))
 }

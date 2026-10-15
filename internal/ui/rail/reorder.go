@@ -42,7 +42,7 @@ func (m Model) swapRequest(row treeRow, delta int) (Mutation, bool) {
 			Kind:          SwapGroup,
 			Path:          row.group,
 			TargetPath:    target.group,
-			GroupSiblings: m.knownGroupSiblings(parentGroup(row.group)),
+			GroupSiblings: m.knownGroupSiblings(ParentGroup(row.group)),
 			OffsetDelta:   delta,
 			Refresh:       true,
 		}, true
@@ -67,7 +67,7 @@ func (m Model) visibleReorderTarget(row treeRow, delta int) (treeRow, bool) {
 			continue
 		}
 		if row.kind == GroupRow {
-			if candidate.kind == GroupRow && parentGroup(candidate.group) == parentGroup(row.group) {
+			if candidate.kind == GroupRow && ParentGroup(candidate.group) == ParentGroup(row.group) {
 				return candidate, true
 			}
 			continue
@@ -335,10 +335,10 @@ func resolveGroupDrop(path string, target treeRow) (dropTarget, bool) {
 	destination := target.group
 	if target.kind == SessionRow {
 		destination = target.sess.Group
-	} else if !target.isRoot() && parentGroup(target.group) == parentGroup(path) {
+	} else if !target.isRoot() && ParentGroup(target.group) == ParentGroup(path) {
 		return dropTarget{}, false
 	}
-	if destination == parentGroup(path) || inGroupSubtree(destination, path) {
+	if destination == ParentGroup(path) || InGroupSubtree(destination, path) {
 		return dropTarget{}, false
 	}
 	key := Selection{Kind: GroupRow, Group: destination}.key()
@@ -349,7 +349,7 @@ func groupLabel(path string) string {
 	if path == "" {
 		return "root"
 	}
-	return baseName(path)
+	return BaseName(path)
 }
 
 func sessionName(session Session) string {

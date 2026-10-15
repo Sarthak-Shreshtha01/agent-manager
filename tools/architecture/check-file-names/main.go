@@ -45,7 +45,7 @@ var features = map[string]string{
 	"quick":        "the quick bar",
 	"rail":         "the Rail adapter",
 	"rename":       "the rename dialog",
-	"review":       "the Review adapter and repo picker",
+	"review":       "the Review adapter",
 	"session":      "session lifecycle: launch, attach, kill, revive, archive, delete, restart, editor",
 	"settings":     "the Settings dialog, key bindings and editor row",
 	"spawn":        "the New Session form, model choice, spawn preflight and worktree probe",

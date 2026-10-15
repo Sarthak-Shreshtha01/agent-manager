@@ -60,7 +60,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case modeMove:
 		return m, m.move.handleKey(m, msg)
 	case modeRepoPick:
-		return m, m.reviewNav.picker.handleKey(m, msg)
+		return m, m.handleRepoPickKey(msg)
 	case modeGroupForm:
 		return m.handleGroupFormKey(msg)
 	case modeConnection:

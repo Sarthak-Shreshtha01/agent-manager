@@ -103,7 +103,7 @@ type focusState struct {
 
 type reviewNavState struct {
 	ret    reviewReturn
-	picker repoPicker
+	picker uireview.Picker
 }
 
 type mouseCapture struct {

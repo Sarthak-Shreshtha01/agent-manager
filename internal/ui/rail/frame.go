@@ -19,7 +19,7 @@ const (
 	ReorderGlyph    = "⠿"
 	MenuGlyph       = "[…]"
 	reorderGrip     = ReorderGlyph
-	shellGlyph      = "❯"
+	ShellGlyph      = "❯"
 )
 
 // Theme is the feature-local copy of the active root presentation tokens.

@@ -221,14 +221,14 @@ with `gh release edit <tag> --notes-file notes.md`.
   and view through a type with a narrow host interface: `settingsFeature`,
   `formDialog`, `groupFormDialog`, `quickBar`, `choice`, `pathComplete`,
   `composer`, `renameDialog`, `moveDialog`, `forkDialog`, `confirmDialog`,
-  `launchHintDialog`, `noticesPanel` and `repoPicker`. Store, tmux and Git
+  `launchHintDialog` and `noticesPanel`. Store, tmux and Git
   work runs on the ordered effect lane (`effects.go`) through each feature's
   `<feature>_effect.go`. Root files are named `<feature>_<concern>.go`, so
   `ls internal/ui/settings_*` is the whole Settings feature; only `keys.go`,
   `mouse.go`, `updates.go` and `ids.go` route instead of owning a feature. A
   new feature adds its name to `tools/architecture/check-file-names`. The
-  contracts are in `docs/architecture/ui-feature-packages.md`;
-  `ui-file-map.md` lists each feature's files.
+  package map, the CI checks and the reasons are in
+  [docs/architecture.md](docs/architecture.md).
 - `internal/tmux` owns the dedicated tmux socket and control-mode client;
   `internal/store` is the SQLite state, Settings included; `internal/status`
   classifies pane output into agent states; `internal/config` holds the

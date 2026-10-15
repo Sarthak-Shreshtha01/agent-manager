@@ -1,6 +1,6 @@
 # Application architecture proposal
 
-The maintained [architecture contract](architecture/README.md) restores the broader rationale from PR #1. The [conformance audit](architecture/roadmap-and-evidence.md) separates implemented boundaries from outstanding requirements. PR #2 is partially conformant. Help, Review, Focus, and Rail own behavior in private packages, and View reads a prepared frame. Synchronous UI effects, partial lifecycle reconciliation, remaining dialog ownership, and production compatibility remain gaps.
+The maintained [architecture doc](architecture.md) records the package map, the CI checks and the decisions. PR #2 is partially conformant. Help, Review, Focus, and Rail own behavior in private packages, and View reads a prepared frame. Synchronous UI effects, partial lifecycle reconciliation, remaining dialog ownership, and production compatibility remain gaps.
 
 This branch refactors the running application against upstream `dc471a97f3ca4fdd06eb822a31e8e5119c39b997` (2026-09-30) and has since merged upstream `cf9ed0d` (2026-10-07). It changes existing production callers and moves their implementations. The earlier additive architecture POC and archive/inbox-only extraction are supporting evidence, not this deliverable.
 
@@ -34,7 +34,7 @@ flowchart TD
     Execution --> Infra
 ```
 
-This is an application-wide boundary refactor. [Help, Review, Focus, and Rail](architecture/ui-feature-packages.md) own policy behind private models, copied inputs and typed outcomes. Root composition prepares layout, geometry and the rendered frame after dispatch; View only returns the cached frame. Other dialogs remain root methods, the root message router remains substantial, and lifecycle and rail effects still block Update. The remaining ownership and effect requirements from [#646](https://github.com/YoanWai/agent-manager/issues/646) are tracked in the conformance audit.
+This is an application-wide boundary refactor. [Help, Review, Focus, and Rail](architecture.md) own policy behind private models, copied inputs and typed outcomes. Root composition prepares layout, geometry and the rendered frame after dispatch; View only returns the cached frame. Other dialogs remain root methods, the root message router remains substantial, and lifecycle and rail effects still block Update. The remaining ownership and effect requirements from [#646](https://github.com/YoanWai/agent-manager/issues/646) are tracked in the conformance audit.
 
 ## Relationship to the earlier POC
 
