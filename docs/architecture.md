@@ -48,7 +48,7 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
   `ui/theme`; `ui/review` imports `diff/model`, `git/value` and
   `ui/presentation`; `ui/spawn` imports `catalog/value` and `ui/presentation`;
   `ui/quick` imports those and `ui/spawn`; `diff/model` imports `git/value`;
-  `ui/focus/watch` imports `tmux` (with its `deps` and `keybind`); `ui/focus`,
+  `ui/focus/watch` imports `tmux` (with its `deps`, `keybind`, and on Windows `proctree` and `pwsh`); `ui/focus`,
   `ui/dialogs`, `ui/theme`, `git/value`, `catalog/value` and `ui/presentation`
   import nothing from the module. Test imports are not checked.
 - **File names.** `go run ./tools/architecture/check-file-names`. Every
