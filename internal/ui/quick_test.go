@@ -1165,6 +1165,9 @@ func TestQuickUpStepsOffTheRowWhenAChipIsInTheWay(t *testing.T) {
 func TestQuickPromptKeepsItsFirstRowAsItWrapsAndShrinks(t *testing.T) {
 	for _, full := range []bool{false, true} {
 		m := buildModel(t)
+		// Every key renders the whole screen; a narrow one wraps the bar
+		// in fewer keys and paints each frame for less.
+		m.layout.width = 60
 		seedTwoGroups(t, m)
 		setRailCursor(m, 1)
 		m.prefs.fullLayout = full
@@ -1178,6 +1181,11 @@ func TestQuickPromptKeepsItsFirstRowAsItWrapsAndShrinks(t *testing.T) {
 			_, rows := m.quick.displayRows()
 			if m.quick.input.Length() > len("first") && rows <= m.quick.maxRows && !firstRowShown() {
 				t.Fatalf("full layout %v: typing to %d rows scrolled the first row away", full, rows)
+			}
+			// A few rows past the bar is overflow enough; each key past
+			// it renders the whole bar again and checks nothing.
+			if rows > m.quick.maxRows+2 {
+				break
 			}
 		}
 		if _, rows := m.quick.displayRows(); rows <= m.quick.maxRows {
