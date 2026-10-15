@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/testenv"
 )
 
 // testSocket is an isolated tmux server for this package's tests, so they
@@ -96,13 +97,6 @@ func requireTmux(t *testing.T) *Driver {
 }
 
 // skipPOSIXShell skips a test whose fixture only a POSIX shell runs.
-func skipPOSIXShell(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture is a POSIX shell script")
-	}
-}
-
 // paneDir is a directory every platform's sessions can start in.
 func paneDir() string {
 	if runtime.GOOS == "windows" {
@@ -174,7 +168,7 @@ func TestPrepareAttachRestoresAutoSize(t *testing.T) {
 // tmux that rejects "latest" stands in for the old server and logs its
 // calls, so the test also proves the second attach skips the doomed try.
 func TestPrepareAttachFallsBackWhenLatestRejected(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -209,7 +203,7 @@ func TestPrepareAttachFallsBackWhenLatestRejected(t *testing.T) {
 // stale socket); that error must reach the caller, not just the
 // session-scoped read's.
 func TestResolvedOptionPropagatesTheGlobalFallbackError(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *'-g -v prefix'*) echo 'no server running' >&2; exit 1;; esac\nexit 0\n"
@@ -227,7 +221,7 @@ func TestResolvedOptionPropagatesTheGlobalFallbackError(t *testing.T) {
 // straight after, and only the command list finds none. That is not an
 // error: Create installs the bindings once a session starts the server.
 func TestEnsureBindingsIgnoresAMissingServer(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *list-keys*) exit 0;; esac\necho 'no server running on /tmp/agentmgr' >&2; exit 1\n"
@@ -244,7 +238,7 @@ func TestEnsureBindingsIgnoresAMissingServer(t *testing.T) {
 // Create runs on the UI's update path, and a new session cannot carry a pin,
 // so with tmux_prefix off only a refresh looks for one.
 func TestOnlyARefreshLooksForAPinnedPrefix(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *" + pinnedPrefixOption + "*) echo 'pin read' >&2; exit 1;; esac\nexit 0\n"
@@ -288,7 +282,7 @@ func TestSetLabelNeutralizesFormatStrings(t *testing.T) {
 }
 
 func TestSendText(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "send" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat", nil, 0, 0); err != nil {
@@ -339,7 +333,7 @@ func TestSubmitTextReturnsAComposerItCouldNotRead(t *testing.T) {
 const pasteReady = "paste-ready"
 
 func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "bracket" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-bracket-" + id
@@ -375,7 +369,7 @@ func TestSendTextKeepsEnterOutsideBracketedPaste(t *testing.T) {
 // as part of the bracketed paste, so the Enter has to reach it as a read of
 // its own, however late the pane gets around to reading.
 func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "late" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	reads := "/tmp/am-late-" + id
@@ -414,7 +408,7 @@ func TestSendTextSubmitsIntoAPaneThatReadsLate(t *testing.T) {
 // text already on screen would pass for it, so the Enter waits the window out
 // rather than matching against nothing.
 func TestSendTextWaitsOutTheWindowWhenTheBaselineCaptureFails(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -449,7 +443,7 @@ func TestSendTextWaitsOutTheWindowWhenTheBaselineCaptureFails(t *testing.T) {
 // pane's bracketed-paste markers with no Enter after it, so agent composers
 // keep multi-line text instead of submitting on the first newline.
 func TestPasteDeliversWithoutSubmitting(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "paste" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-paste-nosubmit-" + id
@@ -492,7 +486,7 @@ func TestPasteDeliversWithoutSubmitting(t *testing.T) {
 // tmux keeps paste buffers per server, where the manager and every agent's MCP
 // process paste side by side.
 func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"
@@ -519,7 +513,7 @@ func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
 // truncates around 1024 bytes and left long first prompts as a broken
 // shell command. paste-buffer must deliver the full line.
 func TestCreateDeliversLongCommand(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "long" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-long-" + id
@@ -952,7 +946,7 @@ func waitForFile(t *testing.T, driver *Driver, id, path string) string {
 // server — the only client is in control mode and has no tty — unless the
 // pane carries explicit colors of its own, which is what the pane theme sets.
 func TestCreateAnswersColorQueries(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	// tmux below 3.2 answers no colour query; the pane's COLORFGBG carries
 	// the same pair there (TestCreateExportsColorFgBg).
@@ -1004,7 +998,7 @@ func requireTmuxAtLeast(t *testing.T, major, minor int) {
 // COLORFGBG is the fallback for agents that read the environment instead of
 // querying, and nothing in a pane's environment carries it otherwise.
 func TestCreateExportsColorFgBg(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	t.Cleanup(func() { clearPaneTheme(t) })
 	driver.PublishPaneTheme(PaneTheme{Foreground: "#cdd6f4", Background: "#1e1e2e", ColorFgBg: "15;0"})
@@ -1134,7 +1128,7 @@ func TestCreateSerializesWithPushPaneTheme(t *testing.T) {
 }
 
 func TestLifecycle(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "test" + time.Now().Format("150405.000000")
 	id = strings.ReplaceAll(id, ".", "")
@@ -1280,7 +1274,7 @@ func waitForPane(t *testing.T, driver *Driver, id, want string) {
 // inherits these values: the rename subcommand and the MCP server both
 // identify the session by AGENT_MANAGER_SESSION_ID alone.
 func TestCreateExportsSessionEnvIntoTheShell(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "senv" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := t.TempDir() + "/env"
@@ -1313,7 +1307,7 @@ func TestCreateExportsSessionEnvIntoTheShell(t *testing.T) {
 // The pane is where the user is looking when the agent exits, so the way
 // back to a wired agent is named there.
 func TestCreateNamesTheWayBackWhenTheAgentExits(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "hint" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "printf 'agent ran\\n'", nil, 0, 0); err != nil {
@@ -1327,7 +1321,7 @@ func TestCreateNamesTheWayBackWhenTheAgentExits(t *testing.T) {
 // EnterWorktree do, is a child of the launch script, and tmux reports the
 // directory of the pane's foreground process group.
 func TestPanesFollowsTheAgentIntoANewDirectory(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "cwd" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	moved := filepath.Join(t.TempDir(), "moved dir")
@@ -1360,7 +1354,7 @@ func TestPanesFollowsTheAgentIntoANewDirectory(t *testing.T) {
 }
 
 func TestExportEnvPrefixesTheCommand(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	env := map[string]string{"B": "second", "A": "fir st"}
 	want := `export A='fir st'; export B='second'; claude --resume 7`
 	if got := exportEnv(env, "claude --resume 7"); got != want {
@@ -1373,7 +1367,7 @@ func TestExportEnvPrefixesTheCommand(t *testing.T) {
 // leader. Everything the manager reads and types has to stay on the agent's
 // own pane through that.
 func TestManagerStaysOnTheAgentPaneAfterASplit(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "split" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat", nil, 0, 0); err != nil {
@@ -1463,7 +1457,7 @@ func TestEnsureBindingsPinsPaneNumbering(t *testing.T) {
 // line it holds, and one that loses height clears a Codex scrollback
 // (#369). The other axis is the window's own and every pane follows it.
 func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	for _, split := range []struct {
 		axis string
 		flag string
@@ -1509,7 +1503,7 @@ func TestResizeFitsTheAgentPaneInASplitWindow(t *testing.T) {
 // A geometry line tmux did not answer in numbers leaves the agent pane at
 // whatever the split gave it, so the resize reports rather than returns.
 func TestResizeReportsUnreadableGeometry(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	stub := dir + "/tmux"
 	script := "#!/bin/sh\ncase \"$*\" in *display-message*) echo 'no geometry here';; esac\nexit 0\n"
@@ -1547,7 +1541,7 @@ func teammateSize(t *testing.T, id string) [2]int {
 // window, which is not the one the agent runs in. Everything the preview
 // pins has to stay on the agent's window through that.
 func TestResizePinsTheAgentWindowNotTheCurrentOne(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "window" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat", nil, 80, 24); err != nil {
@@ -1577,7 +1571,7 @@ func TestResizePinsTheAgentWindowNotTheCurrentOne(t *testing.T) {
 // pane: a bare session target resolves to whichever pane is active, and an
 // agent that split its window would have its quotes read off the teammate.
 func TestCapturePaneHistoryTargetsTheAgentPane(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/testenv"
 )
 
 // fakeServer feeds scripted control-mode output to a Control and records
@@ -397,7 +399,7 @@ const attachRaces = 200
 
 // Each paste sends two notifications, which crash tmux before 3.7 when they reach a client mid-attach.
 func TestControlAttachSurvivesConcurrentPastes(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "gatepaste" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat >/dev/null", nil, 80, 24); err != nil {
@@ -441,7 +443,7 @@ func TestControlAttachSurvivesConcurrentPastes(t *testing.T) {
 
 // A focus switch closes one control client while it opens the next.
 func TestControlAttachSurvivesAnotherClientLeaving(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "gateleave" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, paneDir(), "cat >/dev/null", nil, 80, 24); err != nil {
@@ -471,7 +473,7 @@ func TestControlAttachSurvivesAnotherClientLeaving(t *testing.T) {
 
 // An agent's MCP calls and a second manager reach tmux from processes of their own.
 func TestControlAttachSurvivesAnotherProcess(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	for _, action := range []string{"paste", "attach"} {
 		t.Run(action, func(t *testing.T) {
 			driver := requireTmux(t)
@@ -513,7 +515,7 @@ func requireServer(t *testing.T, pid string) {
 
 // tmux 3.7 survives without the gate, so a stub that logs its calls checks the order on any version.
 func TestAttachGateOrdersCallsAroundControlClients(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver, calls, release := stubTmux(t)
 
 	var first *Control
@@ -561,7 +563,7 @@ func TestAttachGateOrdersCallsAroundControlClients(t *testing.T) {
 }
 
 func TestAttachGateHoldsAnotherProcess(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver, calls, release := stubTmux(t)
 
 	var control *Control
@@ -618,7 +620,7 @@ func TestCreateStartsAServer(t *testing.T) {
 }
 
 func TestOpenControlReturnsWhenTheClientExitsUngreeted(t *testing.T) {
-	skipPOSIXShell(t)
+	testenv.SkipPOSIXShell(t)
 	driver, calls, _ := stubTmux(t)
 	control, err := driver.OpenControl("ungreeted")
 	if err != nil {
