@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -16,7 +17,7 @@ func loadPathSuggestions(m *Model, target pathSuggestionTarget, typed string) {
 	case pathSuggestionGroup:
 		m.groupForm.path.SetValue(typed)
 	case pathSuggestionRename:
-		m.rename.dir.SetValue(typed)
+		m.rename.SetDir(typed)
 	}
 	msg := m.requestPathSuggestions(target, typed)().(pathSuggestionsMsg)
 	m.completer(target).handle(m, msg)
@@ -221,26 +222,23 @@ func TestRenamePathSuggestionsExitToName(t *testing.T) {
 	root := setupCompletionDir(t)
 	m := buildModel(t)
 	m.mode = modeRename
-	m.rename.isGroup = true
-	m.rename.input = textField("", 60)
-	m.rename.dir = textField("", 400)
-	m.rename.focus = 1
-	m.rename.dir.Focus()
+	m.rename.Rename = uidialogs.RenameGroup("", "", 0)
+	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyTab})
 	loadPathSuggestions(m, pathSuggestionRename, filepath.Join(root, "a"))
 	m.rename.paths.chosen = true
 	m.rename.paths.index = len(m.rename.paths.suggestions) - 1
 
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.rename.focus != 2 {
-		t.Fatalf("down past last suggestion should move to worktree, focus=%d", m.rename.focus)
+	if m.rename.Focus() != 2 {
+		t.Fatalf("down past last suggestion should move to worktree, focus=%d", m.rename.Focus())
 	}
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.rename.focus != 3 {
-		t.Fatalf("down past worktree should move to base, focus=%d", m.rename.focus)
+	if m.rename.Focus() != 3 {
+		t.Fatalf("down past worktree should move to base, focus=%d", m.rename.Focus())
 	}
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.rename.focus != 0 {
-		t.Fatalf("down past base should wrap to name, focus=%d", m.rename.focus)
+	if m.rename.Focus() != 0 {
+		t.Fatalf("down past base should wrap to name, focus=%d", m.rename.Focus())
 	}
 }
 

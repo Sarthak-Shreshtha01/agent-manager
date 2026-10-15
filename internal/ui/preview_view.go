@@ -203,8 +203,8 @@ func (m *Model) viewDetail(width int) string {
 		return mutedStyle.Render("Select a session to inspect it.")
 	}
 	tool := sess.Tool
-	if m.mode == modeRename && !m.rename.isGroup && m.rename.sessID == sess.ID {
-		if picked := m.rename.tool(); picked != "" {
+	if m.mode == modeRename && !m.rename.IsGroup() && m.rename.SessionID() == sess.ID {
+		if picked := m.rename.Tool(); picked != "" {
 			tool = picked
 		}
 	}
@@ -258,29 +258,7 @@ func (m *Model) viewGroupDetail(group string, width int) string {
 	head := fitColumns([]string{title + "  " + chipStyle.Render(countLabel), title}, []string{""}, width)
 
 	if m.renamingGroup(group) {
-		pathLabel := labelStyle
-		if m.rename.focus == 1 {
-			pathLabel = lipgloss.NewStyle().Foreground(colorAccent)
-		}
-		worktreeLabel := labelStyle
-		if m.rename.focus == 2 {
-			worktreeLabel = lipgloss.NewStyle().Foreground(colorAccent)
-		}
-		baseLabel := labelStyle
-		if m.rename.focus == 3 {
-			baseLabel = lipgloss.NewStyle().Foreground(colorAccent)
-		}
-		if fieldWidth := width - 12; fieldWidth >= 10 {
-			m.rename.dir.Width = fieldWidth
-		}
-		out := head + "\n" + pathLabel.Width(10).Render("path") + textInputView(m.rename.dir)
-		if m.rename.focus == 1 && m.rename.paths.active() {
-			out += "\n" + m.viewPathSuggestions()
-		}
-		out += "\n" + worktreeLabel.Width(10).Render("worktree") +
-			subtleStyle.Render("◂ ") + valueStyle.Render(groupWorktreeOptions[m.rename.worktreeIndex]) + subtleStyle.Render(" ▸")
-		out += "\n" + baseLabel.Width(10).Render("base") + groupBaseChoice(m.rename.base, m.groupBase(parentGroup(group)))
-		return out
+		return head + "\n" + m.viewRenameGroupFields(group, width)
 	}
 
 	path := m.workspace.groupPaths[group]

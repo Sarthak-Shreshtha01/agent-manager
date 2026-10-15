@@ -45,15 +45,15 @@ func (m *Model) renderFrame() string {
 	case modeHelp:
 		frame = m.viewHelp()
 	case modeConfirmDelete:
-		frame = m.confirm.view(m)
+		frame = m.viewConfirm()
 	case modeLaunchHint:
 		frame = m.launchHint.view(m)
 	case modeSettings:
 		frame = m.viewSettings()
 	case modeFork:
-		frame = m.fork.view(m)
+		frame = m.viewFork()
 	case modeMove:
-		frame = m.move.view(m)
+		frame = m.viewMove()
 	case modeRepoPick:
 		frame = m.viewRepoPick()
 	case modeGroupForm:

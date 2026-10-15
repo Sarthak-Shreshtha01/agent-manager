@@ -232,8 +232,8 @@ func (m *Model) applyRenameEffect(job *effectJob, result renameEffectResult, err
 	}
 	if err != nil {
 		m.reportErr(err.Error())
-	} else if m.mode == modeRename && m.gens.dialog == request.gen && strings.ReplaceAll(strings.TrimSpace(m.rename.input.Value()), "/", "-") == request.name &&
-		(request.kind != renameGroup || m.rename.dir.Value() == request.draftDir) {
+	} else if m.mode == modeRename && m.gens.dialog == request.gen && m.rename.Name() == request.name &&
+		(request.kind != renameGroup || m.rename.Dir() == request.draftDir) {
 		// Only the dialog that submitted this job closes; a reopened or
 		// resubmitted card keeps its edits.
 		m.mode = modeList
@@ -328,4 +328,64 @@ func (s effectServices) relabelSessions(sessions []store.Session) error {
 		}
 	}
 	return first
+}
+
+// renameGroupLocally rewrites the in-memory tree right away, so the
+// frames between saving and the poller's next refresh already show the
+// new name and path instead of flashing the stale ones.
+func (m *Model) renameGroupLocally(old, newPath, dir, worktree, base string) {
+	m.renameGroupInventory(old, newPath)
+	m.workspace.groupPaths[newPath] = dir
+	m.workspace.groupWorktrees = setGroupChoice(m.workspace.groupWorktrees, newPath, worktree)
+	m.workspace.groupBases = setGroupChoice(m.workspace.groupBases, newPath, base)
+	m.applyRailStateDecision(m.rail.RenameGroup(old, newPath))
+}
+
+// renameGroupInventory moves the in-memory groups and sessions under a
+// renamed path; metadata maps are mirrored by the caller, which decides
+// which stages committed.
+func (m *Model) renameGroupInventory(old, newPath string) {
+	moved := func(group string) (string, bool) {
+		if group == old || strings.HasPrefix(group, old+"/") {
+			return newPath + group[len(old):], true
+		}
+		return group, false
+	}
+	for i := range m.workspace.groups {
+		m.workspace.groups[i], _ = moved(m.workspace.groups[i])
+	}
+	for i := range m.workspace.sessions {
+		m.workspace.sessions[i].Group, _ = moved(m.workspace.sessions[i].Group)
+	}
+	groupPaths := make(map[string]string, len(m.workspace.groupPaths))
+	for group, path := range m.workspace.groupPaths {
+		group, _ = moved(group)
+		groupPaths[group] = path
+	}
+	m.workspace.groupPaths = groupPaths
+	m.workspace.groupWorktrees = movedChoices(m.workspace.groupWorktrees, moved)
+	m.workspace.groupBases = movedChoices(m.workspace.groupBases, moved)
+}
+
+// movedChoices rekeys a per-group choice map for a renamed subtree.
+func movedChoices(choices map[string]string, moved func(string) (string, bool)) map[string]string {
+	out := make(map[string]string, len(choices))
+	for group, choice := range choices {
+		group, _ = moved(group)
+		out[group] = choice
+	}
+	return out
+}
+
+// setGroupChoice records a group's own choice, "" dropping it to inherit.
+func setGroupChoice(choices map[string]string, group, value string) map[string]string {
+	if choices == nil {
+		choices = map[string]string{}
+	}
+	if value == "" {
+		delete(choices, group)
+	} else {
+		choices[group] = value
+	}
+	return choices
 }

@@ -31,7 +31,7 @@ func submitForkDialog(t *testing.T, m *Model, name string) (*Model, tea.Cmd) {
 	if m.mode != modeFork {
 		t.Fatalf("fork dialog did not open: err=%q", m.errBar.text)
 	}
-	m.fork.name.SetValue(name)
+	m.fork.SetName(name)
 	updated, cmd := m.handleForkKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(*Model)
 	return m, cmd
@@ -264,7 +264,7 @@ func TestForkQuitDrainsAcceptedJobAndRefusesLate(t *testing.T) {
 	m2.rebuildRows()
 	m2.selectSessionRow(t, "late")
 	m2.openFork()
-	m2.fork.name.SetValue("late fork")
+	m2.fork.SetName("late fork")
 	_, lateCommand := m2.handleForkKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m2.StopEffects()
 	msg := lateCommand().(effectCompletedMsg)
@@ -448,11 +448,11 @@ func TestForkCompletionAfterSameSourceReopenKeepsNewerDialog(t *testing.T) {
 	m.selectSessionRow(t, "source")
 
 	m, firstCmd := submitForkDialog(t, m, "first fork")
-	firstGen := m.fork.gen
+	firstGen := m.fork.Gen()
 	m.handleForkKey(tea.KeyMsg{Type: tea.KeyEsc})
 	m.selectSessionRow(t, "source")
 	m.openFork()
-	if m.fork.gen == firstGen {
+	if m.fork.Gen() == firstGen {
 		t.Fatal("reopen did not mint a new dialog generation")
 	}
 	if m.fork.source.ID != source.ID {
@@ -460,8 +460,8 @@ func TestForkCompletionAfterSameSourceReopenKeepsNewerDialog(t *testing.T) {
 	}
 
 	m.applyCmd(t, firstCmd)
-	if m.mode != modeFork || m.fork.gen == firstGen {
-		t.Fatalf("completion closed the reopened dialog: mode=%v gen=%d", m.mode, m.fork.gen)
+	if m.mode != modeFork || m.fork.Gen() == firstGen {
+		t.Fatalf("completion closed the reopened dialog: mode=%v gen=%d", m.mode, m.fork.Gen())
 	}
 	if m.errBar.text != "" {
 		t.Fatalf("completion clobbered status text: %q", m.errBar.text)
@@ -516,7 +516,7 @@ func TestForkKeysRetryDoesNotForkSourceTwice(t *testing.T) {
 	}()
 
 	m.openFork()
-	m.fork.name.SetValue("child fork")
+	m.fork.SetName("child fork")
 	updated, cmd := m.handleForkKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(*Model)
 	m.applyCmd(t, cmd)
@@ -585,9 +585,9 @@ func TestForkCompletionClearsStatusFilter(t *testing.T) {
 
 func TestForkRepeatedSubmitKeepsOneAcceptedJob(t *testing.T) {
 	m := buildModel(t)
-	m.fork.gen = 1
-	m.queueFork(forkRequest{source: store.Session{ID: "source"}, name: "child", gen: m.fork.gen})
-	m.queueFork(forkRequest{source: store.Session{ID: "source"}, name: "child", gen: m.fork.gen})
+	m.fork.Open("source", "")
+	m.queueFork(forkRequest{source: store.Session{ID: "source"}, name: "child", gen: m.fork.Gen()})
+	m.queueFork(forkRequest{source: store.Session{ID: "source"}, name: "child", gen: m.fork.Gen()})
 	if len(m.effects.main.pending) != 1 {
 		t.Fatal("repeat submit accepted a second fork")
 	}

@@ -11,85 +11,12 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/store"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// handleRenameKey and applyRename drive the rename dialog with the root as
-// its host, the way the key dispatch does.
-func (m *Model) handleRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	return m, m.rename.handleKey(m, msg)
-}
-
+// applyRename submits the open rename the way enter does.
 func (m *Model) applyRename() (tea.Model, tea.Cmd) {
-	return m, m.rename.submit(m)
-}
-
-// fakeRenameHost stands in for the root's path apply, base stepper,
-// status bar and rename effect lane.
-type fakeRenameHost struct {
-	mode   mode
-	err    string
-	queued []renameRequest
-}
-
-func (h *fakeRenameHost) applyPathSuggestion() tea.Cmd { return nil }
-func (h *fakeRenameHost) stepRenameBase(current string, delta int) (string, tea.Cmd) {
-	return "main", nil
-}
-func (h *fakeRenameHost) setMode(next mode)     { h.mode = next }
-func (h *fakeRenameHost) reportErr(text string) { h.err = text }
-func (h *fakeRenameHost) queueRename(request renameRequest) tea.Cmd {
-	h.queued = append(h.queued, request)
-	return func() tea.Msg { return nil }
-}
-
-func TestRenameDialogWithFakeHost(t *testing.T) {
-	input := textinput.New()
-	input.SetValue("box")
-	input.Focus()
-	d := renameDialog{renameTarget{sessID: "s1", input: input, toolNames: []string{"claude", "zsh"}}}
-	h := &fakeRenameHost{mode: modeRename}
-
-	d.handleKey(h, tea.KeyMsg{Type: tea.KeyTab})
-	if d.tool() != "zsh" {
-		t.Fatalf("tab picked %q, want the next tool", d.tool())
-	}
-	d.input.SetValue(" a/b ")
-	if cmd := d.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter}); cmd == nil {
-		t.Fatal("enter queued nothing")
-	}
-	want := renameRequest{kind: renameSession, sessID: "s1", name: "a-b", tool: "zsh"}
-	if len(h.queued) != 1 || h.queued[0].kind != want.kind || h.queued[0].sessID != want.sessID || h.queued[0].name != want.name || h.queued[0].tool != want.tool {
-		t.Fatalf("queued = %+v, want %+v", h.queued, want)
-	}
-
-	group := renameDialog{renameTarget{isGroup: true, path: "work/old", input: input, dir: textinput.New()}}
-	group.input.SetValue("")
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if h.err != "name cannot be empty" || len(h.queued) != 1 {
-		t.Fatalf("err %q queued %d, want the empty name refused", h.err, len(h.queued))
-	}
-	group.input.SetValue("new")
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyDown})
-	read := group.handleKey(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
-	if group.focus != 1 || group.dir.Value() != "/" || read == nil || group.paths.generation == 0 {
-		t.Fatalf("focus %d dir %q, want typing in the path field to ask for completions", group.focus, group.dir.Value())
-	}
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyDown})
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyDown})
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyRight})
-	if group.focus != 3 || group.base != "main" {
-		t.Fatalf("focus %d base %q, want the base stepped through the host", group.focus, group.base)
-	}
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if len(h.queued) != 2 || h.queued[1].newGroup != "work/new" || h.queued[1].rawDir != "/" || h.queued[1].base != "main" {
-		t.Fatalf("queued = %+v, want the group renamed within its parent", h.queued)
-	}
-	group.handleKey(h, tea.KeyMsg{Type: tea.KeyEsc})
-	if h.mode != modeList {
-		t.Fatalf("esc left mode %v", h.mode)
-	}
+	return m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 }
 
 type refusingWorktreeBranchStore struct {
@@ -123,10 +50,10 @@ func TestRenameGroupCascades(t *testing.T) {
 	m.rail.SetCollapsed("old", true)
 	m.rebuildRows()
 	m.openRename()
-	if !m.rename.isGroup || m.rename.path != "old" {
+	if !m.rename.IsGroup() || m.rename.Path() != "old" {
 		t.Fatalf("rename target wrong: %+v", m.rename)
 	}
-	m.rename.input.SetValue("fresh")
+	m.rename.SetName("fresh")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 
@@ -160,7 +87,7 @@ func TestRenameSession(t *testing.T) {
 		t.Fatalf("set agent id: %v", err)
 	}
 	m.openRename()
-	m.rename.input.SetValue("after")
+	m.rename.SetName("after")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 	got := m.sessionRows()[0]
@@ -186,7 +113,7 @@ func TestRenameSessionKeepsItsWorktreeDirectory(t *testing.T) {
 
 	m.selectSessionRow(t, "claude-7a72")
 	m.openRename()
-	m.rename.input.SetValue("release the version")
+	m.rename.SetName("release the version")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 	if m.errBar.text != "" {
@@ -237,7 +164,7 @@ func TestRenameSessionRefusesSharedWorktree(t *testing.T) {
 
 	m.selectSessionRow(t, "owner")
 	m.openRename()
-	m.rename.input.SetValue("renamed")
+	m.rename.SetName("renamed")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 
@@ -260,7 +187,7 @@ func TestRenameSessionRefusesAWorktreeNameAlreadyTaken(t *testing.T) {
 
 	m.selectSessionRow(t, "mover")
 	m.openRename()
-	m.rename.input.SetValue("taken")
+	m.rename.SetName("taken")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 
@@ -426,7 +353,7 @@ func TestRenameDirtyWorktreeThenDeleteKeepsDirectory(t *testing.T) {
 
 	m.selectSessionRow(t, "claude-7a72")
 	m.openRename()
-	m.rename.input.SetValue("dirty after")
+	m.rename.SetName("dirty after")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 	if m.errBar.text != "" {
@@ -452,7 +379,7 @@ func TestRenameThenSharedSessionKeepsSpawnPath(t *testing.T) {
 
 	m.selectSessionRow(t, "claude-7a72")
 	m.openRename()
-	m.rename.input.SetValue("shared source")
+	m.rename.SetName("shared source")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 	if m.errBar.text != "" {
@@ -480,7 +407,7 @@ func TestRenameThenSharedSessionKeepsSpawnPath(t *testing.T) {
 
 	m.selectSessionRow(t, "shared source")
 	m.openRename()
-	m.rename.input.SetValue("should fail")
+	m.rename.SetName("should fail")
 	_, retryCmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, retryCmd)
 	if !strings.Contains(m.errBar.text, "shared with session \"child fork\"") {
@@ -505,7 +432,7 @@ func TestRenameThenDeleteRemovesTheSpawnWorktree(t *testing.T) {
 
 	m.selectSessionRow(t, "claude-7a72")
 	m.openRename()
-	m.rename.input.SetValue("release the version")
+	m.rename.SetName("release the version")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 	if m.errBar.text != "" {
@@ -532,7 +459,7 @@ func TestRenameSessionWithoutAWorktreeIsUnchanged(t *testing.T) {
 	spawned := m.sessionRows()[0]
 
 	m.openRename()
-	m.rename.input.SetValue("still-plain")
+	m.rename.SetName("still-plain")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
 
@@ -557,16 +484,16 @@ func TestRenameSessionChangesTool(t *testing.T) {
 		t.Fatalf("set agent id: %v", err)
 	}
 	m.openRename()
-	if m.rename.tool() != "claude" {
-		t.Fatalf("rename tool start = %q want claude", m.rename.tool())
+	if m.rename.Tool() != "claude" {
+		t.Fatalf("rename tool start = %q want claude", m.rename.Tool())
 	}
-	if len(m.rename.toolNames) < 2 {
-		t.Fatalf("need at least 2 tools to cycle, got %v", m.rename.toolNames)
+	if len(m.rename.Tools()) < 2 {
+		t.Fatalf("need at least 2 tools to cycle, got %v", m.rename.Tools())
 	}
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyTab})
-	wantTool := m.rename.toolNames[1]
-	if m.rename.tool() != wantTool {
-		t.Fatalf("after tab tool = %q want %q", m.rename.tool(), wantTool)
+	wantTool := m.rename.Tools()[1]
+	if m.rename.Tool() != wantTool {
+		t.Fatalf("after tab tool = %q want %q", m.rename.Tool(), wantTool)
 	}
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
@@ -601,14 +528,14 @@ func TestEditGroupRenamesAndSetsPath(t *testing.T) {
 	}
 
 	m.openRename()
-	if m.mode != modeRename || !m.rename.isGroup {
+	if m.mode != modeRename || !m.rename.IsGroup() {
 		t.Fatalf("edit group should open, mode = %v", m.mode)
 	}
-	if m.rename.dir.Value() != oldDir {
-		t.Fatalf("path prefill = %q want %q", m.rename.dir.Value(), oldDir)
+	if m.rename.Dir() != oldDir {
+		t.Fatalf("path prefill = %q want %q", m.rename.Dir(), oldDir)
 	}
-	m.rename.input.SetValue("platform")
-	m.rename.dir.SetValue(newDir)
+	m.rename.SetName("platform")
+	m.rename.SetDir(newDir)
 	if _, _ = m.applyRename(); m.errBar.text != "" {
 		t.Fatalf("apply: %q", m.errBar.text)
 	}
@@ -634,7 +561,7 @@ func TestEditGroupRejectsMissingPath(t *testing.T) {
 		}
 	}
 	m.openRename()
-	m.rename.dir.SetValue("/nope/definitely/missing")
+	m.rename.SetDir("/nope/definitely/missing")
 	_, cmd := m.applyRename()
 	m.applyCmd(t, cmd)
 	if m.errBar.text == "" {
@@ -668,10 +595,10 @@ func TestGroupPathNeverEmpty(t *testing.T) {
 		}
 	}
 	m.openRename()
-	if m.rename.dir.Value() == "" {
+	if m.rename.Dir() == "" {
 		t.Fatal("edit modal should prefill the path")
 	}
-	m.rename.dir.SetValue("")
+	m.rename.SetDir("")
 	if _, _ = m.applyRename(); m.errBar.text != "" {
 		t.Fatalf("apply: %q", m.errBar.text)
 	}
@@ -693,11 +620,12 @@ func TestRenameAgentToShellWithChildrenRefused(t *testing.T) {
 	spawnTerminal(t, m)
 	m.selectSessionRow(t, "coder")
 	m.openRename()
-	m.rename.input.SetValue("renamed")
-	for i, name := range m.rename.toolNames {
-		if name == "terminal" {
-			m.rename.toolIndex = i
+	m.rename.SetName("renamed")
+	for range m.rename.Tools() {
+		if m.rename.Tool() == "terminal" {
+			break
 		}
+		m.handleRenameKey(tea.KeyMsg{Type: tea.KeyTab})
 	}
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
@@ -723,8 +651,8 @@ func TestGroupEditPersistsWorktreeChoice(t *testing.T) {
 	m.openRename()
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyDown})
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.rename.focus != 2 {
-		t.Fatalf("focus should reach the worktree field, got %d", m.rename.focus)
+	if m.rename.Focus() != 2 {
+		t.Fatalf("focus should reach the worktree field, got %d", m.rename.Focus())
 	}
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
@@ -755,8 +683,8 @@ func TestGroupEditPersistsBase(t *testing.T) {
 	for range 3 {
 		m.handleRenameKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	if m.rename.focus != 3 {
-		t.Fatalf("focus should reach the base field, got %d", m.rename.focus)
+	if m.rename.Focus() != 3 {
+		t.Fatalf("focus should reach the base field, got %d", m.rename.Focus())
 	}
 	_, step := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.applyTestMsg(t, step())
@@ -806,7 +734,7 @@ func TestGroupedSessionRenameEditorIsVisible(t *testing.T) {
 	createSession(t, m, "before", t.TempDir(), "work/inner")
 	m.selectSessionRow(t, "before")
 	m.openRename()
-	m.rename.input.SetValue("edited-name")
+	m.rename.SetName("edited-name")
 	if frame := preparedView(m); !strings.Contains(frame, "edited-name") {
 		t.Fatalf("grouped session editor is absent from frame:\n%s", frame)
 	}

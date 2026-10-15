@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -28,11 +29,11 @@ func TestRenameDefersGroupPersistence(t *testing.T) {
 		}
 	}
 	m.openRename()
-	if !m.rename.isGroup || m.rename.path != "old" {
+	if !m.rename.IsGroup() || m.rename.Path() != "old" {
 		t.Fatalf("rename target wrong: %+v", m.rename)
 	}
-	m.rename.input.SetValue("fresh")
-	m.rename.dir.SetValue(dir)
+	m.rename.SetName("fresh")
+	m.rename.SetDir(dir)
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatal("group rename dispatch returned no command")
@@ -64,7 +65,7 @@ func TestRenameDefersSessionPersistence(t *testing.T) {
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
 	m.openRename()
-	m.rename.input.SetValue("after")
+	m.rename.SetName("after")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatal("session rename dispatch returned no command")
@@ -89,11 +90,12 @@ func TestRenameShellChildCheckRunsInWorker(t *testing.T) {
 	spawnTerminal(t, m)
 	m.selectSessionRow(t, "coder")
 	m.openRename()
-	m.rename.input.SetValue("renamed")
-	for index, name := range m.rename.toolNames {
-		if name == "terminal" {
-			m.rename.toolIndex = index
+	m.rename.SetName("renamed")
+	for range m.rename.Tools() {
+		if m.rename.Tool() == "terminal" {
+			break
 		}
+		m.handleRenameKey(tea.KeyMsg{Type: tea.KeyTab})
 	}
 	_, cmd := m.applyRename()
 	if cmd == nil {
@@ -106,7 +108,7 @@ func TestRenameShellChildCheckRunsInWorker(t *testing.T) {
 	if m.errBar.text != "move its terminals first" {
 		t.Fatalf("worker child precondition = %q", m.errBar.text)
 	}
-	stored, err := m.services.store.Get(m.rename.sessID)
+	stored, err := m.services.store.Get(m.rename.SessionID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,8 +125,8 @@ func TestRenameGroupDirectoryCheckRunsBeforeMutation(t *testing.T) {
 	m.applyCmd(t, m.refreshCmd())
 	m.selectGroupRow(t, "old")
 	m.openRename()
-	m.rename.input.SetValue("new")
-	m.rename.dir.SetValue("/definitely/missing/agent-manager")
+	m.rename.SetName("new")
+	m.rename.SetDir("/definitely/missing/agent-manager")
 	_, cmd := m.applyRename()
 	groups, _ := m.services.store.Groups()
 	if len(groups) != 1 || groups[0].Name != "old" {
@@ -145,7 +147,7 @@ func TestRenameKeepsCapturedRowIdentity(t *testing.T) {
 	createSession(t, m, "captured", t.TempDir(), "")
 	m.selectSessionRow(t, "captured")
 	m.openRename()
-	m.rename.input.SetValue("saved")
+	m.rename.SetName("saved")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	for i := range m.workspace.sessions {
 		m.workspace.sessions[i].Name = "mutated"
@@ -163,9 +165,9 @@ func TestRenameChainedWhileQueuedActsOnThePreviousResult(t *testing.T) {
 
 	m.selectSessionRow(t, "alpha")
 	m.openRename()
-	m.rename.input.SetValue("beta")
+	m.rename.SetName("beta")
 	_, first := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
-	m.rename.input.SetValue("gamma")
+	m.rename.SetName("gamma")
 	m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, first)
 	if m.errBar.text != "" {
@@ -193,9 +195,9 @@ func TestRenameFollowsARelaunchButRefusesAReplacedRow(t *testing.T) {
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
 	m.openRename()
-	m.rename.input.SetValue("after")
+	m.rename.SetName("after")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
-	id := m.rename.sessID
+	id := m.rename.SessionID()
 	if err := m.services.store.SetAgentLaunchedAt(id, time.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +207,7 @@ func TestRenameFollowsARelaunchButRefusesAReplacedRow(t *testing.T) {
 	}
 	m.selectSessionRow(t, "after")
 	m.openRename()
-	m.rename.input.SetValue("replaced")
+	m.rename.SetName("replaced")
 	_, cmd = m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if err := m.services.store.SetTmuxSocket(id, "elsewhere"); err != nil {
 		t.Fatal(err)
@@ -239,7 +241,7 @@ func TestRenameGroupPartialFailureReconcilesCommittedStages(t *testing.T) {
 	job := &effectJob{request: request}
 	m.mode = modeRename
 	m.gens.dialog = 7
-	m.rename.renameTarget = renameTarget{isGroup: true, path: "old"}
+	m.rename.Rename = uidialogs.RenameGroup("old", "", 0)
 	m.applyRenameEffect(job, renameEffectResult{groupRenamed: true}, errRenameStageTwo)
 
 	groups, _ := m.services.store.Groups()
@@ -283,20 +285,20 @@ func TestRenameCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 
 	m.selectGroupRow(t, "one")
 	m.openRename()
-	m.rename.input.SetValue("one-renamed")
+	m.rename.SetName("one-renamed")
 	_, cmd1 := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd1 == nil {
 		t.Fatal("first rename dispatch returned no command")
 	}
 	m.selectGroupRow(t, "two")
 	m.openRename()
-	m.rename.input.SetValue("two-renamed")
+	m.rename.SetName("two-renamed")
 	_, _ = m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 
 	updated, _ := m.Update(cmd1())
 	*m = *updated.(*Model)
-	if m.mode != modeRename || m.rename.path != "two" {
-		t.Fatalf("older completion replaced the newer dialog: mode=%v path=%q", m.mode, m.rename.path)
+	if m.mode != modeRename || m.rename.Path() != "two" {
+		t.Fatalf("older completion replaced the newer dialog: mode=%v path=%q", m.mode, m.rename.Path())
 	}
 	m.drainEffects(t)
 	groups, _ := m.services.store.Groups()
@@ -317,7 +319,7 @@ func TestRenameCommandExecutesOnceAndCompletionIsIdempotent(t *testing.T) {
 	createSession(t, m, "once", t.TempDir(), "")
 	m.selectSessionRow(t, "once")
 	m.openRename()
-	m.rename.input.SetValue("twice")
+	m.rename.SetName("twice")
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	first := cmd()
 	second := cmd()
@@ -359,8 +361,8 @@ func TestQuitDrainsRenameEffects(t *testing.T) {
 		}
 	}
 	m.openRename()
-	m.rename.input.SetValue("fresh")
-	m.rename.dir.SetValue(dir)
+	m.rename.SetName("fresh")
+	m.rename.SetDir(dir)
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatal("group rename dispatch returned no command")
@@ -395,7 +397,7 @@ func TestMoveSessionDefersPlacement(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("move dispatch returned no command")
 	}
-	got, err := m.services.store.Get(m.move.id)
+	got, err := m.services.store.Get(m.move.SessionID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -406,7 +408,7 @@ func TestMoveSessionDefersPlacement(t *testing.T) {
 		t.Fatalf("dialog should stay open until completion, mode=%v", m.mode)
 	}
 	m.applyCmd(t, cmd)
-	got, _ = m.services.store.Get(m.move.id)
+	got, _ = m.services.store.Get(m.move.SessionID())
 	if got.Group != "target" {
 		t.Fatalf("move not committed on completion: %+v", got)
 	}
@@ -429,11 +431,11 @@ func TestMoveWorkerRejectsChangedSourcePrecondition(t *testing.T) {
 	m.openMove()
 	pickGroup(t, m, "target")
 	_, cmd := m.handleMoveKey(tea.KeyMsg{Type: tea.KeyEnter})
-	if err := m.services.store.PlaceSession(m.move.id, "concurrent", ""); err != nil {
+	if err := m.services.store.PlaceSession(m.move.SessionID(), "concurrent", ""); err != nil {
 		t.Fatal(err)
 	}
 	m.applyCmd(t, cmd)
-	stored, err := m.services.store.Get(m.move.id)
+	stored, err := m.services.store.Get(m.move.SessionID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -514,7 +516,7 @@ func TestMoveCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 		t.Fatalf("newer dialog selection changed: %+v", m.form.groups)
 	}
 	m.drainEffects(t)
-	got, err := m.services.store.Get(m.move.id)
+	got, err := m.services.store.Get(m.move.SessionID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,14 +535,14 @@ func TestRenameCompletionDoesNotCloseResubmittedDialog(t *testing.T) {
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
 	m.openRename()
-	m.rename.input.SetValue("after")
+	m.rename.SetName("after")
 	_, cmd1 := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd1 == nil {
 		t.Fatal("first dispatch returned no command")
 	}
 	// Same dialog, same name; resubmit without reopening (e.g. after
 	// cycling the tool). gens.dialog advanced, so cmd1's completion is stale.
-	m.rename.cycleTool(1)
+	_, _ = m.handleRenameKey(tea.KeyMsg{Type: tea.KeyTab})
 	_, _ = m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if len(m.effects.main.pending) == 0 {
 		t.Fatal("resubmit did not enqueue a job")
@@ -569,7 +571,7 @@ func TestRenameCompletionDoesNotCloseReopenedSameTargetDialog(t *testing.T) {
 
 	m.selectGroupRow(t, "one")
 	m.openRename()
-	m.rename.input.SetValue("renamed")
+	m.rename.SetName("renamed")
 	_, cmd1 := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd1 == nil {
 		t.Fatal("first dispatch returned no command")
@@ -580,18 +582,18 @@ func TestRenameCompletionDoesNotCloseReopenedSameTargetDialog(t *testing.T) {
 	m.mode = modeList
 	m.selectGroupRow(t, "one")
 	m.openRename()
-	if m.rename.path != "one" {
-		t.Fatalf("reopened wrong target: %q", m.rename.path)
+	if m.rename.Path() != "one" {
+		t.Fatalf("reopened wrong target: %q", m.rename.Path())
 	}
-	m.rename.input.SetValue("renamed-again")
+	m.rename.SetName("renamed-again")
 
 	updated, _ := m.Update(cmd1())
 	*m = *updated.(*Model)
 	if m.mode != modeRename {
 		t.Fatalf("older completion closed the reopened dialog, mode=%v", m.mode)
 	}
-	if m.rename.input.Value() != "renamed-again" {
-		t.Fatalf("older completion clobbered the reopened input: %q", m.rename.input.Value())
+	if m.rename.Name() != "renamed-again" {
+		t.Fatalf("older completion clobbered the reopened input: %q", m.rename.Name())
 	}
 	_, _ = m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
@@ -615,8 +617,8 @@ func TestRenameCompletionFencesStalePolls(t *testing.T) {
 		}
 	}
 	m.openRename()
-	m.rename.input.SetValue("fresh")
-	m.rename.dir.SetValue(dir)
+	m.rename.SetName("fresh")
+	m.rename.SetDir(dir)
 	_, cmd := m.handleRenameKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatal("group rename dispatch returned no command")
