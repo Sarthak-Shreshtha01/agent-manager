@@ -60,6 +60,32 @@ func resolved(t *testing.T, dir string) string {
 	return real
 }
 
+// samePath reports whether two paths name one directory. On Windows a
+// pane reports its directory as given until PowerShell has started and
+// in the expanded form after (C:\Users\RUNNER~1 becomes runneradmin), so
+// a check that races the shell's start compares what the paths resolve to.
+func samePath(got, want string) bool {
+	if got == want {
+		return true
+	}
+	a, errA := filepath.EvalSymlinks(got)
+	b, errB := filepath.EvalSymlinks(want)
+	return errA == nil && errB == nil && a == b
+}
+
+// samePaths is samePath over a launched command line.
+func samePaths(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if !samePath(got[i], want[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func terminalSession(t *testing.T, m *Model) store.Session {
 	t.Helper()
 	for _, sess := range m.workspace.sessions {
@@ -147,7 +173,7 @@ func TestOpenTerminalOnSessionRowUsesItsDirectory(t *testing.T) {
 	m.selectSessionRow(t, "agent")
 
 	sess := spawnTerminal(t, m)
-	if want := resolved(t, sessionDir); sess.Cwd != want {
+	if want := resolved(t, sessionDir); !samePath(sess.Cwd, want) {
 		t.Fatalf("terminal cwd = %q, want the session's %q", sess.Cwd, want)
 	}
 	if sess.Group != "backend" {
