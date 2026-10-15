@@ -107,6 +107,11 @@ func classifyDelivery(result tmux.SendResult, sendErr error) store.DeliveryOutco
 	if sendErr == nil {
 		return store.DeliveryConfirmed
 	}
+	// The composer still holding the paste after every Enter shows it was
+	// never submitted, so the agent cannot have read it.
+	if errors.Is(sendErr, tmux.ErrUnsubmitted) {
+		return store.DeliveryRefused
+	}
 	if result.PasteMayHaveStarted() {
 		return store.DeliveryUncertain
 	}

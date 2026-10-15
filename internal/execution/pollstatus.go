@@ -8,9 +8,8 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 
-	"hash/fnv"
-
 	"github.com/charmbracelet/x/ansi"
+	"hash/fnv"
 )
 
 // derivePaneStatus turns one captured pane into a session status. The
