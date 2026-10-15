@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/systheme"
+	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 )
 
 // storedTheme reads the persisted theme name. A read failure falls back to
@@ -32,25 +33,13 @@ func resolveStartupTheme(st *store.Store) string {
 	return autoThemeName(stored, systheme.Detect())
 }
 
-// autoThemeName keeps the stored theme whenever it already sits on the
-// detected side, and otherwise prefers its counterpart, so auto-detect
-// corrects polarity without discarding the family the user picked.
+// autoThemeName resolves auto-detect against the detected scheme; an
+// undetectable scheme keeps the stored choice.
 func autoThemeName(stored string, scheme systheme.Scheme) string {
 	if scheme == systheme.SchemeUnknown {
 		return stored
 	}
-	wantLight := scheme == systheme.SchemeLight
-	theme := themes[themeIndex(stored)]
-	if theme.lightBackdrop() == wantLight {
-		return stored
-	}
-	if theme.Counterpart != "" {
-		return theme.Counterpart
-	}
-	if wantLight {
-		return "solarized light"
-	}
-	return "classic"
+	return uitheme.AutoName(stored, scheme == systheme.SchemeLight)
 }
 
 type preferences struct {

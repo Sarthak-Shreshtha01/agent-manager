@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -39,7 +40,7 @@ func TestKeySavePersistsCapturedTablesNotLaterEdits(t *testing.T) {
 	if m.effects.main.active == nil {
 		t.Fatal("the save should be accepted before a later edit")
 	}
-	m.settings.dialog.keyCursor = 1 // review
+	m.settings.dialog.KeyCursor = 1 // review
 	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
 	m.pressInPicker(t, runeKey("t")) // ctrl+t, while the save is pending
 	m.applyCmd(t, cmd)
@@ -60,10 +61,10 @@ func TestKeySavePersistsCapturedTablesNotLaterEdits(t *testing.T) {
 
 func TestKeySavePartialFailureCommitsListOnly(t *testing.T) {
 	m := keyPickerModel(t)
-	m.settings.dialog.keyCursor = listRow(t, m, keybind.NewSession)
+	m.settings.dialog.KeyCursor = listRow(t, m, keybind.NewSession)
 	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
 	m.pressInPicker(t, runeKey("N"))
-	m.settings.dialog.keyCursor = 0
+	m.settings.dialog.KeyCursor = 0
 	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
 	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyF9})
 	original := m.services.store.SetKeys
@@ -94,12 +95,12 @@ func TestKeySavePartialFailureCommitsListOnly(t *testing.T) {
 	if m.errBar.text == "" {
 		t.Fatal("the failed write should report its reason")
 	}
-	if got := m.settings.dialog.tables[0].Binding(keybind.Detach).Label(); got != "f9" {
+	if got := m.settings.dialog.Tables[0].Binding(keybind.Detach).Label(); got != "f9" {
 		t.Fatalf("the picker should keep the uncommitted table: %q", got)
 	}
-	m.settings.dialog.field = settingsFieldKeybindings
+	m.settings.dialog.Field = uisettings.FieldKeybindings
 	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
-	if !m.settings.dialog.keyPicker {
+	if !m.settings.dialog.KeyPicker {
 		t.Fatalf("reopening the picker failed: %q", m.errBar.text)
 	}
 	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
@@ -185,10 +186,10 @@ func TestKeySaveCapturesTheInstanceWriter(t *testing.T) {
 func TestKeySaveCanRestoreOriginalBindingBehindPendingSave(t *testing.T) {
 	m := keyPickerModel(t)
 	original := m.services.keys
-	m.settings.dialog.tables[0] = original.With(keybind.Detach, bindingOf(t, "f9"))
-	m.settings.saveKeys(m)
-	m.settings.dialog.tables[0] = original
-	m.settings.saveKeys(m)
+	m.settings.dialog.Tables[0] = original.With(keybind.Detach, bindingOf(t, "f9"))
+	m.saveSettingsKeys()
+	m.settings.dialog.Tables[0] = original
+	m.saveSettingsKeys()
 	m.drainEffects(t)
 	if !m.services.keys.Equal(original) {
 		t.Fatal("pending save overwrote the user's later return to the original binding")

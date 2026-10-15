@@ -41,7 +41,7 @@ func TestPureReviewDataRejectsConcreteGit(t *testing.T) {
 }
 
 func TestFeaturePackageGraphs(t *testing.T) {
-	for _, feature := range []boundary{reviewBoundary, focusBoundary, railBoundary} {
+	for _, feature := range []boundary{reviewBoundary, focusBoundary, railBoundary, settingsBoundary} {
 		t.Run(feature.name, func(t *testing.T) {
 			if err := checkBoundary(feature); err != nil {
 				t.Fatal(err)
@@ -51,7 +51,7 @@ func TestFeaturePackageGraphs(t *testing.T) {
 }
 
 func TestFeaturePackagesRejectRuntimeTransitively(t *testing.T) {
-	for _, feature := range []boundary{reviewBoundary, focusBoundary, railBoundary} {
+	for _, feature := range []boundary{reviewBoundary, focusBoundary, railBoundary, settingsBoundary} {
 		t.Run(feature.name, func(t *testing.T) {
 			for _, path := range []string{"/internal/ui", "/internal/git", "/internal/store", "/internal/tmux", "/internal/execution", "/internal/app", "/internal/status"} {
 				if err := checkBoundaryDependencies(feature, []string{module + feature.path, module + path}); err == nil {
@@ -65,5 +65,14 @@ func TestFeaturePackagesRejectRuntimeTransitively(t *testing.T) {
 func TestPresentationDependsOnNothingInTheModule(t *testing.T) {
 	if err := checkBoundary(presentBoundary); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestThemeDependsOnNothingInTheModule(t *testing.T) {
+	if err := checkBoundary(themeBoundary); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkBoundaryDependencies(themeBoundary, []string{module + "/internal/ui/presentation"}); err == nil {
+		t.Fatal("the palette accepted a dependency")
 	}
 }

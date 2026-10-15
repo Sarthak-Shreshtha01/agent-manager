@@ -789,7 +789,7 @@ func keepSetting(t *testing.T, m *Model, key, value string) {
 	if err := m.services.store.SetSetting(key, value); err != nil {
 		t.Fatal(err)
 	}
-	m.settings.cache.applyValues([]settingValue{{key: key, value: value}})
+	m.settings.cache.applyValues([]settingValue{{Key: key, Value: value}})
 }
 
 // fakeChoiceHost answers a choice, and the features built on one, without

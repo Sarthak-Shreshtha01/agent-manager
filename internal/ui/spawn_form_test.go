@@ -16,6 +16,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -286,7 +287,7 @@ func TestSettingsDefaultIgnoresLastSpawn(t *testing.T) {
 	submitFormSession(t, m, "first")
 
 	m.openSettings()
-	if got := m.settings.dialog.toolNames[m.settings.dialog.toolIndex]; got != "claude" {
+	if got := m.settings.dialog.ToolNames[m.settings.dialog.ToolIndex]; got != "claude" {
 		t.Fatalf("settings default tool = %q, want stored default", got)
 	}
 }
@@ -1438,7 +1439,7 @@ func TestSettingsFetchOnSpawnTurnsTheFetchOff(t *testing.T) {
 	cached := gitOutput(t, clone, "rev-parse", "origin/main")
 
 	m.openSettings()
-	for m.settings.dialog.field != settingsFieldBaseFetch {
+	for m.settings.dialog.Field != uisettings.FieldBaseFetch {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	if !strings.Contains(ansi.Strip(m.viewSettings()), "fetch on spawn") {

@@ -8,47 +8,24 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/launch"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/YoanWai/agent-manager/internal/update"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestDefaultToolFallsBackWhenSettingStale(t *testing.T) {
-	m := buildModel(t)
-	if err := m.services.store.SetDefaultTool("deleted-tool"); err != nil {
-		t.Fatalf("set setting: %v", err)
-	}
-	m.applyTestMsg(t, m.openForm()())
-	if got := m.form.toolNames[m.form.toolIndex]; got != "claude" {
-		t.Fatalf("form default tool = %q want claude (alphabetical fallback)", got)
-	}
-}
-
-func TestDefaultSplitLayout(t *testing.T) {
-	m := buildModel(t)
-	if !m.defaultSplitLayout() {
-		t.Fatal("split should be the default layout")
-	}
-	if err := m.services.store.SetSetting(diffLayoutSetting, "unified"); err != nil {
-		t.Fatal(err)
-	}
-	if m.defaultSplitLayout() {
-		t.Fatal("stored unified choice should opt out of split")
-	}
-}
-
 func TestSettingsTogglesQuickClose(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if m.settings.dialog.quickCloseSend {
+	if m.settings.dialog.QuickCloseSend {
 		t.Fatal("settings should open on stay-open by default")
 	}
-	for i := 0; i < settingsFieldQuickClose; i++ {
+	for i := 0; i < uisettings.FieldQuickClose; i++ {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	if m.settings.dialog.field != settingsFieldQuickClose {
-		t.Fatalf("stepping down should reach the quick send field, got %d", m.settings.dialog.field)
+	if m.settings.dialog.Field != uisettings.FieldQuickClose {
+		t.Fatalf("stepping down should reach the quick send field, got %d", m.settings.dialog.Field)
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
@@ -61,18 +38,18 @@ func TestSettingsTogglesQuickClose(t *testing.T) {
 func TestSettingsTogglesReviewLayout(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if !m.settings.dialog.layoutSplit {
+	if !m.settings.dialog.LayoutSplit {
 		t.Fatal("settings should open on split by default")
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.settings.dialog.field != settingsFieldTheme {
-		t.Fatalf("first down should focus theme field, got %d", m.settings.dialog.field)
+	if m.settings.dialog.Field != uisettings.FieldTheme {
+		t.Fatalf("first down should focus theme field, got %d", m.settings.dialog.Field)
 	}
-	for i := settingsFieldTheme; i < settingsFieldLayout; i++ {
+	for i := uisettings.FieldTheme; i < uisettings.FieldLayout; i++ {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	if m.settings.dialog.field != settingsFieldLayout {
-		t.Fatalf("stepping down should reach the layout field, got %d", m.settings.dialog.field)
+	if m.settings.dialog.Field != uisettings.FieldLayout {
+		t.Fatalf("stepping down should reach the layout field, got %d", m.settings.dialog.Field)
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyLeft})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
@@ -85,7 +62,7 @@ func TestSettingsTogglesReviewLayout(t *testing.T) {
 func TestSettingsWorktreeDefaultPersists(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	for m.settings.dialog.field != settingsFieldWorktree {
+	for m.settings.dialog.Field != uisettings.FieldWorktree {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
@@ -99,13 +76,13 @@ func TestSettingsWorktreeDefaultPersists(t *testing.T) {
 func TestSettingsCoordinationBriefsTheNextSpawn(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if m.settings.dialog.proactive {
+	if m.settings.dialog.Proactive {
 		t.Fatal("coordination should open on request by default")
 	}
 	if !strings.Contains(ansi.Strip(m.viewSettings()), "coordination") || !strings.Contains(ansi.Strip(m.viewSettings()), "on request") {
 		t.Fatalf("settings do not show the coordination row:\n%s", ansi.Strip(m.viewSettings()))
 	}
-	for m.settings.dialog.field != settingsFieldCoordination {
+	for m.settings.dialog.Field != uisettings.FieldCoordination {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
@@ -135,13 +112,13 @@ func TestSettingsCoordinationBriefsTheNextSpawn(t *testing.T) {
 func TestSettingsNotificationsPersist(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if !m.settings.dialog.notifications {
+	if !m.settings.dialog.Notifications {
 		t.Fatal("notifications should open on by default")
 	}
-	if m.settings.dialog.notifyFinished {
+	if m.settings.dialog.NotifyFinished {
 		t.Fatal("notify on finish should open off by default")
 	}
-	for m.settings.dialog.field != settingsFieldNotify {
+	for m.settings.dialog.Field != uisettings.FieldNotify {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
@@ -160,10 +137,10 @@ func TestSettingsNotificationsPersist(t *testing.T) {
 func TestSettingsMouseTogglePersists(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if m.settings.dialog.mouseDisabled {
+	if m.settings.dialog.MouseDisabled {
 		t.Fatal("mouse should open on by default")
 	}
-	for m.settings.dialog.field != settingsFieldMouse {
+	for m.settings.dialog.Field != uisettings.FieldMouse {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyLeft})
@@ -183,7 +160,7 @@ func TestSettingsMouseTogglePersists(t *testing.T) {
 func TestSettingsShowsVersion(t *testing.T) {
 	m := &Model{
 		update:   updateInfo{version: "v0.9.0"},
-		settings: settingsFeature{dialog: settingsState{toolNames: []string{"claude"}}},
+		settings: settingsFeature{dialog: settingsState{ToolNames: []string{"claude"}}},
 	}
 	out := m.viewSettings()
 	if !strings.Contains(out, "version") || !strings.Contains(out, "v0.9.0") {
@@ -192,18 +169,18 @@ func TestSettingsShowsVersion(t *testing.T) {
 	if strings.Contains(out, "update to") {
 		t.Errorf("no update action expected when up to date: %q", out)
 	}
-	m.settings.dialog.field = settingsFieldUpdate
+	m.settings.dialog.Field = uisettings.FieldUpdate
 	out = m.viewSettings()
 	if !strings.Contains(out, keyCap("↵/esc", "save")) {
 		t.Errorf("current version row should hint save, not update: %q", out)
 	}
-	m.settings.dialog.field = 0
+	m.settings.dialog.Field = 0
 	m.update.latest = "v0.9.1"
 	out = m.viewSettings()
 	if !strings.Contains(out, "v0.9.1") || !strings.Contains(out, "update to") {
 		t.Errorf("settings missing update action: %q", out)
 	}
-	m.settings.dialog.field = settingsFieldUpdate
+	m.settings.dialog.Field = uisettings.FieldUpdate
 	out = m.viewSettings()
 	if !strings.Contains(out, keyStyle.Render("↵")+mutedStyle.Render(" update to")) {
 		t.Errorf("focused update row should hint enter: %q", out)
@@ -222,7 +199,7 @@ func TestSettingsDocsRowOpensDocs(t *testing.T) {
 	}
 	t.Cleanup(func() { openBrowser = defaultOpenBrowser })
 
-	m.settings.dialog.field = settingsFieldDocs
+	m.settings.dialog.Field = uisettings.FieldDocs
 	_, cmd := m.handleSettingsKey(key("enter"))
 	m.applyCmd(t, cmd)
 	if opened != docsURL {
@@ -238,7 +215,7 @@ func TestSettingsDocsRowOpensDocs(t *testing.T) {
 	if !strings.Contains(frame, hintCap("↵", "open the docs")) {
 		t.Fatal("the docs shortcut should wear the footer badge")
 	}
-	_, cmd = m.handleSettingsClick(m.layout.cardLeft+4, m.layout.cardTop+2+settingsFieldDocs)
+	_, cmd = m.handleSettingsClick(m.layout.cardLeft+4, m.layout.cardTop+2+uisettings.FieldDocs)
 	m.applyCmd(t, cmd)
 	if opened != docsURL {
 		t.Fatalf("click should open the docs, got %q", opened)
@@ -260,7 +237,7 @@ func TestSettingsBugReportRowOpensIssue(t *testing.T) {
 	}
 	t.Cleanup(func() { openBrowser = defaultOpenBrowser })
 
-	m.settings.dialog.field = settingsFieldBugReport
+	m.settings.dialog.Field = uisettings.FieldBugReport
 	_, cmd := m.handleSettingsKey(key("enter"))
 	if opened != "" {
 		t.Fatal("browser started during Update")
@@ -294,7 +271,7 @@ func TestSettingsFeatureRequestRowOpensForm(t *testing.T) {
 	}
 	t.Cleanup(func() { openBrowser = defaultOpenBrowser })
 
-	m.settings.dialog.field = settingsFieldFeatureRequest
+	m.settings.dialog.Field = uisettings.FieldFeatureRequest
 	_, cmd := m.handleSettingsKey(key("enter"))
 	m.applyCmd(t, cmd)
 	if !strings.Contains(opened, "template=feature_request.yml") {
@@ -313,7 +290,7 @@ func TestSettingsBugReportRowIsHighlighted(t *testing.T) {
 	m.services.cfg = config.Config{Tools: map[string]config.Tool{"claude": {Command: "cat"}}}
 	m.openSettings()
 	// Keep focus off the CTA rows so the accent2 unfocused styling is what paints.
-	m.settings.dialog.field = settingsFieldTool
+	m.settings.dialog.Field = uisettings.FieldTool
 	card := ansi.Strip(m.viewSettings())
 	if !strings.Contains(card, "report a bug") {
 		t.Fatalf("settings should show the bug report row: %q", card)
@@ -341,9 +318,9 @@ func TestSettingsCLIPickerHidesFromNewSessions(t *testing.T) {
 		"grok":   {Command: "cat"},
 	}}
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldCLIs
+	m.settings.dialog.Field = uisettings.FieldCLIs
 	m.handleSettingsKey(key("enter"))
-	if !m.settings.dialog.cliPicker {
+	if !m.settings.dialog.CLIPicker {
 		t.Fatal("enter on CLIs should open the picker")
 	}
 	out := m.viewSettings()
@@ -357,14 +334,14 @@ func TestSettingsCLIPickerHidesFromNewSessions(t *testing.T) {
 	}
 
 	// Hide codex (index 1 in display order: claude, codex, grok).
-	m.settings.dialog.cliCursor = 1
+	m.settings.dialog.CLICursor = 1
 	m.handleSettingsKey(key(" "))
-	if !m.settings.dialog.cliHidden["codex"] {
+	if !m.settings.dialog.CLIHidden["codex"] {
 		t.Fatal("space should hide the focused CLI")
 	}
 	m.handleSettingsKey(key("esc"))
 	m.drainEffects(t)
-	if m.settings.dialog.cliPicker {
+	if m.settings.dialog.CLIPicker {
 		t.Fatal("esc should leave the picker")
 	}
 	hidden, err := m.services.store.HiddenTools()
@@ -396,16 +373,16 @@ func TestSettingsCLIPickerKeepsOneEnabled(t *testing.T) {
 		"codex":  {Command: "cat"},
 	}}
 	m.openSettings()
-	m.settings.openCLIPicker(m)
-	m.settings.dialog.cliCursor = 0
+	m.openSettingsCLIPicker(t)
+	m.settings.dialog.CLICursor = 0
 	m.handleSettingsKey(key("enter"))
-	if !m.settings.dialog.cliHidden["claude"] {
+	if !m.settings.dialog.CLIHidden["claude"] {
 		t.Fatal("first hide should succeed")
 	}
 	// Only codex left; refusing further hides.
-	m.settings.dialog.cliCursor = 1
+	m.settings.dialog.CLICursor = 1
 	m.handleSettingsKey(key("enter"))
-	if m.settings.dialog.cliHidden["codex"] {
+	if m.settings.dialog.CLIHidden["codex"] {
 		t.Fatal("must not hide the last enabled CLI")
 	}
 	if !strings.Contains(m.errBar.text, "at least one") {
@@ -424,8 +401,8 @@ func TestSettingsCLIRequestSupportOpensIssue(t *testing.T) {
 	t.Cleanup(func() { openBrowser = defaultOpenBrowser })
 
 	m.openSettings()
-	m.settings.openCLIPicker(m)
-	m.settings.dialog.cliCursor = len(m.settings.dialog.cliNames)
+	m.openSettingsCLIPicker(t)
+	m.settings.dialog.CLICursor = len(m.settings.dialog.CLINames)
 	_, cmd := m.handleSettingsKey(key("enter"))
 	if opened != "" {
 		t.Fatal("browser started during Update")
@@ -434,7 +411,7 @@ func TestSettingsCLIRequestSupportOpensIssue(t *testing.T) {
 	if !strings.Contains(opened, "issues/new") || !strings.Contains(opened, "enhancement") {
 		t.Fatalf("request row should open a feature-request issue, got %q", opened)
 	}
-	if !m.settings.dialog.cliPicker {
+	if !m.settings.dialog.CLIPicker {
 		t.Fatal("opening the issue must leave the picker open")
 	}
 }
@@ -448,8 +425,8 @@ func TestCLIPickerShowsSupportAction(t *testing.T) {
 	m.layout.width = 80
 	m.layout.height = 40
 	m.openSettings()
-	m.settings.openCLIPicker(m)
-	m.settings.dialog.cliCursor = len(m.settings.dialog.cliNames)
+	m.openSettingsCLIPicker(t)
+	m.settings.dialog.CLICursor = len(m.settings.dialog.CLINames)
 	out := m.viewSettings()
 	if !strings.Contains(out, "request CLI support") {
 		t.Fatalf("missing request action:\n%s", out)
@@ -465,7 +442,7 @@ func TestSettingsUpdateRowAppliesOnEnter(t *testing.T) {
 	m.update.version = "v0.2.0"
 	m.update.latest = "v0.3.0"
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldUpdate
+	m.settings.dialog.Field = uisettings.FieldUpdate
 
 	applied := ""
 	orig := applyUpdate
@@ -546,7 +523,7 @@ func TestSettingsUpdateRowIdleWhenCurrent(t *testing.T) {
 	m.services.cfg = config.Config{Tools: map[string]config.Tool{"claude": {Command: "cat"}}}
 	m.update.version = "v0.3.0"
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldUpdate
+	m.settings.dialog.Field = uisettings.FieldUpdate
 
 	orig := applyUpdate
 	defer func() { applyUpdate = orig }()
@@ -572,7 +549,7 @@ func TestSettingsUpdateRowApplyFailureSurfaces(t *testing.T) {
 	m.update.version = "v0.2.0"
 	m.update.latest = "v0.3.0"
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldUpdate
+	m.settings.dialog.Field = uisettings.FieldUpdate
 
 	orig := applyUpdate
 	defer func() { applyUpdate = orig }()
@@ -622,9 +599,9 @@ func TestSettingsUpdateRowPersistsStagedSettings(t *testing.T) {
 	m.update.version = "v0.2.0"
 	m.update.latest = "v0.3.0"
 	m.openSettings()
-	m.settings.dialog.themeIndex = (m.settings.dialog.themeIndex + 1) % len(themes)
-	staged := themes[m.settings.dialog.themeIndex].Name
-	m.settings.dialog.field = settingsFieldUpdate
+	m.settings.dialog.ThemeIndex = (m.settings.dialog.ThemeIndex + 1) % len(themes)
+	staged := themes[m.settings.dialog.ThemeIndex].Name
+	m.settings.dialog.Field = uisettings.FieldUpdate
 
 	orig := applyUpdate
 	defer func() { applyUpdate = orig }()
@@ -686,8 +663,8 @@ func TestSettingsSaveKeepsOtherWritersKeys(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := buildModel(t)
 			load := m.openSettings()
-			m.settings.dialog.field = settingsFieldWorktree
-			m.settings.cycleSetting(m, 1)
+			m.settings.dialog.Field = uisettings.FieldWorktree
+			m.cycleSetting(1)
 
 			theirs := otherWriterTheme(t)
 			if err := m.services.store.SetSetting(themeSetting, theirs); err != nil {
@@ -726,9 +703,9 @@ func TestSettingsEscWithoutChangesWritesNothing(t *testing.T) {
 
 	values, hidden, hiddenErr := settingsReadback(storeSettingWriter{st: m.services.store})
 	for _, value := range values {
-		raw, err := m.services.store.Setting(value.key)
+		raw, err := m.services.store.Setting(value.Key)
 		if err != nil || raw != "" {
-			t.Errorf("%s=%q err %v, want unwritten", value.key, raw, err)
+			t.Errorf("%s=%q err %v, want unwritten", value.Key, raw, err)
 		}
 	}
 	if hiddenErr != nil || hidden != "" {

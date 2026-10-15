@@ -5,6 +5,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -77,14 +78,14 @@ func TestSettingsTogglesListDensity(t *testing.T) {
 	}
 
 	m.openSettings()
-	if m.settings.dialog.comfortableRows {
+	if m.settings.dialog.ComfortableRows {
 		t.Fatal("settings should open on compact by default")
 	}
-	for i := 0; i < settingsFieldDensity; i++ {
+	for i := 0; i < uisettings.FieldDensity; i++ {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	if m.settings.dialog.field != settingsFieldDensity {
-		t.Fatalf("stepping down should reach the density field, got %d", m.settings.dialog.field)
+	if m.settings.dialog.Field != uisettings.FieldDensity {
+		t.Fatalf("stepping down should reach the density field, got %d", m.settings.dialog.Field)
 	}
 	if card := ansi.Strip(m.viewSettings()); !strings.Contains(card, "list density") {
 		t.Fatalf("settings card has no density row:\n%s", card)

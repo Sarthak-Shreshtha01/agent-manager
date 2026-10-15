@@ -16,6 +16,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -201,18 +202,18 @@ func TestCursorBlinks(t *testing.T) {
 func TestSettingsSwapsFocusKey(t *testing.T) {
 	m := buildModel(t)
 	m.openSettings()
-	if !m.settings.dialog.enterFocuses {
+	if !m.settings.dialog.EnterFocuses {
 		t.Fatal("settings should open with enter focusing")
 	}
 	card := ansi.Strip(m.viewSettings())
 	if !strings.Contains(card, "session keys") {
 		t.Fatalf("settings card has no session keys row:\n%s", card)
 	}
-	for i := 0; i < settingsFieldFocusKey; i++ {
+	for i := 0; i < uisettings.FieldFocusKey; i++ {
 		m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	if m.settings.dialog.field != settingsFieldFocusKey {
-		t.Fatalf("stepping down should reach the session keys field, got %d", m.settings.dialog.field)
+	if m.settings.dialog.Field != uisettings.FieldFocusKey {
+		t.Fatalf("stepping down should reach the session keys field, got %d", m.settings.dialog.Field)
 	}
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	if !strings.Contains(ansi.Strip(m.viewSettings()), "attach") {
@@ -243,8 +244,8 @@ func TestSwappedKeysRouteActions(t *testing.T) {
 
 	// Swap through the settings screen, the same path a user takes.
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldFocusKey
-	m.settings.cycleSetting(m, 1)
+	m.settings.dialog.Field = uisettings.FieldFocusKey
+	m.cycleSetting(1)
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
 	if chosen, err := m.services.store.Setting(focusKeySetting); err != nil || chosen != "attach" {
@@ -1235,8 +1236,8 @@ func TestArrowStepSettingDisablesThePair(t *testing.T) {
 	m.selectSessionRow(t, "optout")
 
 	m.openSettings()
-	m.settings.dialog.field = settingsFieldArrowStep
-	m.settings.cycleSetting(m, 1)
+	m.settings.dialog.Field = uisettings.FieldArrowStep
+	m.cycleSetting(1)
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
 	if chosen, err := m.services.store.Setting(arrowStepSetting); err != nil || chosen != "off" {

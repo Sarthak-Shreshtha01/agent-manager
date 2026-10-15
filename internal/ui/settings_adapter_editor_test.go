@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -14,53 +15,13 @@ func editorSettings(t *testing.T, m *Model, installed ...string) {
 	t.Helper()
 	captureEditor(t, installed...)
 	m.applyCmd(t, m.openSettings())
-	m.settings.dialog.field = settingsFieldEditor
+	m.settings.dialog.Field = uisettings.FieldEditor
 }
 
 func (m *Model) pressInSettings(t *testing.T, msg tea.KeyMsg) {
 	t.Helper()
 	updated, _ := m.handleKey(msg)
 	*m = *updated.(*Model)
-}
-
-func TestEditorRowStepsThroughAutoFoundAndCustom(t *testing.T) {
-	row := newEditorRow("")
-	if got := row.label(); got != "auto" {
-		t.Fatalf("before the probe answers the row reads %q, want auto", got)
-	}
-	row.applyProbe(editorsProbedMsg{found: []string{"code", "zed"}, auto: "code"})
-	for _, want := range []string{"auto · code", "code", "zed", "custom", "auto · code"} {
-		if got := row.label(); got != want {
-			t.Fatalf("label = %q, want %q", got, want)
-		}
-		row.cycle(1)
-	}
-	row.cycle(-1)
-	row.cycle(-1)
-	if got := row.label(); got != "custom" || row.line() != "" {
-		t.Fatalf("stepping back from auto should land on custom, got %q line %q", got, row.line())
-	}
-}
-
-func TestEditorRowPlacesTheStoredLine(t *testing.T) {
-	probe := editorsProbedMsg{found: []string{"code", "zed"}, auto: "code"}
-	for _, tc := range []struct{ stored, label string }{
-		{"zed", "zed"},
-		{"code -n", "custom · code -n"},
-		{"subl", "custom · subl"},
-	} {
-		row := newEditorRow(tc.stored)
-		if got := row.line(); got != tc.stored {
-			t.Fatalf("%s: line before the probe = %q", tc.stored, got)
-		}
-		row.applyProbe(probe)
-		if got := row.label(); got != tc.label {
-			t.Errorf("%s: label = %q, want %q", tc.stored, got, tc.label)
-		}
-		if got := row.line(); got != tc.stored {
-			t.Errorf("%s: line = %q, the probe must not change the choice", tc.stored, got)
-		}
-	}
 }
 
 // The editors the shell names are offered beside the ones found on PATH,
@@ -70,21 +31,12 @@ func TestProbeOffersTheShellsEditors(t *testing.T) {
 	t.Setenv("VISUAL", "code")
 	t.Setenv("EDITOR", " nvim ")
 	probed := detectedEditors().probe()
-	if got := strings.Join(probed.found, ","); got != "code,nvim" {
+	if got := strings.Join(probed.Found, ","); got != "code,nvim" {
 		t.Fatalf("found = %q, want code once and nvim", got)
 	}
-	row := newEditorRow("nvim")
-	row.applyProbe(probed)
-	if row.custom || row.label() != "nvim" {
-		t.Fatalf("a stored nvim should sit on its own entry, got %q custom %v", row.label(), row.custom)
-	}
-}
-
-func TestEditorRowSaysWhenAutoFindsNothing(t *testing.T) {
-	row := newEditorRow("")
-	row.applyProbe(editorsProbedMsg{})
-	if got := row.label(); got != "auto · none found" {
-		t.Fatalf("label = %q", got)
+	row := uisettings.NewEditorRow("nvim", &probed)
+	if row.Custom() || row.Label() != "nvim" {
+		t.Fatalf("a stored nvim should sit on its own entry, got %q custom %v", row.Label(), row.Custom())
 	}
 }
 
@@ -117,22 +69,22 @@ func TestSettingsEditorCustomLineIsTyped(t *testing.T) {
 	m := buildModel(t)
 	editorSettings(t, m, "code")
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyLeft})
-	if !m.settings.dialog.editor.custom {
-		t.Fatalf("left from auto should land on custom, got %q", m.settings.dialog.editor.label())
+	if !m.settings.dialog.Editor.Custom() {
+		t.Fatalf("left from auto should land on custom, got %q", m.settings.dialog.Editor.Label())
 	}
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyEnter})
-	if !m.settings.dialog.editor.typing || m.mode != modeSettings {
+	if !m.settings.dialog.Editor.Typing() || m.mode != modeSettings {
 		t.Fatal("enter on custom should open the field, not save")
 	}
 	m.pressInSettings(t, runeKey("junk"))
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyEsc})
-	if m.settings.dialog.editor.typing || m.settings.dialog.editor.line() != "" || m.mode != modeSettings {
-		t.Fatalf("esc should drop what was typed and stay in Settings, line = %q", m.settings.dialog.editor.line())
+	if m.settings.dialog.Editor.Typing() || m.settings.dialog.Editor.Line() != "" || m.mode != modeSettings {
+		t.Fatalf("esc should drop what was typed and stay in Settings, line = %q", m.settings.dialog.Editor.Line())
 	}
 
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyEnter})
 	m.pressInSettings(t, runeKey("code -n k"))
-	if m.settings.dialog.field != settingsFieldEditor {
+	if m.settings.dialog.Field != uisettings.FieldEditor {
 		t.Fatal("a typed k must not move the cursor off the row")
 	}
 	if view := ansi.Strip(m.viewSettings()); !strings.Contains(view, "code -n k") {
@@ -141,7 +93,7 @@ func TestSettingsEditorCustomLineIsTyped(t *testing.T) {
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyBackspace})
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyBackspace})
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyEnter})
-	if got := m.settings.dialog.editor.label(); got != "custom · code -n" {
+	if got := m.settings.dialog.Editor.Label(); got != "custom · code -n" {
 		t.Fatalf("label = %q", got)
 	}
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyEsc})
@@ -163,7 +115,7 @@ func TestSettingsEditorRowReturnsToAuto(t *testing.T) {
 	}
 	m.services.editor = "code -n"
 	editorSettings(t, m, "zed")
-	if got := m.settings.dialog.editor.label(); got != "custom · code -n" {
+	if got := m.settings.dialog.Editor.Label(); got != "custom · code -n" {
 		t.Fatalf("label = %q", got)
 	}
 	m.pressInSettings(t, tea.KeyMsg{Type: tea.KeyRight})
