@@ -327,10 +327,12 @@ func TestFocusModeForwardsArrowKeys(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// cat -v writes what it reads in caret notation, so the arrows
 		// read back as the escape sequences the pane was handed.
-		if err := m.tmux.SendKeys(sess.ID, catCommand()+" -v", "Enter"); err != nil {
+		ready := filepath.Join(t.TempDir(), "ready")
+		command := "$env:" + fixtureReadyEnv + " = " + tmux.ShellQuote(ready) + "; " + catCommand() + " -v"
+		if err := m.tmux.SendKeys(sess.ID, command, "Enter"); err != nil {
 			t.Fatalf("start key reader: %v", err)
 		}
-		waitForPaneChild(t, m, sess.ID, "cat")
+		waitForFixtureReady(t, ready)
 	} else {
 		ready := filepath.Join(t.TempDir(), "ready")
 		reader := "touch " + tmux.ShellQuote(ready) + "; od -An -tx1 -N7"

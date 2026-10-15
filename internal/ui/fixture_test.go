@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"testing"
 	"time"
 )
 
@@ -72,6 +73,21 @@ func hookedCatProcess() string {
 		return fixtureName
 	}
 	return "cat"
+}
+
+// waitForFixtureReady waits for the file fixtureReadyEnv named.
+func waitForFixtureReady(t *testing.T, ready string) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if _, err := os.Stat(ready); err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the fixture never made its console raw")
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
 }
 
 // runFixture runs the fixture this binary was started as, reporting false
@@ -322,8 +338,18 @@ type ttyInput struct {
 // where a kernel tty takes the whole write at once.
 const burstGap = 20 * time.Millisecond
 
+// fixtureReadyEnv names a file the fixture creates once the console is raw.
+// Keys that arrive before then meet the console's own line editing, which
+// takes an up arrow as its history key and drops it.
+const fixtureReadyEnv = "AM_FIXTURE_READY"
+
 func newTTY() *tty {
 	restoreConsole = rawConsole()
+	if ready := os.Getenv(fixtureReadyEnv); ready != "" {
+		if err := os.WriteFile(ready, nil, 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}
 	t := &tty{lines: make(chan ttyInput, 64)}
 	runes := make(chan rune, 4096)
 	go func() {

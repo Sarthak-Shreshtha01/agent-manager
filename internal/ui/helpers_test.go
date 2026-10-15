@@ -469,15 +469,10 @@ func waitForPreview(t *testing.T, m *Model) {
 // before the child has exec'd the program it was asked for.
 func waitForPaneChild(t *testing.T, m *Model, sessID, name string) {
 	t.Helper()
-	waitForDriverPaneChild(t, m.tmux, sessID, name)
-}
-
-func waitForDriverPaneChild(t *testing.T, driver *tmux.Driver, sessID, name string) {
-	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	var children []string
 	for time.Now().Before(deadline) {
-		if pid, err := driver.PanePID(sessID); err == nil {
+		if pid, err := m.tmux.PanePID(sessID); err == nil {
 			children = sysstat.Trees([]int{pid})[pid].Children
 			for _, child := range children {
 				if filepath.Base(child) == name {
