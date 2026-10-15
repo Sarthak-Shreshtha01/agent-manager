@@ -88,12 +88,8 @@ func resumeProcess(pid uint32) error {
 // polite ask.
 func (tree) term() {}
 
-// kill ends every process in the job.
-func (t tree) kill() {
-	_ = windows.TerminateJobObject(windows.Handle(t), 1)
-}
-
-// close releases the job, which ends whatever the server left running.
+// close releases the job, which ends whatever of the tree is left: the
+// server or a child that outlived it.
 func (t tree) close() {
 	_ = windows.CloseHandle(windows.Handle(t))
 }

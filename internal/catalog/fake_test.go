@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -112,9 +113,22 @@ func runFake(name string) error {
 	case "stubborn-child":
 		signal.Ignore(syscall.SIGTERM)
 		time.Sleep(time.Hour)
+	case "orphaning":
+		// Leaves a child that ignores the stop and holds none of the
+		// server's pipes, then ends at the stop itself.
+		child := exec.Command(os.Args[0])
+		child.Env = append(os.Environ(), "CATALOG_FAKE=stubborn-child")
+		if err := child.Start(); err != nil {
+			return err
+		}
+		if err := writePid(os.Getenv("CATALOG_CHILD_PID"), child.Process.Pid); err != nil {
+			return err
+		}
+		_, _ = io.Copy(io.Discard, os.Stdin)
+		return nil
 	case "catalog-host":
 		// Stands in for a manager that dies without stopping its servers.
-		proc, err := start(os.Args[0], os.TempDir(), true, "CATALOG_FAKE=stubborn")
+		proc, err := startArgs(os.Args[0], nil, os.TempDir(), true, "CATALOG_FAKE=stubborn")
 		if err != nil {
 			return err
 		}

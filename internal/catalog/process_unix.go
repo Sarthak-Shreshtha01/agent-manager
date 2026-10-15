@@ -26,9 +26,8 @@ func (t tree) term() {
 	_ = syscall.Kill(-int(t), syscall.SIGTERM)
 }
 
-// kill kills the whole process group.
-func (t tree) kill() {
+// close kills whatever of the process group is left, the server or a child
+// that outlived it.
+func (t tree) close() {
 	_ = syscall.Kill(-int(t), syscall.SIGKILL)
 }
-
-func (tree) close() {}

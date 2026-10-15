@@ -155,7 +155,12 @@ func start(command, dir string, server bool, env ...string) (*process, error) {
 	if len(fields) == 0 {
 		return nil, errors.New("empty catalog command")
 	}
-	cmd := exec.Command(fields[0], fields[1:]...)
+	return startArgs(fields[0], fields[1:], dir, server, env...)
+}
+
+// startArgs is start for a program path that may itself hold a space.
+func startArgs(name string, args []string, dir string, server bool, env ...string) (*process, error) {
+	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
 	prepareTree(cmd)
@@ -233,8 +238,9 @@ func (p *process) stop() {
 		select {
 		case <-p.exited:
 		case <-time.After(2 * time.Second):
-			p.tree.kill()
 		}
+		// Whether or not the server went, a child it left can still be
+		// running, so the whole tree ends here.
 		p.tree.close()
 		running.Lock()
 		delete(running.procs, p)
