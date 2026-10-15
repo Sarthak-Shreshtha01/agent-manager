@@ -285,7 +285,7 @@ func (d *Driver) SessionExistsContext(ctx context.Context, id string) (bool, err
 	if err == nil {
 		return true, nil
 	}
-	if noServer(err.Error()) || strings.Contains(err.Error(), "can't find session") {
+	if noServer(err.Error()) || strings.Contains(err.Error(), "can't find session") || sessionMissingExit(err) {
 		return false, nil
 	}
 	return false, err

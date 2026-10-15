@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -58,6 +59,11 @@ var awkwardArgs = []string{
 // profile does for the real binary, and it prints to stdout the way conda,
 // nvm or a stray echo does.
 func TestRemoteCommandRoundTripsThroughLoginShell(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// The command is for the remote host's POSIX shell; the MSYS shells
+		// a Windows runner has rewrite path-like arguments on the way in.
+		t.Skip("remote commands target a POSIX host")
+	}
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +136,7 @@ func TestSSHArgv(t *testing.T) {
 		"-o", "ServerAliveCountMax=2",
 		"-o", "ControlMaster=auto",
 		"-o", "ControlPersist=60",
-		"-o", "ControlPath=" + c.controlDir + "/%C",
+		"-o", "ControlPath=" + filepath.Join(c.controlDir, "%C"),
 		"-T",
 		"me@gpu",
 		`exec "$SHELL" -lc 'printf %s '\''` + "\x1eagent-manager\x1e" +
@@ -165,7 +171,7 @@ func TestControlDirIsShortPrivateAndPerProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o700 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o700 {
 		t.Fatalf("control dir mode %v, want 0700", info.Mode().Perm())
 	}
 	link := filepath.Join(t.TempDir(), "link")

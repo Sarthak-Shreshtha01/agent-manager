@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -354,6 +355,9 @@ func TestForkLaunchFailureRetainsCapturedRequest(t *testing.T) {
 // The worker re-reads the source by manager id, so a directory that died
 // after the dialog opened is refused at execution time, not submit time.
 func TestForkRefusesASourceDirectoryThatDied(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows will not remove a live pane's working directory")
+	}
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "source", dir, "")

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -51,6 +52,14 @@ var errControlUnavailable = errors.New("psmux control mode is not used: its clie
 
 func controlUnavailable() error {
 	return errControlUnavailable
+}
+
+// sessionMissingExit reports has-session's answer for a session that is
+// gone. psmux runs a server per session, so it finds none to ask and exits
+// 1 without saying why.
+func sessionMissingExit(err error) bool {
+	var exit *exec.ExitError
+	return errors.As(err, &exit) && exit.ExitCode() == 1
 }
 
 // commandEnv keeps psmux from parking a warm standby server per namespace:

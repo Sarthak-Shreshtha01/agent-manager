@@ -653,6 +653,9 @@ func TestAttachGateOrdersCallsAroundControlClients(t *testing.T) {
 }
 
 func TestControlCloseTimeoutDoesNotBypassAnActiveHandshake(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the manager does not use psmux control mode")
+	}
 	driver, _, release := stubTmux(t)
 	release("greet")
 	control, err := driver.OpenControl("first")
@@ -697,6 +700,9 @@ func TestControlCloseTimeoutDoesNotBypassAnActiveHandshake(t *testing.T) {
 }
 
 func TestControlCommandWaitsForAnotherProcessHandshake(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the manager does not use psmux control mode")
+	}
 	driver := requireTmux(t)
 	id := "gatecommand" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	if err := driver.Create(id, "/tmp", "cat >/dev/null", nil, 80, 24); err != nil {
@@ -737,6 +743,9 @@ func TestControlCommandWaitsForAnotherProcessHandshake(t *testing.T) {
 }
 
 func TestRepeatedControlCloseWaitsForAnotherProcessHandshake(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the manager does not use psmux control mode")
+	}
 	stdin := &countingWriteCloser{}
 	reaped := make(chan struct{})
 	control := &Control{

@@ -1998,6 +1998,7 @@ func TestRemoveWorktreeMissingDirKeeps(t *testing.T) {
 }
 
 func TestRunCannotPromptOnTheManagersTerminal(t *testing.T) {
+	skipPOSIXShell(t)
 	dir := t.TempDir()
 	fake := filepath.Join(dir, "git")
 	script := "#!/bin/sh\nprintf '%s %s ' \"$GIT_TERMINAL_PROMPT\" \"$SSH_ASKPASS_REQUIRE\"\n(: </dev/tty) 2>/dev/null && echo tty || echo notty\n"

@@ -33,6 +33,12 @@ func controlUnavailable() error {
 	return nil
 }
 
+// sessionMissingExit reports has-session's answer for a session that is
+// gone when it carries no message; tmux always names the missing session.
+func sessionMissingExit(error) bool {
+	return false
+}
+
 // rootBinding binds a key inside managed sessions only; anywhere else on
 // the server the key goes through to the pane as itself. That branch is a
 // command string tmux parses, so a backslash in the key name is doubled.

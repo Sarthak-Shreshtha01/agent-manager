@@ -183,6 +183,7 @@ func TestExportEnvPrefixesTheCommand(t *testing.T) {
 }
 
 func TestCreateExecutesLaunchScriptAsPaneRoot(t *testing.T) {
+	skipPOSIXShell(t)
 	dir := t.TempDir()
 	calls := filepath.Join(dir, "calls")
 	stub := filepath.Join(dir, "tmux")

@@ -16,6 +16,7 @@ import (
 // driver wrapper logs every new tmux process, so an empty log after runInput
 // proves the acknowledged control command did not also take the forked path.
 func TestInputKeysUseServingControlWithoutDriverFallback(t *testing.T) {
+	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "control-input", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -85,6 +86,7 @@ func TestInputKeysUseServingControlWithoutDriverFallback(t *testing.T) {
 // paste transport. It must wait for the key command's acknowledgement first,
 // or the paste can overtake a key whose write reached tmux but is still queued.
 func TestControlKeyAcknowledgementPrecedesPasteTransport(t *testing.T) {
+	skipControlMode(t)
 	m := buildModel(t)
 	createSession(t, m, "ack-ordered-input", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -208,6 +210,7 @@ func TestFocusPasteUpdateDefersIO(t *testing.T) {
 }
 
 func TestInputPasteCannotBeOvertakenByEnter(t *testing.T) {
+	skipPOSIXShell(t)
 	m := buildModel(t)
 	createSession(t, m, "input-target", t.TempDir(), "")
 	sess := m.sessionRows()[0]

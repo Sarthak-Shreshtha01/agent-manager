@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -74,6 +75,9 @@ func TestHeadlessProcessHelper(t *testing.T) {
 }
 
 func TestHeadlessProcessProducesObservationAndStopsCleanly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows cannot send the child the SIGTERM it stops on")
+	}
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not installed")
 	}

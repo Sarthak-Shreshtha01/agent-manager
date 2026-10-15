@@ -63,6 +63,7 @@ func TestFocusWatchPushesPaneUpdates(t *testing.T) {
 // A serving control client owns an admitted command even when tmux rejects it:
 // the caller may use a fallback only while no client is available.
 func TestFocusWatchForwardDistinguishesUnavailableFromAdmitted(t *testing.T) {
+	skipControlMode(t)
 	driver := requireFocusDriver(t)
 	watch := newFocusWatch(driver, func(tea.Msg) {})
 	t.Cleanup(watch.Close)

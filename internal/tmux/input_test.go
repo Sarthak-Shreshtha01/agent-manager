@@ -243,6 +243,7 @@ func TestPasteBufferNamesDifferAcrossProcesses(t *testing.T) {
 // press Enter. Interleaved, the second paste lands before the first Enter and
 // both texts submit as one prompt.
 func TestSendTextHoldsASecondSendToThePaneUntilTheFirstSubmits(t *testing.T) {
+	skipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	held := dir + "/held"
