@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -43,9 +44,13 @@ func removeAsideBinaries(target string) {
 	if err != nil {
 		return
 	}
-	prefix := filepath.Base(target) + ".old"
+	prefix := filepath.Base(target) + ".old-"
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), prefix) {
+		stamp, ok := strings.CutPrefix(entry.Name(), prefix)
+		if !ok {
+			continue
+		}
+		if _, err := strconv.ParseInt(stamp, 10, 64); err == nil {
 			os.Remove(filepath.Join(filepath.Dir(target), entry.Name()))
 		}
 	}

@@ -91,11 +91,18 @@ func TestApplySwapsARunningBinaryAside(t *testing.T) {
 	}
 
 	stopRunning()
+	unrelated := target + ".old"
+	if err := os.WriteFile(unrelated, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := Apply(context.Background(), "v9.9.9", target); err != nil {
 		t.Fatalf("a third update: %v", err)
 	}
 	if got := asideBinaries(t, target); len(got) != 1 || got[0] == aside[0] {
 		t.Fatalf("binaries moved aside = %v, want only the latest once nothing runs the older ones", got)
+	}
+	if _, err := os.Stat(unrelated); err != nil {
+		t.Fatalf("a file the update did not create was removed: %v", err)
 	}
 }
 
