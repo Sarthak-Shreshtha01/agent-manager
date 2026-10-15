@@ -64,23 +64,25 @@
 		if ($actual -ne $expected) { throw "checksum mismatch for $file" }
 	}
 
-	# Windows lets a running executable be renamed but not overwritten, so a
-	# reinstall moves the old binary aside first.
+	# A running manager locks its binary, so a reinstall moves the old one to a
+	# name of its own, as the self-update does, and clears those nothing runs.
 	function Install-Binary([string]$source, [string]$dir) {
 		$target = Join-Path $dir $Binary
+		$aside = $null
 		try {
 			New-Item -ItemType Directory -Force -Path $dir | Out-Null
-			$movedAside = $false
+			$asideName = '^' + [regex]::Escape($Binary) + '\.old-\d+$'
+			Get-ChildItem -LiteralPath $dir | Where-Object { $_.Name -match $asideName } |
+				Remove-Item -Force -ErrorAction SilentlyContinue
 			if (Test-Path -LiteralPath $target) {
-				Remove-Item -LiteralPath "$target.old" -Force -ErrorAction SilentlyContinue
-				Move-Item -LiteralPath $target -Destination "$target.old" -Force
-				$movedAside = $true
+				$aside = "$target.old-$([DateTime]::UtcNow.Ticks)"
+				Move-Item -LiteralPath $target -Destination $aside
 			}
 			Copy-Item -LiteralPath $source -Destination $target -Force
 		} catch {
 			# A failed copy must not leave the user with no binary.
-			if ($movedAside -and -not (Test-Path -LiteralPath $target)) {
-				Move-Item -LiteralPath "$target.old" -Destination $target -Force -ErrorAction SilentlyContinue
+			if ($aside -and -not (Test-Path -LiteralPath $target)) {
+				Move-Item -LiteralPath $aside -Destination $target -Force -ErrorAction SilentlyContinue
 			}
 			throw "could not write to $dir, set AGENT_MANAGER_INSTALL_DIR to a writable directory"
 		}
@@ -127,7 +129,8 @@
 		}
 		if (Get-Command pwsh -ErrorAction SilentlyContinue) {
 			# ToString prints the bare version; the object formats as a table.
-			$text = & pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>$null | Select-Object -First 1
+			# Cutting the pipeline short leaves 5.1's LASTEXITCODE at -1.
+			$text = @(& pwsh -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>$null)[0]
 			$minimum = [version]'7.3'
 			$parsed = $null
 			if (-not $text -or -not [version]::TryParse(($text -split '-')[0], [ref]$parsed)) { $parsed = $null }
