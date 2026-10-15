@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -395,6 +396,9 @@ func TestDiffFrameFitsTerminal(t *testing.T) {
 // A file whose line count is unknown must not be silently summed as zero in
 // the header: the totals carry a marker instead of asserting an exact count.
 func TestHeaderMarksUncountedFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod cannot deny reads on Windows")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root reads any file regardless of mode")
 	}

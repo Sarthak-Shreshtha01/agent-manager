@@ -3,6 +3,7 @@ package execution
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -333,7 +334,10 @@ func TestNotifyTransitionSilencedBySetting(t *testing.T) {
 func TestRefreshNotifiesWaitingTransitionOnce(t *testing.T) {
 	m := buildModel(t)
 	hooked := m.cfg.Tools["claude-hooked"]
-	hooked.Command = `sh -c 'exec cat' --`
+	// Windows' stand-in already ignores the --settings the launch appends.
+	if runtime.GOOS != "windows" {
+		hooked.Command = `sh -c 'exec cat' --`
+	}
 	m.cfg.Tools["claude-hooked"] = hooked
 	if err := m.spawnSession("claude-hooked", "needy", t.TempDir(), "", "boot-marker", false, false); err != nil {
 		t.Fatal(err)

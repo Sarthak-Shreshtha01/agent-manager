@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode"
@@ -71,11 +72,20 @@ func TestDiffAnnotateAndSend(t *testing.T) {
 	}
 	// Join wrapped lines so the delivery check does not depend on where the
 	// pane's width breaks the prompt; the session sizes to the model width.
-	out, err := tmuxCmd("capture-pane", "-p", "-J", "-t", "am_"+sess.ID).CombinedOutput()
+	// psmux's -J only trims each row, so on Windows keep every row at the
+	// full pane width (-N) and join them by hand.
+	capture := []string{"capture-pane", "-p", "-J", "-t", "am_" + sess.ID}
+	if runtime.GOOS == "windows" {
+		capture = []string{"capture-pane", "-p", "-N", "-t", "am_" + sess.ID}
+	}
+	out, err := tmuxCmd(capture...).CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
 	pane := string(out)
+	if runtime.GOOS == "windows" {
+		pane = strings.NewReplacer("\r", "", "\n", "").Replace(pane)
+	}
 	if !strings.Contains(pane, "use fmt.Println here") || !strings.Contains(pane, "main.go:3") ||
 		!strings.Contains(pane, "[comment "+notes[0].ID+"]") || !strings.Contains(pane, "review_comment") ||
 		!strings.Contains(pane, "Code review of the uncommitted changes on `main` (`") ||

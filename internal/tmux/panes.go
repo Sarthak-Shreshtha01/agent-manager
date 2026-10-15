@@ -3,7 +3,7 @@ package tmux
 import (
 	"context"
 	"fmt"
-	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -102,13 +102,14 @@ type Pane struct {
 
 // Panes returns every managed session's agent pane in a single tmux call,
 // which doubles as a liveness check: a session absent from the map is gone.
-// Only pane 0 counts, the one PaneTarget addresses, so a session whose
-// agent split the window reports the agent's own process and the size the
-// preview draws, never a teammate's.
+// Only the agent's own pane counts, the one PaneTarget addresses, so a
+// session whose agent split the window reports the agent's own process and
+// the size the preview draws, never a teammate's. The filter runs here
+// rather than as list-panes -f, which tmux 3.1 lacks and psmux ignores: the
+// first pane 0 of a session is the one in its first window, since panes
+// list in window order.
 func (d *Driver) Panes() (map[string]Pane, error) {
-	// The agent pane is index 0, picked out here rather than with -f, which
-	// list-panes only grew in tmux 3.2.
-	out, err := exec.Command(d.bin, d.args("list-panes", "-a", "-F", "#{pane_index} #{session_name} #{pane_pid} #{pane_width} #{pane_height} #{window_panes} #{alternate_on} #{pane_tty} #{pane_current_path}")...).CombinedOutput()
+	out, err := d.command("list-panes", "-a", "-F", "#{session_name} #{pane_index} #{pane_pid} #{pane_width} #{pane_height} #{window_panes} #{alternate_on} #{pane_tty} #{pane_current_path}").CombinedOutput()
 	if err != nil {
 		// A server with no session in it, as the startup list-keys leaves
 		// for a moment, answers "no current target".
@@ -121,10 +122,6 @@ func (d *Driver) Panes() (map[string]Pane, error) {
 	// Only the final line break is trimmed: the last line may end in a
 	// space that is its path, or the separator before an empty one.
 	for _, line := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
-		index, line, ok := strings.Cut(line, " ")
-		if !ok || index != "0" {
-			continue
-		}
 		name, geometry, ok := strings.Cut(line, " ")
 		if !ok || !strings.HasPrefix(name, prefix) {
 			continue
@@ -133,19 +130,21 @@ func (d *Driver) Panes() (map[string]Pane, error) {
 		if _, taken := panes[id]; taken {
 			continue
 		}
-		fields := strings.SplitN(geometry, " ", 7)
-		if len(fields) < 7 {
+		fields := strings.SplitN(geometry, " ", 8)
+		if len(fields) < 8 {
 			continue
 		}
-		pane := Pane{TTY: fields[5], Path: fields[6]}
-		var altScreen int
-		if _, err := fmt.Sscanf(geometry, "%d %d %d %d %d", &pane.PID, &pane.Width, &pane.Height, &pane.Panes, &altScreen); err == nil {
+		pane := Pane{TTY: fields[6], Path: fields[7]}
+		var index, altScreen int
+		if _, err := fmt.Sscanf(geometry, "%d %d %d %d %d %d", &index, &pane.PID, &pane.Width, &pane.Height, &pane.Panes, &altScreen); err == nil && index == 0 {
 			pane.AltScreen = altScreen == 1
 			panes[id] = pane
 		}
 	}
 	return panes, nil
 }
+
+var paneIDPattern = regexp.MustCompile(`^%[0-9]+$`)
 
 // SessionOfProcess names the managed session whose pane process is pid or
 // one of its ancestors. It serves a process that inherited neither $TMUX nor

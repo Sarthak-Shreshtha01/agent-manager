@@ -1,6 +1,15 @@
 package ui
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/execution"
 	"github.com/YoanWai/agent-manager/internal/hooks"
@@ -9,16 +18,20 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/sysstat"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
+
+// skipPOSIXShell skips a test whose fixture only a POSIX shell runs: a
+// `#!/bin/sh` stub, an `sh -c` line, POSIX syntax typed into a pane, or the
+// cat the test tools launch, which PowerShell reads as Get-Content.
+func skipPOSIXShell(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture is a POSIX shell script")
+	}
+}
 
 func buildModel(t *testing.T) *Model {
 	t.Helper()
@@ -27,8 +40,8 @@ func buildModel(t *testing.T) *Model {
 
 func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	cfg := config.Config{
 		Tools: map[string]config.Tool{
@@ -60,7 +73,7 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 			"terminal": {
 				Shell:         true,
 				DefaultStatus: status.Idle,
-				InputPrefix:   `(?m)^\s*(?:\S+\s+){0,3}[❯>$#›»→%➜]\s`,
+				InputPrefix:   `(?m)^\s*(?:(?:\S+\s+){0,3}[❯>$#›»→%➜]|PS [^\n>]*>)\s`,
 			},
 			// Shows every control character it is sent as ^X, with the tty
 			// flow and line-editing keys turned off so ctrl+q and ctrl+r
@@ -119,9 +132,10 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 				ActivityCutoff: "(?m)^❯",
 			},
 			// Draws its input line at once and takes the prompt it launched
-			// with half a second later, the way an agent finishes booting.
+			// with a couple of seconds later, the way an agent finishes
+			// booting; the take has to outlast a whole poll pass.
 			"slow-take-tool": {
-				Command:        `sh -c 'printf "❯ "; sleep 0.5; printf "\n❯ %s\n❯ " "$0"; cat'`,
+				Command:        `sh -c 'printf "❯ "; sleep 2; printf "\n❯ %s\n❯ " "$0"; cat'`,
 				DefaultStatus:  status.Idle,
 				ActivityCutoff: "(?m)^❯",
 			},
@@ -139,6 +153,17 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 				DefaultStatus: status.Idle,
 			},
 		},
+	}
+	// Windows has no cat or sh: the tools run the test binary's stand-ins.
+	if runtime.GOOS == "windows" {
+		for _, name := range testfixture.Tools() {
+			tool, ok := cfg.Tools[name]
+			if !ok {
+				continue
+			}
+			tool.Command = testfixture.Command(name)
+			cfg.Tools[name] = tool
+		}
 	}
 	st, err := store.Open(dbPath)
 	if err != nil {
@@ -165,6 +190,10 @@ func buildModelWithStorePath(t *testing.T, dbPath string) *Model {
 	t.Cleanup(func() {
 		for _, s := range m.workspace.sessions {
 			driver.Kill(s.ID)
+		}
+		panes, _ := driver.Panes()
+		for id := range panes {
+			driver.Kill(id)
 		}
 	})
 	return m
@@ -232,12 +261,13 @@ func (m *Model) stepCmd(t *testing.T, cmd tea.Cmd) tea.Cmd {
 	return next
 }
 
-// clearRequestOnCleanup drops the server-global detach marker when the test
-// ends: one left behind reaches every later test that reads it.
-func clearRequestOnCleanup(t *testing.T, m *Model) {
+// clearRequestOnCleanup drops the detach marker left on the server hosting
+// session id when the test ends: one left behind reaches every later test
+// that reads it.
+func clearRequestOnCleanup(t *testing.T, m *Model, id string) {
 	t.Helper()
 	t.Cleanup(func() {
-		if err := m.services.tmux.ClearRequest(); err != nil {
+		if err := m.services.tmux.ClearRequest(id); err != nil {
 			t.Errorf("ClearRequest: %v", err)
 		}
 	})

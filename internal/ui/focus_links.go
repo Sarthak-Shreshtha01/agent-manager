@@ -9,6 +9,9 @@ import (
 )
 
 var openURL = func(url string) error {
+	if runtime.GOOS == "windows" {
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	}
 	opener := "xdg-open"
 	if runtime.GOOS == "darwin" {
 		opener = "open"

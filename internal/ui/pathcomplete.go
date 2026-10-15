@@ -180,7 +180,7 @@ func (pc *pathComplete) view() string {
 }
 
 func expandHome(path string) string {
-	if path == "~" || strings.HasPrefix(path, "~/") {
+	if path == "~" || strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~"+string(filepath.Separator)) {
 		if home, err := os.UserHomeDir(); err == nil {
 			return filepath.Join(home, strings.TrimPrefix(path, "~"))
 		}
@@ -189,10 +189,11 @@ func expandHome(path string) string {
 }
 
 // completeDirs matches shell completion: everything after the last slash
-// is a partial name matched against directories inside its parent.
+// (or the platform's own separator) is a partial name matched against
+// directories inside its parent.
 func completeDirs(typed string) []string {
 	typed = expandHome(strings.TrimSpace(typed))
-	if typed == "" || !strings.Contains(typed, "/") {
+	if typed == "" || !strings.ContainsAny(typed, "/"+string(filepath.Separator)) {
 		return nil
 	}
 	parent, partial := filepath.Split(typed)
@@ -238,19 +239,19 @@ func (m *Model) applyPathSuggestion() tea.Cmd {
 	var target pathSuggestionTarget
 	switch m.mode {
 	case modeForm:
-		path = m.form.paths.selected() + "/"
+		path = m.form.paths.selected() + string(filepath.Separator)
 		m.form.dir.SetValue(path)
 		m.form.dir.CursorEnd()
 		m.form.dirAuto = false
 		target = pathSuggestionForm
 	case modeGroupForm:
-		path = m.groupForm.paths.selected() + "/"
+		path = m.groupForm.paths.selected() + string(filepath.Separator)
 		m.groupForm.path.SetValue(path)
 		m.groupForm.path.CursorEnd()
 		m.groupForm.pathAuto = false
 		target = pathSuggestionGroup
 	case modeRename:
-		path = m.rename.paths.selected() + "/"
+		path = m.rename.paths.selected() + string(filepath.Separator)
 		m.rename.dir.SetValue(path)
 		m.rename.dir.CursorEnd()
 		target = pathSuggestionRename

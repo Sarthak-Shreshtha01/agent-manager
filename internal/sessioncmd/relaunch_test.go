@@ -78,6 +78,7 @@ func TestInjectPickerKeysStopsOnInvalidInputAndPaneDisappearance(t *testing.T) {
 
 func startPickerPane(t *testing.T, h *sessionHarness, script string) string {
 	t.Helper()
+	skipPOSIXShell(t)
 	path := filepath.Join(t.TempDir(), "tui.sh")
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -187,6 +188,7 @@ func waitForAgentGone(t *testing.T, driver *tmux.Driver, sessID string) {
 // The caller's copy of the row can predate a switch the agent reported
 // before it quit, so the relaunch reads the row itself.
 func TestRelaunchInPaneResumesTheStoredConversationUnderItsStampedLaunch(t *testing.T) {
+	skipPOSIXShell(t)
 	h := newSessionHarness(t)
 	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "switcher", Tool: "reporter"})
 	if err != nil {

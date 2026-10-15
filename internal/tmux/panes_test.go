@@ -12,6 +12,7 @@ import (
 // EnterWorktree do, is a child of the launch script, and tmux reports the
 // directory of the pane's foreground process group.
 func TestPanesFollowsTheAgentIntoANewDirectory(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "cwd" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	moved := filepath.Join(t.TempDir(), "moved dir")
@@ -48,9 +49,10 @@ func TestPanesFollowsTheAgentIntoANewDirectory(t *testing.T) {
 // leader. Everything the manager reads and types has to stay on the agent's
 // own pane through that.
 func TestManagerStaysOnTheAgentPaneAfterASplit(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "split" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "cat", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "cat", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -108,6 +110,7 @@ func TestManagerStaysOnTheAgentPaneAfterASplit(t *testing.T) {
 // pane: a bare session target resolves to whichever pane is active, and an
 // agent that split its window would have its quotes read off the teammate.
 func TestCapturePaneHistoryTargetsTheAgentPane(t *testing.T) {
+	skipPOSIXShell(t)
 	dir := t.TempDir()
 	callLog := dir + "/calls"
 	stub := dir + "/tmux"

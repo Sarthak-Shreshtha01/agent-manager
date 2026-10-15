@@ -12,7 +12,7 @@ var afterCreateThemeLoad func()
 
 func (d *Driver) Create(id, cwd, command string, env map[string]string, width, height int) error {
 	name := sessionName(id)
-	// Hold the push lock across loading the theme and the command list that
+	// Hold the push lock across loading the theme and the command that
 	// writes it, so a concurrent PushPaneTheme cannot land a newer theme
 	// between the load and the write and be clobbered by this stale one.
 	d.paneThemePush.Lock()
@@ -24,6 +24,11 @@ func (d *Driver) Create(id, cwd, command string, env map[string]string, width, h
 	if afterCreateThemeLoad != nil {
 		afterCreateThemeLoad()
 	}
+	// Launch through a script. Typing the full line with send-keys
+	// truncates around 1024 bytes, which breaks long first prompts
+	// mid-path. A script has no practical length limit, and handing the
+	// pane to the user's shell afterwards matches "type into a shell"
+	// (pane stays up).
 	var scriptPath string
 	if command != "" {
 		var err error
@@ -47,6 +52,10 @@ func (d *Driver) Create(id, cwd, command string, env map[string]string, width, h
 	}
 	return nil
 }
+
+// relaunchHint lands in the pane the moment the agent exits, which is where
+// the user is looking when they wonder how to get it back.
+const relaunchHint = "agent-manager: agent exited - press v in Agent Manager to relaunch it here."
 
 func sortedKeys(env map[string]string) []string {
 	keys := make([]string, 0, len(env))

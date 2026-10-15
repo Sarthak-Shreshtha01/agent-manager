@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -102,6 +103,9 @@ default_status = "idle"
 // CLIs, so a test gets a pane it can predict.
 func testConfigLoader(t *testing.T, doc string) func() (config.Config, error) {
 	t.Helper()
+	if goruntime.GOOS == "windows" {
+		doc = unwrapExecFixtures.Replace(doc)
+	}
 	var declared struct {
 		Tools map[string]config.Tool `toml:"tools"`
 	}
@@ -112,6 +116,11 @@ func testConfigLoader(t *testing.T, doc string) func() (config.Config, error) {
 		return config.Config{Tools: declared.Tools}, nil
 	}
 }
+
+// unwrapExecFixtures drops the sh -c wrapper a POSIX launch needs to exec a
+// two-command fixture whole. A Windows launch types the line into the pane's
+// PowerShell without exec, which runs both commands as written.
+var unwrapExecFixtures = strings.NewReplacer(`sh -c \"`, "", `&& exec cat\"`, "&& cat")
 
 func newStoreSessionHarness(t *testing.T) *sessionHarness {
 	t.Helper()

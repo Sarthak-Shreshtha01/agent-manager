@@ -369,7 +369,7 @@ func hermesPipCommand() string {
 	if python == "" || exec.Command(python, "-m", "pip", "--version").Run() != nil {
 		return ""
 	}
-	return tmux.ShellQuote(python) + " -m pip install mcp"
+	return tmux.ShellInvoke(python) + " -m pip install mcp"
 }
 
 // ensureRegisteredOnce runs a tool's own mcp-add command once per binary

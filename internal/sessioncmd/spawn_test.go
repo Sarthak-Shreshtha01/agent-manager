@@ -193,6 +193,7 @@ func TestHeadlessLaunchesUseTheManagersPaneSize(t *testing.T) {
 // a revive carries them again on either pane path, since the row keeps the
 // choice.
 func TestSessionsCreateCarriesItsChoiceThroughRevive(t *testing.T) {
+	skipPOSIXShell(t)
 	for _, tc := range []struct {
 		name string
 		kill bool

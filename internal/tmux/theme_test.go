@@ -33,7 +33,7 @@ func TestCreateAppliesPublishedThemeWithoutAPush(t *testing.T) {
 	driver.PublishPaneTheme(PaneTheme{Foreground: "#cdd6f4", Background: "#1e1e2e", ColorFgBg: "15;0"})
 
 	id := "pub" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -55,7 +55,7 @@ func TestPushPaneThemeIsLatestWins(t *testing.T) {
 	// for the global option to stick to.
 	id := "race" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	driver.PublishPaneTheme(PaneTheme{Foreground: "#cdd6f4", Background: "#101010", ColorFgBg: "15;0"})
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -93,7 +93,7 @@ func TestCreateSerializesWithPushPaneTheme(t *testing.T) {
 	stamp := strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	hold := "hold" + stamp
 	driver.PublishPaneTheme(PaneTheme{Foreground: "#cdd6f4", Background: "#101010", ColorFgBg: "15;0"})
-	if err := driver.Create(hold, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(hold, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create hold session: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(hold) })
@@ -116,7 +116,7 @@ func TestCreateSerializesWithPushPaneTheme(t *testing.T) {
 	t.Cleanup(func() { afterCreateThemeLoad = nil })
 
 	raced := "raced" + stamp
-	if err := driver.Create(raced, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(raced, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create raced session: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(raced) })

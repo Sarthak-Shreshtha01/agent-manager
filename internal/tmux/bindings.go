@@ -7,7 +7,7 @@ import (
 )
 
 func (d *Driver) installSessionUX(name string) error {
-	if err := d.EnsureBindings(); err != nil {
+	if err := d.ensureBindingsIn(strings.TrimPrefix(name, prefix)); err != nil {
 		return err
 	}
 	// A new session carries no pin to take off, so only a chosen prefix needs work here.
@@ -66,7 +66,7 @@ func (d *Driver) resolvedOption(name, option string) (string, error) {
 	if value = keyOption(value); value != "" {
 		return value, nil
 	}
-	global, err := d.run("show-options", "-g", "-v", option)
+	global, err := d.runIn(strings.TrimPrefix(name, prefix), "show-options", "-g", "-v", option)
 	if err != nil {
 		return "", err
 	}
@@ -102,8 +102,8 @@ func (d *Driver) styleStatusBar(name string) error {
 		{"set-option", "-t", name, "status-right", attachStatusRight(primary, secondary, d.currentSessionKeys())},
 		{"set-option", "-t", name, "status-style", "bg=colour236,fg=colour249"},
 		// hide the "0:windowname*" window list; it reads as noise here
-		{"set-option", "-t", name, "window-status-format", ""},
-		{"set-option", "-t", name, "window-status-current-format", ""},
+		{"set-option", "-t", name, "window-status-format", hiddenWindowStatus},
+		{"set-option", "-t", name, "window-status-current-format", hiddenWindowStatus},
 		// mouse on so tmux handles scrollback per-session instead of the
 		// terminal emulator, whose buffer carries content from prior attaches.
 		{"set-option", "-t", name, "mouse", "on"},
@@ -153,8 +153,9 @@ func titled(key keybind.Key) string {
 }
 
 // ownedBindingTest is the session-name check every root binding the
-// manager installs carries, so that on the next run its own bindings can
-// be told from the ones the user's tmux.conf put on this server.
+// manager installs on tmux carries, so that on the next run its own
+// bindings can be told from the ones the user's tmux.conf put on this
+// server. psmux records its keys instead (rootKeysOption).
 const ownedBindingTest = "#{m:" + prefix + "*,#{session_name}}"
 
 // EnsureBindings installs the server-wide setup every managed session
@@ -167,36 +168,43 @@ const ownedBindingTest = "#{m:" + prefix + "*,#{session_name}}"
 // The bindings an earlier run installed come off first, whatever keys
 // that run was configured with: a key the user moved or turned off would
 // otherwise stay bound until the server restarts.
+//
+// psmux keeps options and bindings per session server, so there the setup
+// goes to every managed session's server in turn.
 func (d *Driver) EnsureBindings() error {
-	stale, err := d.ownedRootBindings()
+	return d.eachServer(d.ensureBindingsIn)
+}
+
+// ensureBindingsIn installs the setup on the server hosting session id.
+func (d *Driver) ensureBindingsIn(id string) error {
+	stale, err := d.ownedRootBindings(id)
 	if err != nil {
 		return err
 	}
 	keys := d.currentSessionKeys()
-	request := func(name string) string {
-		return "set-option -g " + requestOption + " " + name + " ; detach-client"
-	}
 	commands := [][]string{
 		{"set-window-option", "-g", "pane-base-index", "0"},
 	}
 	for _, key := range stale {
 		commands = append(commands, []string{"unbind-key", "-T", "root", key})
 	}
-	for _, key := range keys.Binding(keybind.Detach).Keys() {
-		commands = append(commands, rootBinding(key, "detach-client"))
+	var bound []string
+	bind := func(binding keybind.Binding, action []string) {
+		for _, key := range binding.Keys() {
+			commands = append(commands, rootBinding(key, action...))
+			bound = append(bound, key.Tmux())
+		}
 	}
-	for _, key := range keys.Binding(keybind.Review).Keys() {
-		commands = append(commands, rootBinding(key, request(RequestReview)))
-	}
-	for _, key := range keys.Binding(keybind.Editor).Keys() {
-		commands = append(commands, rootBinding(key, request(RequestEditor)))
-	}
+	bind(keys.Binding(keybind.Detach), []string{"detach-client"})
+	bind(keys.Binding(keybind.Review), d.requestAction(id, RequestReview))
+	bind(keys.Binding(keybind.Editor), d.requestAction(id, RequestEditor))
+	commands = append(commands, recordRootBindings(bound)...)
 	// Restore the standard fallback when the prefix shadows a direct binding.
-	commands = append(commands, []string{"bind-key", "-T", "prefix", "d", "detach-client"})
+	commands = append(commands, []string{"bind-key", "-T", "prefix", "d", bindingArg("detach-client")})
 	// list-keys starts a server that exits again straight away when it has
 	// no sessions, so the list can find none. Nothing needs the setup then:
 	// Create runs this again once a session brings the server up.
-	if _, err = d.run(commandList(commands...)...); err != nil && noServer(err.Error()) {
+	if _, err = d.runIn(id, commandList(commands...)...); err != nil && noServer(err.Error()) {
 		return nil
 	}
 	return err

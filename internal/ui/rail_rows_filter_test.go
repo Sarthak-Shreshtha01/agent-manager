@@ -3,9 +3,11 @@ package ui
 import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -424,6 +426,9 @@ func TestForkClearsStatusFilter(t *testing.T) {
 
 	tool := m.services.cfg.Tools[source.Tool]
 	tool.ForkCommand = "true {id}; cat"
+	if runtime.GOOS == "windows" {
+		tool.ForkCommand = testfixture.ModeCommand("cat-stdin") + " {id}"
+	}
 	m.services.cfg.Tools[source.Tool] = tool
 
 	m.openFork()

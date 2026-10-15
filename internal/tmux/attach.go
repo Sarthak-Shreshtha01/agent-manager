@@ -8,7 +8,7 @@ import (
 )
 
 func (d *Driver) AttachCommand(id string) *exec.Cmd {
-	return exec.Command(d.bin, d.args("attach-session", "-t", sessionName(id))...)
+	return d.command("attach-session", "-t", sessionName(id))
 }
 
 // Resize pins a detached session's window to the given dimensions so its
@@ -33,7 +33,8 @@ func (d *Driver) Resize(id string, width, height int) error {
 	// divides, whether the box grew or shrank -- which is what keeps a Codex
 	// teammate's scrollback (#369). The other axis belongs to the window, so
 	// every pane follows the box there.
-	if panes > 1 {
+	split := panes > 1 && pinsSplitPane
+	if split {
 		windowWidth = width + (windowWidth - paneWidth)
 		windowHeight = height + (windowHeight - paneHeight)
 	} else {
@@ -43,7 +44,7 @@ func (d *Driver) Resize(id string, width, height int) error {
 		"-x", strconv.Itoa(windowWidth), "-y", strconv.Itoa(windowHeight)); err != nil {
 		return err
 	}
-	if panes < 2 {
+	if !split {
 		return nil
 	}
 	_, err = d.run("resize-pane", "-t", PaneTarget(id), "-x", strconv.Itoa(width), "-y", strconv.Itoa(height))

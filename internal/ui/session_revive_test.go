@@ -7,11 +7,13 @@ import (
 	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -501,6 +503,11 @@ func TestReviveStartsTheAgentAgainInALivePane(t *testing.T) {
 	// survives the settings flag a hooked tool launches with.
 	hooked := m.services.cfg.Tools[sess.Tool]
 	hooked.Command = "sh -c 'cat'"
+	assignment := func(key, value string) string { return key + "='" + value + "'" }
+	if runtime.GOOS == "windows" {
+		hooked.Command = testfixture.ModeCommand("cat-stdin")
+		assignment = func(key, value string) string { return "$env:" + key + " = '" + value + "'" }
+	}
 	hooked.StatusSource = "claude-hooks"
 	m.services.cfg.Tools[sess.Tool] = hooked
 	quitAgent(t, m, sess.ID)
@@ -520,8 +527,8 @@ func TestReviveStartsTheAgentAgainInALivePane(t *testing.T) {
 		t.Fatal("revive must keep the window it relaunched in")
 	}
 
-	wantID := "AGENT_MANAGER_SESSION_ID='" + sess.ID + "'"
-	wantStatus := "AGENT_MANAGER_STATUS_FILE='" + m.services.hooks.StatusFile(sess.ID) + "'"
+	wantID := assignment("AGENT_MANAGER_SESSION_ID", sess.ID)
+	wantStatus := assignment("AGENT_MANAGER_STATUS_FILE", m.services.hooks.StatusFile(sess.ID))
 	// AgentRunning observes the child process as soon as it forks. tmux can
 	// paint the exported command a moment later, so wait on the values this
 	// assertion owns instead of treating process startup as redraw completion.
@@ -558,6 +565,10 @@ func TestReviveStartsTheAgentAgainInALivePane(t *testing.T) {
 	waitForAgent(t, m, sess.ID, false)
 	marker := filepath.Join(t.TempDir(), "env")
 	report := `printf '%s %s\n' "$AGENT_MANAGER_SESSION_ID" "$AGENT_MANAGER_STATUS_FILE" > ` + marker + `.part && mv ` + marker + `.part ` + marker
+	if runtime.GOOS == "windows" {
+		report = `Set-Content -LiteralPath ` + tmux.ShellQuote(marker+".part") + ` -Value "$env:AGENT_MANAGER_SESSION_ID $env:AGENT_MANAGER_STATUS_FILE"; ` +
+			`Move-Item -LiteralPath ` + tmux.ShellQuote(marker+".part") + ` -Destination ` + tmux.ShellQuote(marker)
+	}
 	if err := m.services.tmux.SendKeys(sess.ID, report, "Enter"); err != nil {
 		t.Fatalf("read the shell environment: %v", err)
 	}
@@ -576,6 +587,9 @@ func TestReviveStartsTheAgentAgainInALivePane(t *testing.T) {
 }
 
 func launchCaptureCommand(argsFile string) string {
+	if runtime.GOOS == "windows" {
+		return argCaptureCommand(argsFile) + " $env:" + hooks.EnvLaunch
+	}
 	script := `printf '%s\n' "$` + hooks.EnvLaunch + `" "$@" > ` + tmux.ShellQuote(argsFile) + `; cat`
 	return "sh -c " + tmux.ShellQuote(script) + " sh"
 }

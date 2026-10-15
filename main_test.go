@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -260,6 +261,11 @@ func TestResolveVersion(t *testing.T) {
 // from inside a managed pane cannot find that pane.
 func isolateTmux(t *testing.T) {
 	t.Helper()
+	// psmux keeps its servers' registry under its data directory.
+	if runtime.GOOS == "windows" {
+		t.Setenv("PSMUX_DATA_DIR", t.TempDir())
+		return
+	}
 	// Short on purpose: tmux silently falls back to the default socket once
 	// TMUX_TMPDIR/tmux-<uid>/<socket> passes 104 characters.
 	tmpdir, err := os.MkdirTemp("/tmp", "amcaller")
@@ -274,8 +280,8 @@ func isolateTmux(t *testing.T) {
 // MCP server under Codex is handed, so it wins; a terminal pane, which
 // carries neither, names its session through tmux instead.
 func TestCallerSessionPrefersTheEnvironmentOverThePane(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(tmux.Binary); err != nil {
+		t.Skip(tmux.Binary + " not installed")
 	}
 	isolateTmux(t)
 
@@ -284,11 +290,17 @@ func TestCallerSessionPrefersTheEnvironmentOverThePane(t *testing.T) {
 		t.Fatalf("tmux driver: %v", err)
 	}
 	id := "ca11ab1e"
-	if err := driver.Create(id, "/tmp", "", nil, 80, 24); err != nil {
+	if err := driver.Create(id, os.TempDir(), "", nil, 80, 24); err != nil {
 		t.Fatalf("create the terminal pane: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
-	out, err := exec.Command("tmux", "-L", driver.SocketName(), "display-message", "-p", "-t", tmux.PaneTarget(id), "#{socket_path},#{pid},0 #{pane_id}").CombinedOutput()
+	// The $TMUX a pane carries: tmux names its socket, psmux a directory
+	// named for the session's server pid.
+	format := "#{socket_path},#{pid},0 #{pane_id}"
+	if runtime.GOOS == "windows" {
+		format = "/tmp/psmux-#{pid}/" + driver.SocketName() + ",0,0 #{pane_id}"
+	}
+	out, err := exec.CommandContext(t.Context(), tmux.Binary, "-L", driver.SocketName(), "display-message", "-p", "-t", tmux.PaneTarget(id), format).CombinedOutput()
 	if err != nil {
 		t.Fatalf("pane id: %v: %s", err, out)
 	}

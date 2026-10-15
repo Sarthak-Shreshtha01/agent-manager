@@ -435,7 +435,13 @@ The values come from the session and the agent, so quote them (`"$AM_BODY"`) and
 agent-manager settings set notify_command 'curl -fsS -H "Title: $AM_TITLE" -H "Tags: $AM_NOTIFY_KIND" -d "$AM_BODY" https://ntfy.sh/your-private-topic'
 ```
 
-A command that runs past 15 seconds is stopped. When one fails, exits non-zero, or is stopped, the time, the session, the error, and the start of what it printed go to `notify-command.log` in the manager's config directory (`~/Library/Application Support/agent-manager` on macOS, `~/.config/agent-manager` on Linux), a file only you can read, and nothing interrupts the manager.
+On Windows the manager runs the command through PowerShell instead, the shell its panes run, so the variables read as `$env:AM_BODY` and the command is PowerShell. Set it from PowerShell 7.3 or later: Windows PowerShell 5.1 drops the inner double quotes before `agent-manager` receives them.
+
+```powershell
+agent-manager settings set notify_command 'curl.exe -fsS -H "Title: $env:AM_TITLE" -H "Tags: $env:AM_NOTIFY_KIND" -d "$env:AM_BODY" https://ntfy.sh/your-private-topic'
+```
+
+A command that runs past 15 seconds is stopped. When one fails, exits non-zero, or is stopped, the time, the session, the error, and the start of what it printed go to `notify-command.log` in the manager's config directory (`~/Library/Application Support/agent-manager` on macOS, `~/.config/agent-manager` on Linux, `%AppData%\agent-manager` on Windows), a file only you can read, and nothing interrupts the manager.
 
 The command runs as you, with everything your account can reach, so give it the same trust as your shell rc file. Nothing on screen lists it, so before the manager runs a command it has not shown you, it posts a `New notify command` banner with the command itself. That happens once for each new command, the first one you set included, and a command that changed without your knowing shows up there.
 

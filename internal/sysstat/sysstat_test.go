@@ -13,6 +13,13 @@ import (
 	"github.com/shirou/gopsutil/v4/sensors"
 )
 
+func skipPOSIXShell(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture is a POSIX shell script")
+	}
+}
+
 func TestSample(t *testing.T) {
 	disableHostSampling(t)
 	snap := Sample("/")
@@ -391,6 +398,7 @@ func TestLogicalCPUs(t *testing.T) {
 // The poller identifies the CLI a pane is running from the pane shell's own
 // children, so a tree sample has to name them.
 func TestTreesNamesDirectChildren(t *testing.T) {
+	skipPOSIXShell(t)
 	// sh forks for a two-command script rather than exec'ing over itself,
 	// so sleep lands a level below and proves only children are reported.
 	child := exec.Command("sh", "-c", "sleep 5; true")
@@ -426,6 +434,7 @@ func TestTreesNamesDirectChildren(t *testing.T) {
 // One ps call names the children of every pane at once, so each name has to
 // land on the root that started it.
 func TestTreesNamesTheChildrenOfEachRoot(t *testing.T) {
+	skipPOSIXShell(t)
 	start := func(name string, args ...string) int {
 		cmd := exec.Command(name, args...)
 		if err := cmd.Start(); err != nil {

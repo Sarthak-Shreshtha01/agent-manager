@@ -250,7 +250,7 @@ func TestInboxAsksForAReplyOnlyFromAnAgent(t *testing.T) {
 				t.Fatalf("maybeDeliverInbox: %v", err)
 			}
 			pane := settledPane(t, m, sess.ID, "rebase on main", "wait for them.", testCase.marker)
-			if got := strings.Contains(strings.ReplaceAll(pane, "\n", ""), "agent-manager send sender01"); got == testCase.fromShell {
+			if got := strings.Contains(strings.ReplaceAll(ansi.Strip(pane), "\n", ""), "agent-manager send sender01"); got == testCase.fromShell {
 				t.Fatalf("reply line present = %v for a sender from a shell = %v:\n%s", got, testCase.fromShell, pane)
 			}
 
@@ -617,7 +617,7 @@ func TestInboxHoldsAMessageWhileSomeoneIsTypingAtThePrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(strings.ReplaceAll(after, "\n", ""), "rebase on main") {
+	if strings.Contains(strings.ReplaceAll(ansi.Strip(after), "\n", ""), "rebase on main") {
 		t.Fatalf("the message reached a pane someone was typing in:\n%s", after)
 	}
 	// The hold is the typed line, not the session: once it is gone the same

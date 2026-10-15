@@ -121,7 +121,7 @@ func (detachEffectResult) effectResult() {}
 
 func (s effectServices) runDetach(request detachRequest) (effectResult, error) {
 	result := detachEffectResult{}
-	marker, err := s.driver.PendingRequest()
+	marker, err := s.driver.PendingRequest(request.sessionID)
 	if err != nil {
 		return result, err
 	}
@@ -129,7 +129,7 @@ func (s effectServices) runDetach(request detachRequest) (effectResult, error) {
 		return result, nil
 	}
 	result.request = marker
-	result.clearErr = s.driver.ClearRequest()
+	result.clearErr = s.driver.ClearRequest(request.sessionID)
 	return result, nil
 }
 

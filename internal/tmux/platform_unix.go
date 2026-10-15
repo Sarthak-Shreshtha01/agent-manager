@@ -7,12 +7,100 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
 )
+
+// Binary is the multiplexer the manager drives.
+const Binary = "tmux"
+
+// controlFlag attaches a control-mode client.
+const controlFlag = "-C"
+
+// hiddenWindowStatus is a window-status format that draws nothing.
+const hiddenWindowStatus = ""
+
+// pinsSplitPane: Resize can pin the agent's pane inside a split window.
+const pinsSplitPane = true
+
+// firstWindow is the window spec for a session's first window.
+const firstWindow = "^"
+
+// controlUnavailable reports why control mode cannot be used; tmux's can.
+func controlUnavailable() error {
+	return nil
+}
+
+// rootBinding binds a key inside managed sessions only; anywhere else on
+// the server the key goes through to the pane as itself. That branch is a
+// command string tmux parses, so a backslash in the key name is doubled.
+func rootBinding(key keybind.Key, action ...string) []string {
+	passThrough := "send-keys " + strings.ReplaceAll(key.Tmux(), `\`, `\\`)
+	return []string{"bind-key", "-n", key.Tmux(), "if-shell", "-F", ownedBindingTest, strings.Join(action, " "), passThrough}
+}
+
+// requestAction leaves the request marker and detaches, as the one command
+// string an if-shell branch takes.
+func (d *Driver) requestAction(_ string, name string) []string {
+	return []string{"set-option -g " + requestOption + " " + name + " ; detach-client"}
+}
+
+// ownedRootBindings lists the root-table keys carrying the manager's own
+// session test. list-keys prints a key the way its parser reads it back,
+// so a backslash comes doubled and is undone here for unbind-key, which
+// takes the name as is.
+func (d *Driver) ownedRootBindings(id string) ([]string, error) {
+	out, err := d.runIn(id, "list-keys", "-T", "root")
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || fields[0] != "bind-key" || fields[1] != "-T" || fields[2] != "root" {
+			continue
+		}
+		if !strings.Contains(line, ownedBindingTest) {
+			continue
+		}
+		keys = append(keys, strings.ReplaceAll(fields[3], `\\`, `\`))
+	}
+	return keys, nil
+}
+
+// recordRootBindings has nothing to record: the session test in each
+// binding is what marks it as the manager's.
+func recordRootBindings([]string) [][]string {
+	return nil
+}
+
+// commandEnv is the environment tmux runs with: nil inherits this process's.
+func commandEnv() []string {
+	return nil
+}
+
+// sessionRoute is empty: tmux has one server for every session, and rejects
+// a -t ahead of the command word.
+func sessionRoute(string) []string {
+	return nil
+}
+
+// eachServer runs fn once for the single server that hosts every session.
+func (d *Driver) eachServer(fn func(id string) error) error {
+	return fn("")
+}
+
+// splitCommandList leaves a command list whole: tmux runs it in one go.
+func splitCommandList(args []string) [][]string {
+	return [][]string{args}
+}
+
+// bindingArg is a bind-key argument as tmux takes it, verbatim.
+func bindingArg(s string) string {
+	return s
+}
 
 // SocketPath is the file the server this driver talks to listens on. The
 // -L name does not identify a server on its own: tmux resolves it under
@@ -81,12 +169,10 @@ func (d *Driver) startSession(id, cwd string, width, height int, scriptPath stri
 	if width > 0 && height > 0 {
 		args = append(args, "-x", strconv.Itoa(width), "-y", strconv.Itoa(height))
 	}
-	// Launch via a short `sh <script>` window command. Typing the full line
-	// with send-keys truncates around 1024 bytes, which breaks long first
-	// prompts mid-path. A script has no practical length limit, and exec'ing
-	// the user shell afterwards matches "type into a shell" (pane stays up).
-	// tmux runs the line through its default-shell's -c, and the exec keeps
-	// dash or fish from staying on as the pane's process above the script.
+	// A short `sh <script>` window command, which execs the user's shell
+	// once the agent exits. tmux runs the line through its default-shell's
+	// -c, and the exec keeps dash or fish from staying on as the pane's
+	// process above the script.
 	if scriptPath != "" {
 		args = append(args, "exec sh "+ShellQuote(scriptPath))
 	}
@@ -98,6 +184,11 @@ func (d *Driver) startSession(id, cwd string, width, height int, scriptPath stri
 // dir on macOS contains a space, so paths sent into panes must be quoted.
 func ShellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// ShellInvoke is a pane shell command line running the program at path.
+func ShellInvoke(path string) string {
+	return ShellQuote(path)
 }
 
 // exportEnv prefixes a command with exports of the session environment, for
@@ -159,10 +250,6 @@ func launchScriptPath(id string) string {
 	return filepath.Join(os.TempDir(), "am-launch-"+id+".sh")
 }
 
-// relaunchHint lands in the pane the moment the agent exits, which is where
-// the user is looking when they wonder how to get it back.
-const relaunchHint = "agent-manager: agent exited - press v in Agent Manager to relaunch it here."
-
 func writeLaunchScript(id string, env map[string]string, command, colorFgBg string) (string, error) {
 	path := launchScriptPath(id)
 	shell := os.Getenv("SHELL")
@@ -189,37 +276,6 @@ func writeLaunchScript(id string, env map[string]string, command, colorFgBg stri
 		return "", fmt.Errorf("launch script: %w", err)
 	}
 	return path, nil
-}
-
-// rootBinding binds a key inside managed sessions only; anywhere else on
-// the server the key goes through to the pane as itself. That branch is a
-// command string tmux parses, so a backslash in the key name is doubled.
-func rootBinding(key keybind.Key, action string) []string {
-	passThrough := "send-keys " + strings.ReplaceAll(key.Tmux(), `\`, `\\`)
-	return []string{"bind-key", "-n", key.Tmux(), "if-shell", "-F", ownedBindingTest, action, passThrough}
-}
-
-// ownedRootBindings lists the root-table keys carrying the manager's own
-// session test. list-keys prints a key the way its parser reads it back,
-// so a backslash comes doubled and is undone here for unbind-key, which
-// takes the name as is.
-func (d *Driver) ownedRootBindings() ([]string, error) {
-	out, err := d.run("list-keys", "-T", "root")
-	if err != nil {
-		return nil, err
-	}
-	var keys []string
-	for _, line := range strings.Split(out, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 4 || fields[0] != "bind-key" || fields[1] != "-T" || fields[2] != "root" {
-			continue
-		}
-		if !strings.Contains(line, ownedBindingTest) {
-			continue
-		}
-		keys = append(keys, strings.ReplaceAll(fields[3], `\\`, `\`))
-	}
-	return keys, nil
 }
 
 // SessionOfPane names the managed session a tmux pane belongs to, for a
@@ -266,8 +322,6 @@ func splitPaneInfo(out string) (socket, pid, name string) {
 	return socket, pid, name
 }
 
-var paneIDPattern = regexp.MustCompile(`^%[0-9]+$`)
-
 // resolvedSocket puts two socket paths in the same terms before they are
 // compared: macOS reports /private/tmp where the other side says /tmp, and
 // a temporary directory is routinely a symlink on either platform.
@@ -296,8 +350,4 @@ func processParents() (map[int]int, error) {
 		}
 	}
 	return parents, nil
-}
-
-func removeScripts(id string) {
-	os.Remove(launchScriptPath(id))
 }

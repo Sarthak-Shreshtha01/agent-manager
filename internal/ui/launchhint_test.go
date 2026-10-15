@@ -17,6 +17,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/testfixture"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -138,14 +139,18 @@ func TestReportLaunchErrorOpensInstallHintForMissingCLI(t *testing.T) {
 	if m.mode != modeLaunchHint {
 		t.Fatalf("mode = %v, want modeLaunchHint", m.mode)
 	}
-	if !strings.Contains(m.launchHint.fix.text, "claude.ai/install.sh") {
+	installer := "claude.ai/install.sh"
+	if runtime.GOOS == "windows" {
+		installer = "claude.ai/install.ps1"
+	}
+	if !strings.Contains(m.launchHint.fix.text, installer) {
 		t.Fatalf("hint %q should name the install command", m.launchHint.fix.text)
 	}
 	if !strings.Contains(m.launchHint.fix.text, "claude") {
 		t.Fatalf("hint %q should name the missing CLI", m.launchHint.fix.text)
 	}
 	frame := ansi.Strip(m.launchHint.view(m))
-	if !strings.Contains(frame, "claude.ai/install.sh") {
+	if !strings.Contains(frame, installer) {
 		t.Fatalf("dialog should show the install command:\n%s", frame)
 	}
 }
@@ -613,6 +618,7 @@ func imageExists(t *testing.T, path string) bool {
 
 func fakeInstallCommand(t *testing.T) string {
 	t.Helper()
+	skipPOSIXShell(t)
 	bin := t.TempDir()
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	target := filepath.Join(bin, "am-fake-cli")
@@ -735,6 +741,9 @@ func TestLaunchHintInstallShellKilledDropsThePendingLaunch(t *testing.T) {
 // A CLI on the interop PATH but not in the distro is a different problem
 // from one nobody installed, and the dialog has to say so.
 func TestLaunchHintNamesAWindowsOnlyInstall(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a Windows copy reached through interop only exists under WSL")
+	}
 	m := buildModel(t)
 	windowsPath := `/mnt/c/npm-global/claude`
 
@@ -936,7 +945,7 @@ func TestInstallFinishesARefusedRestore(t *testing.T) {
 
 	// What the install unblocks has to be the whole restore, not the
 	// revive alone, so the retry is run here with a working CLI.
-	m.services.cfg.Tools["claude"] = config.Tool{Command: "cat", DefaultStatus: status.Idle}
+	m.services.cfg.Tools["claude"] = config.Tool{Command: testfixture.Cat(), DefaultStatus: status.Idle}
 	if m.launchHint.fix.effectRetry == nil {
 		t.Fatal("missing captured restore retry")
 	}

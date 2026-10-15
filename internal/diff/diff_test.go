@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -247,6 +248,9 @@ func TestUntrackedStatsFillAtBuildWithoutLoadingContents(t *testing.T) {
 }
 
 func TestUntrackedStatErrorIsRecorded(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod cannot deny reads on Windows")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root reads any file regardless of mode")
 	}
@@ -277,6 +281,9 @@ func TestUntrackedStatErrorIsRecorded(t *testing.T) {
 }
 
 func TestUnreadableUntrackedFileDoesNotAbortSet(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod cannot deny reads on Windows")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root reads any file regardless of mode")
 	}

@@ -211,6 +211,10 @@ func deliver(sessionID, subtitle, body string, detail presentation) {
 		if _, err := lookPath("notify-send"); err == nil && notifySend(sessionID, terminalBody, detail) == nil {
 			return
 		}
+	case "windows":
+		if windowsToast(subtitle, body, detail.windowsSound) == nil {
+			return
+		}
 	}
 	_ = emitSeq("\a")
 }

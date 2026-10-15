@@ -2,8 +2,6 @@ package tmux
 
 import (
 	"fmt"
-	"os/exec"
-	"strings"
 )
 
 // PaneTheme is the text and background colors agent panes are rendered on.
@@ -54,12 +52,10 @@ func (d *Driver) PushPaneTheme() error {
 	if theme == nil {
 		return nil
 	}
-	out, err := exec.Command(d.bin, d.args(paneThemeArgs(*theme)...)...).CombinedOutput()
-	if err != nil {
-		if noServer(string(out)) {
-			return nil
+	return d.eachServer(func(id string) error {
+		if _, err := d.runIn(id, paneThemeArgs(*theme)...); err != nil && !noServer(err.Error()) {
+			return fmt.Errorf("tmux set pane theme: %w", err)
 		}
-		return fmt.Errorf("tmux set pane theme: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
+		return nil
+	})
 }

@@ -99,15 +99,23 @@ func (d *Driver) OpenControl(id string) (*Control, error) {
 
 // OpenControlContext attaches a control-mode client and returns once tmux has
 // greeted it. ctx bounds only the open; a returned Control owns its process
-// until Close is called.
+// until Close is called. Where the multiplexer's control client cannot be
+// relied on it fails, and callers poll captures instead.
 func (d *Driver) OpenControlContext(ctx context.Context, id string) (*Control, error) {
+	if err := controlUnavailable(); err != nil {
+		return nil, err
+	}
+	return d.openControlContext(ctx, id)
+}
+
+func (d *Driver) openControlContext(ctx context.Context, id string) (*Control, error) {
 	release, err := enterGateContext(ctx, d.socket, true)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
 	processCtx, cancelProcess := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(processCtx, d.bin, d.args("-C", "attach-session", "-t", sessionName(id))...)
+	cmd := d.commandContext(processCtx, controlFlag, "attach-session", "-t", sessionName(id))
 	configureBoundedCommand(cmd)
 	cmd.WaitDelay = commandTimeout
 	stdin, err := cmd.StdinPipe()
@@ -468,7 +476,8 @@ func (c *Control) readLoop(stdout io.Reader) {
 	inBlock := false
 	blockTag := ""
 	for scanner.Scan() {
-		line := scanner.Text()
+		// psmux -CC glues its DCS opener to the greeting; tmux -C sends none.
+		line := strings.TrimPrefix(scanner.Text(), "\x1bP1000p")
 		switch {
 		case !inBlock && strings.HasPrefix(line, "%begin "):
 			inBlock = true

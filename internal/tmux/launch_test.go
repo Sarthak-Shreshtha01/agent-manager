@@ -15,6 +15,7 @@ import (
 // truncates around 1024 bytes and left long first prompts as a broken
 // shell command. paste-buffer must deliver the full line.
 func TestCreateDeliversLongCommand(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "long" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := "/tmp/am-long-" + id
@@ -25,7 +26,7 @@ func TestCreateDeliversLongCommand(t *testing.T) {
 	if len(command) < 1024 {
 		t.Fatalf("test command must exceed the old 1024-byte send-keys limit, got %d", len(command))
 	}
-	if err := driver.Create(id, "/tmp", command, nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), command, nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -48,6 +49,7 @@ func TestCreateDeliversLongCommand(t *testing.T) {
 // server — the only client is in control mode and has no tty — unless the
 // pane carries explicit colors of its own, which is what the pane theme sets.
 func TestCreateAnswersColorQueries(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	// tmux below 3.2 answers no colour query; the pane's COLORFGBG carries
 	// the same pair there (TestCreateExportsColorFgBg).
@@ -61,7 +63,7 @@ func TestCreateAnswersColorQueries(t *testing.T) {
 	// read both happen inside the pane. Raw mode keeps the line discipline
 	// from holding a reply that ends in ST rather than a newline.
 	command := "stty raw; printf '\\033]10;?\\033\\\\\\033]11;?\\033\\\\'; cat > " + reply
-	if err := driver.Create(id, "/tmp", command, nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), command, nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -99,13 +101,14 @@ func requireTmuxAtLeast(t *testing.T, major, minor int) {
 // COLORFGBG is the fallback for agents that read the environment instead of
 // querying, and nothing in a pane's environment carries it otherwise.
 func TestCreateExportsColorFgBg(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	t.Cleanup(func() { clearPaneTheme(t) })
 	driver.PublishPaneTheme(PaneTheme{Foreground: "#cdd6f4", Background: "#1e1e2e", ColorFgBg: "15;0"})
 
 	id := "fgbg" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	marker := t.TempDir() + "/env"
-	if err := driver.Create(id, "/tmp", "printenv COLORFGBG > "+marker, nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "printenv COLORFGBG > "+marker, nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -121,6 +124,7 @@ func TestCreateExportsColorFgBg(t *testing.T) {
 // inherits these values: the rename subcommand and the MCP server both
 // identify the session by AGENT_MANAGER_SESSION_ID alone.
 func TestCreateExportsSessionEnvIntoTheShell(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "senv" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
 	fixture := t.TempDir()
@@ -136,7 +140,7 @@ func TestCreateExportsSessionEnvIntoTheShell(t *testing.T) {
 	}
 	// A launch command that returns at once stands in for the user quitting
 	// the agent back to the pane's shell.
-	if err := driver.Create(id, "/tmp", "printf 'agent ran\\n'", env, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "printf 'agent ran\\n'", env, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -159,9 +163,10 @@ func TestCreateExportsSessionEnvIntoTheShell(t *testing.T) {
 // The pane is where the user is looking when the agent exits, so the way
 // back to a wired agent is named there.
 func TestCreateNamesTheWayBackWhenTheAgentExits(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "hint" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "printf 'agent ran\\n'", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "printf 'agent ran\\n'", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -169,6 +174,7 @@ func TestCreateNamesTheWayBackWhenTheAgentExits(t *testing.T) {
 }
 
 func TestExportEnvPrefixesTheCommand(t *testing.T) {
+	skipPOSIXShell(t)
 	env := map[string]string{"B": "second", "A": "fir st"}
 	want := `export A='fir st'; export B='second'; claude --resume 7`
 	if got := exportEnv(env, "claude --resume 7"); got != want {

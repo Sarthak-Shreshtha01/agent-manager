@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -27,31 +27,48 @@ func TestMain(m *testing.M) {
 	if action := os.Getenv(otherProcessEnv); action != "" {
 		os.Exit(repeatUntilStdinCloses(&Driver{bin: os.Args[1], socket: testSocket}, action, os.Args[2]))
 	}
+	os.Exit(runTests(m))
+}
+
+func runTests(m *testing.M) int {
+	// psmux keeps its servers' registry under its data directory, which a
+	// fresh one isolates the way the private socket does for tmux.
+	if runtime.GOOS == "windows" {
+		dir, err := os.MkdirTemp("", "amtmuxtest-psmux-")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "psmux data dir: %v\n", err)
+			return 1
+		}
+		defer os.RemoveAll(dir)
+		os.Setenv("PSMUX_DATA_DIR", dir)
+	}
 	// kill-server fails whenever no server is up, which is the normal case.
 	tmuxCmd("kill-server").Run()
 	// Without tmux the run still starts: each test skips through its own
 	// requireTmux. With tmux, a run that could not plant the anchor would
 	// pass or flake on luck, so it stops instead.
-	if _, err := exec.LookPath("tmux"); err == nil {
+	if _, err := exec.LookPath(Binary); err == nil {
 		if out, err := tmuxCmd("new-session", "-d", "-s", "anchor").CombinedOutput(); err != nil {
 			fmt.Fprintf(os.Stderr, "anchor session: %v: %s\n", err, out)
-			os.Exit(1)
+			return 1
 		}
 	}
 	code := m.Run()
 	tmuxCmd("kill-server").Run()
-	os.Exit(code)
+	return code
 }
 
 // tmuxCmd builds a raw tmux command aimed at the test socket.
 func tmuxCmd(args ...string) *exec.Cmd {
-	return exec.Command("tmux", append([]string{"-L", testSocket}, args...)...)
+	cmd := exec.Command(Binary, append([]string{"-L", testSocket}, args...)...)
+	cmd.Env = commandEnv()
+	return cmd
 }
 
 func requireTmux(t *testing.T) *Driver {
 	t.Helper()
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
+	if _, err := exec.LookPath(Binary); err != nil {
+		t.Skip(Binary + " not installed")
 	}
 	driver, err := NewWithSocket(testSocket)
 	if err != nil {
@@ -64,20 +81,20 @@ func TestDetachRequestRoundTrip(t *testing.T) {
 	driver := requireTmux(t)
 	// A live server is needed for global options to stick.
 	id := "rev" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
 	t.Cleanup(func() {
-		if err := driver.ClearRequest(); err != nil {
+		if err := driver.ClearRequest(id); err != nil {
 			t.Errorf("ClearRequest: %v", err)
 		}
 	})
 
-	if err := driver.ClearRequest(); err != nil {
+	if err := driver.ClearRequest(id); err != nil {
 		t.Fatalf("ClearRequest: %v", err)
 	}
-	request, err := driver.PendingRequest()
+	request, err := driver.PendingRequest(id)
 	if err != nil {
 		t.Fatalf("PendingRequest: %v", err)
 	}
@@ -86,10 +103,10 @@ func TestDetachRequestRoundTrip(t *testing.T) {
 	}
 
 	for _, want := range []string{RequestReview, RequestEditor} {
-		if _, err := tmuxCmd("set-option", "-g", requestOption, want).CombinedOutput(); err != nil {
+		if _, err := tmuxCmd(append(sessionRoute(id), "set-option", "-g", requestOption, want)...).CombinedOutput(); err != nil {
 			t.Fatalf("set marker: %v", err)
 		}
-		request, err = driver.PendingRequest()
+		request, err = driver.PendingRequest(id)
 		if err != nil {
 			t.Fatalf("PendingRequest: %v", err)
 		}
@@ -97,10 +114,10 @@ func TestDetachRequestRoundTrip(t *testing.T) {
 			t.Fatalf("marker reads as %q, want %q", request, want)
 		}
 
-		if err := driver.ClearRequest(); err != nil {
+		if err := driver.ClearRequest(id); err != nil {
 			t.Fatalf("ClearRequest: %v", err)
 		}
-		request, err = driver.PendingRequest()
+		request, err = driver.PendingRequest(id)
 		if err != nil {
 			t.Fatalf("PendingRequest: %v", err)
 		}
@@ -125,11 +142,12 @@ func waitForFile(t *testing.T, driver *Driver, id, path string) string {
 }
 
 func TestLifecycle(t *testing.T) {
+	skipPOSIXShell(t)
 	driver := requireTmux(t)
 	id := "test" + time.Now().Format("150405.000000")
 	id = strings.ReplaceAll(id, ".", "")
 
-	if err := driver.Create(id, "/tmp", "printf 'hello-pane-marker'", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "printf 'hello-pane-marker'", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -206,7 +224,7 @@ func TestCommandListSeparatesCommands(t *testing.T) {
 func TestCommandListRunsAgainstTmux(t *testing.T) {
 	driver := requireTmux(t)
 	id := "cmdlist" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
-	if err := driver.Create(id, "/tmp", "", nil, 0, 0); err != nil {
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	t.Cleanup(func() { driver.Kill(id) })
@@ -225,6 +243,11 @@ func TestCommandListRunsAgainstTmux(t *testing.T) {
 		t.Fatalf("@second = %q, want the command after the separator to run", got)
 	}
 
+	// psmux answers an option set on a missing session with a warning at
+	// exit 0, so there is no failure for the list to stop at.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	if _, err := driver.run(commandList(
 		[]string{"set-option", "-t", "am_no_such_session", "@third", "gamma"},
 		[]string{"set-option", "-t", name, "@fourth", "delta"},
@@ -259,19 +282,6 @@ func waitForPane(t *testing.T, driver *Driver, id, want string) {
 	t.Fatalf("pane never showed %q; pane:\n%s", want, pane)
 }
 
-// tmux skips a TMUX_TMPDIR it cannot resolve and puts its socket under /tmp.
-func TestSocketPathFromMissingTmpdirFallsBackToTmp(t *testing.T) {
-	t.Setenv("TMUX_TMPDIR", filepath.Join(t.TempDir(), "missing"))
-	tmp, err := filepath.EvalSymlinks("/tmp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := filepath.Join(tmp, fmt.Sprintf("tmux-%d", os.Getuid()), testSocket)
-	if got := socketPathFromEnv(testSocket); got != want {
-		t.Fatalf("socket path = %q, want %q", got, want)
-	}
-}
-
 func serverPid(t *testing.T) string {
 	t.Helper()
 	out, err := tmuxCmd("display-message", "-p", "#{pid}").CombinedOutput()
@@ -279,4 +289,39 @@ func serverPid(t *testing.T) string {
 		t.Fatalf("server pid: %v: %s", err, out)
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// skipPOSIXShell skips a test whose fixture only a POSIX shell runs.
+func skipPOSIXShell(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture is a POSIX shell script")
+	}
+}
+
+// paneDir is a directory every platform's sessions can start in.
+func paneDir() string {
+	if runtime.GOOS == "windows" {
+		return os.TempDir()
+	}
+	return "/tmp"
+}
+
+// bindingServer runs commands where a test inspects server-scoped setup.
+// tmux keeps it on its one server, which the anchor session holds up; psmux
+// keeps it per session server, so there a managed session is created and
+// every command is routed to its server.
+func bindingServer(t *testing.T, driver *Driver) func(args ...string) *exec.Cmd {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		return tmuxCmd
+	}
+	id := "bind" + strings.ReplaceAll(time.Now().Format("150405.000000"), ".", "")
+	if err := driver.Create(id, paneDir(), "", nil, 0, 0); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { driver.Kill(id) })
+	return func(args ...string) *exec.Cmd {
+		return tmuxCmd(append(sessionRoute(id), args...)...)
+	}
 }

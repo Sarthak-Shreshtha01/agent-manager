@@ -110,6 +110,7 @@ func TestReviveRestartsTheAgentInsideItsLivePane(t *testing.T) {
 }
 
 func TestRevivePickerRecoveryCoversBothPanePaths(t *testing.T) {
+	skipPOSIXShell(t)
 	tests := []struct {
 		name string
 		tool string
@@ -158,6 +159,10 @@ func TestRevivePickerRecoveryCoversBothPanePaths(t *testing.T) {
 }
 
 func TestReviveRefusesWhileTheAgentIsStillRunning(t *testing.T) {
+	// The resting tool's agent is printf followed by cat: under PowerShell
+	// printf does not exist and cat is an in-process cmdlet, so the pane
+	// shell never gains the child process that marks a running agent.
+	skipPOSIXShell(t)
 	h := newSessionHarness(t)
 	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "chatty", Tool: "resting"})
 	if err != nil {
@@ -231,6 +236,7 @@ func TestATerminalHasNoTurnToEndItselfAfter(t *testing.T) {
 // The agent switched conversation after it launched; revive brings back the
 // one it reported, and tells the new agent the launch its row is stamped with.
 func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
+	skipPOSIXShell(t)
 	h := newSessionHarness(t)
 	created, err := h.sessions.Create(h.caller.ID, CreateSessionOptions{Name: "switcher", Tool: "reporter"})
 	if err != nil {
@@ -256,6 +262,7 @@ func TestReviveResumesTheConversationTheAgentReported(t *testing.T) {
 // Muse names its conversation only in a file it holds open while it runs,
 // and no manager screen may be open to have read it before the kill.
 func TestKillFollowsTheConversationTheAgentHolds(t *testing.T) {
+	skipPOSIXShell(t)
 	h := newSessionHarness(t)
 	held := filepath.Join(t.TempDir(), "muse", "sessions", "conv-held.json")
 	if err := os.MkdirAll(filepath.Dir(held), 0o755); err != nil {
@@ -288,6 +295,7 @@ default_status = "idle"
 // Grok's log keeps the last conversation each process was on after it has
 // quit, which a revive reads when no manager screen followed the switch.
 func TestReviveReadsTheConversationAQuitAgentLogged(t *testing.T) {
+	skipUntracked(t)
 	h := newSessionHarness(t)
 	grokHome := t.TempDir()
 	t.Setenv("GROK_HOME", grokHome)
