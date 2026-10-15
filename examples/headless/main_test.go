@@ -43,11 +43,16 @@ func TestHeadlessObservationUsesRuntimeWithoutUI(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { driver.Kill("am-poc-anchor") })
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// The first observation ends the wait, so the deadline only bounds a
+	// slow first poll, which a loaded Windows runner can take seconds over.
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	output := &cancelWriter{cancel: cancel}
 	if err := observe(ctx, dir, driver, output); err != nil {
 		t.Fatal(err)
+	}
+	if output.Len() == 0 {
+		t.Fatal("no observation before the deadline")
 	}
 	var got observation
 	if err := json.NewDecoder(&output.Buffer).Decode(&got); err != nil {
