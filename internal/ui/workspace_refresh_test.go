@@ -52,8 +52,11 @@ func TestRefreshWithStaleSelectionFetchesPreview(t *testing.T) {
 		t.Fatal("stale refresh should schedule an immediate preview fetch")
 	}
 	m.applyCmd(t, cmd)
-	if m.workspace.preview == "" {
-		t.Fatal("scheduled selection refresh produced no preview")
+	// A fresh pane may not have drawn anything yet (psmux is slower to
+	// print a prompt), so check the fetch landed for the selection rather
+	// than that it carried text.
+	if m.workspace.procFor != sess.ID {
+		t.Fatalf("scheduled selection refresh landed for %q, want %q", m.workspace.procFor, sess.ID)
 	}
 
 	m.workspace.preview = "existing"
