@@ -23,7 +23,7 @@ const (
 // the accent, so a dialog reads as the app's own surface rather than as a
 // box drawn around it.
 func cardBorderStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(mix(current.Border, current.Accent, 0.35)))
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(mix(current().Border, current().Accent, 0.35)))
 }
 
 // card floats a modal on the app backdrop: a framed panel with its title set
@@ -64,7 +64,7 @@ func (m *Model) flexCardWidth(title, body string, hint [][2]string) int {
 }
 
 func cardTitle(title string) string {
-	return lipgloss.NewStyle().Foreground(colorAccent).Bold(true).Render(title)
+	return lipgloss.NewStyle().Foreground(colorAccent()).Bold(true).Render(title)
 }
 
 // cardSized is card at an explicit width, for the key map, whose lines are

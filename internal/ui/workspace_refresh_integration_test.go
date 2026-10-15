@@ -50,6 +50,7 @@ func spawnedSession(t *testing.T, m *Model, tool string) store.Session {
 // rides the same refresh the sessions do and reaches the row as a badge,
 // which is the only thing that says the queue is stuck.
 func TestRefreshCarriesQueuedCountsToTheRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "quiet", dir, "")
@@ -83,6 +84,7 @@ func TestRefreshCarriesQueuedCountsToTheRows(t *testing.T) {
 // The counts are replaced whole rather than merged, so a message that has
 // been delivered takes its badge with it on the next refresh.
 func TestRefreshReplacesTheQueuedCountsWholesale(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := spawnedSession(t, m, "claude-hooked")
 	id := queueMessage(t, m, sess.ID, "rebase on main")
@@ -202,6 +204,7 @@ func containsAll(pane string, markers []string) bool {
 // the row onto what the pane is running rather than leaving the user to
 // retype it by hand.
 func TestPollRetypesARowOntoTheCLIItsPaneRuns(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	tail := "tail -f /dev/null"
 	if runtime.GOOS == "windows" {
@@ -249,6 +252,7 @@ func TestPollRetypesARowOntoTheCLIItsPaneRuns(t *testing.T) {
 // A row whose pane still runs the CLI it launched with keeps its tool, and
 // with it the conversation that tool can be revived on.
 func TestPollLeavesARunningRowAlone(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.poller.options.Binaries = newToolBinaries(m.services.cfg)
 	resetExecution(m)

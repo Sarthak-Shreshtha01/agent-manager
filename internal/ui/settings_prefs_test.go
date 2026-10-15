@@ -3,6 +3,7 @@ package ui
 import "testing"
 
 func TestDefaultSplitLayout(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if !m.defaultSplitLayout() {
 		t.Fatal("split should be the default layout")

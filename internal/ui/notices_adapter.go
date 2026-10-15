@@ -96,14 +96,14 @@ func (m *Model) noticesFrame() uinotices.Frame {
 func noticesTheme() uinotices.Theme {
 	card := noticeCardHex()
 	return uinotices.Theme{
-		Accent:      colorAccent,
-		Accent2:     colorAccent2,
-		Bright:      colorBright,
-		SubtleColor: colorSubtle,
-		Subtle:      subtleStyle,
-		Muted:       mutedStyle,
-		Value:       valueStyle,
-		Key:         keyStyle,
+		Accent:      colorAccent(),
+		Accent2:     colorAccent2(),
+		Bright:      colorBright(),
+		SubtleColor: colorSubtle(),
+		Subtle:      subtleStyle(),
+		Muted:       mutedStyle(),
+		Value:       valueStyle(),
+		Key:         keyStyle(),
 		Border:      noticeBorderStyle(),
 		Title:       noticeTitleStyle(),
 		Fill:        func(row string, width int) string { return paint(row, width, card) },
@@ -116,11 +116,11 @@ func noticeCardHex() string { return mix(panelHex(), "#e2c044", 0.16) }
 // noticeBorderStyle is the card's rounded frame, dimmed toward the same
 // yellow so the outline and the fill read as one object.
 func noticeBorderStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(mix(current.Subtle, "#e2c044", 0.45)))
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(mix(current().Subtle, "#e2c044", 0.45)))
 }
 
 func noticeTitleStyle() lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(mix(current.Bright, "#e2c044", 0.5))).Bold(true)
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(mix(current().Bright, "#e2c044", 0.5))).Bold(true)
 }
 
 // indexReleaseRanges keeps catalog scans out of the paint path. It runs only

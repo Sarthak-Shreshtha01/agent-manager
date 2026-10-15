@@ -45,6 +45,7 @@ func captureArgsCommand(file string, placeholders ...string) string {
 }
 
 func TestForkSelectedSessionCreatesNamedSibling(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("work", dir); err != nil {
@@ -131,6 +132,7 @@ func TestForkSelectedSessionCreatesNamedSibling(t *testing.T) {
 // The source switched conversation after the row was listed; the fork
 // branches from the one it is on now.
 func TestForkBranchesFromTheConversationTheSourceReported(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	source := m.sessionRows()[0]
@@ -170,6 +172,7 @@ func TestForkBranchesFromTheConversationTheSourceReported(t *testing.T) {
 
 // A fork launches on its source's model and keeps it for its own relaunches.
 func TestForkCarriesTheSourceChoice(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	tool := m.services.cfg.Tools["claude"]
 	tool.ModelArgs = "--model {model}"
@@ -219,6 +222,7 @@ func TestForkCarriesTheSourceChoice(t *testing.T) {
 }
 
 func TestForkCopiesManagedWorktreeReference(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	source := store.Session{
@@ -262,6 +266,7 @@ func TestForkCopiesManagedWorktreeReference(t *testing.T) {
 }
 
 func TestForkLaunchFailureKeepsSharedWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	if err := m.spawnSession("claude", "source", repo, "", "", false, true, config.Choice{}); err != nil {
@@ -297,6 +302,7 @@ func TestForkLaunchFailureKeepsSharedWorktree(t *testing.T) {
 }
 
 func TestOpenForkRequiresConfiguredCommandAndConversationID(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	m.selectSessionRow(t, "source")
@@ -396,6 +402,7 @@ func TestOpenForkRejectsSessionFileWithoutAFileBackedStore(t *testing.T) {
 }
 
 func TestOpenForkRejectsGroup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("work", ""); err != nil {
 		t.Fatal(err)
@@ -413,6 +420,7 @@ func TestOpenForkRejectsGroup(t *testing.T) {
 // the session store captures it; those that take an agent-chosen id (grok,
 // claude) include {new_id} and the fork launches with it already set.
 func TestForkAgentSessionIDFollowsNewIDPlaceholder(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name      string
 		tool      string
@@ -609,6 +617,7 @@ func TestForkGeminiResolverFailureReportsError(t *testing.T) {
 // A shell has no fork_command, but saying so names a config field for a
 // row that was never going to hold a conversation.
 func TestForkRefusesAShellInItsOwnTerms(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	sess := spawnTerminal(t, m)

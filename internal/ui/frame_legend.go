@@ -43,7 +43,7 @@ func (s legendSection) parts() []string {
 		}
 	}
 	if s.hint != "" {
-		parts = append(parts, mutedStyle.Render(s.hint))
+		parts = append(parts, mutedStyle().Render(s.hint))
 	}
 	for _, pair := range s.pairs {
 		if s.quiet {
@@ -59,8 +59,8 @@ func (s legendSection) parts() []string {
 // the terminal allows it and the tail marked when it does not.
 func legendBar(sections []legendSection, width int) string {
 	indent := strings.Repeat(" ", railGutter)
-	sep := subtleStyle.Render(" · ")
-	more := subtleStyle.Render("…")
+	sep := subtleStyle().Render(" · ")
+	more := subtleStyle().Render("…")
 
 	var out []string
 	for i, section := range sections {
@@ -74,9 +74,9 @@ func legendBar(sections []legendSection, width int) string {
 				maxRows--
 			}
 		}
-		title := legendBadgeStyle.Render(section.title)
+		title := legendBadgeStyle().Render(section.title)
 		if section.quiet {
-			title = legendTitleStyle.Render(section.title)
+			title = legendTitleStyle().Render(section.title)
 		}
 		column := max(legendTitleColumn, ansi.StringWidth(title)+legendGap)
 		head := indent + padRight(title, column)

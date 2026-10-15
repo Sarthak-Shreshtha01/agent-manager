@@ -33,6 +33,7 @@ func (s *refusingWorktreeBranchStore) RenameSessionWorktreeBranch(_ string, bran
 }
 
 func TestRenameGroupCascades(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -79,6 +80,7 @@ func TestRenameGroupCascades(t *testing.T) {
 }
 
 func TestRenameSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "before", t.TempDir(), "")
 	m.selectSessionRow(t, "before")
@@ -107,6 +109,7 @@ func TestRenameSession(t *testing.T) {
 }
 
 func TestRenameSessionKeepsItsWorktreeDirectory(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -151,6 +154,7 @@ func TestRenameSessionKeepsItsWorktreeDirectory(t *testing.T) {
 }
 
 func TestRenameSessionRefusesSharedWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "owner", repo)
@@ -180,6 +184,7 @@ func TestRenameSessionRefusesSharedWorktree(t *testing.T) {
 }
 
 func TestRenameSessionRefusesAWorktreeNameAlreadyTaken(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "mover", repo)
@@ -210,6 +215,7 @@ func TestRenameSessionRefusesAWorktreeNameAlreadyTaken(t *testing.T) {
 }
 
 func TestRenameSessionWorktreeBranchPutsItBackWhenTheStoreRefuses(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -248,6 +254,7 @@ func TestRenameSessionWorktreeBranchPutsItBackWhenTheStoreRefuses(t *testing.T) 
 }
 
 func TestRenameSessionWorktreeBranchReportsRollbackNoOp(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -282,6 +289,7 @@ func TestRenameSessionWorktreeBranchReportsRollbackNoOp(t *testing.T) {
 }
 
 func TestRenameSessionWorktreeBranchPreservesRollbackError(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -317,6 +325,7 @@ func TestRenameSessionWorktreeBranchPreservesRollbackError(t *testing.T) {
 // the rollback reports what it found rather than moving someone else's
 // checkout back.
 func TestRenameSessionWorktreeBranchReportsASwitchedRollback(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -347,6 +356,7 @@ func TestRenameSessionWorktreeBranchReportsASwitchedRollback(t *testing.T) {
 }
 
 func TestRenameDirtyWorktreeThenDeleteKeepsDirectory(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -373,6 +383,7 @@ func TestRenameDirtyWorktreeThenDeleteKeepsDirectory(t *testing.T) {
 }
 
 func TestRenameThenSharedSessionKeepsSpawnPath(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -426,6 +437,7 @@ func TestRenameThenSharedSessionKeepsSpawnPath(t *testing.T) {
 }
 
 func TestRenameThenDeleteRemovesTheSpawnWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := seedRepo(t)
 	spawned := createWorktreeSession(t, m, "claude-7a72", repo)
@@ -453,6 +465,7 @@ func TestRenameThenDeleteRemovesTheSpawnWorktree(t *testing.T) {
 }
 
 func TestRenameSessionWithoutAWorktreeIsUnchanged(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "plain", t.TempDir(), "")
 	m.selectSessionRow(t, "plain")
@@ -473,6 +486,7 @@ func TestRenameSessionWithoutAWorktreeIsUnchanged(t *testing.T) {
 }
 
 func TestRenameSessionChangesTool(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "swapped", t.TempDir(), "")
 	m.selectSessionRow(t, "swapped")
@@ -514,6 +528,7 @@ func TestRenameSessionChangesTool(t *testing.T) {
 }
 
 func TestEditGroupRenamesAndSetsPath(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	oldDir := t.TempDir()
 	newDir := t.TempDir()
@@ -550,6 +565,7 @@ func TestEditGroupRenamesAndSetsPath(t *testing.T) {
 }
 
 func TestEditGroupRejectsMissingPath(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("backend", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -573,6 +589,7 @@ func TestEditGroupRejectsMissingPath(t *testing.T) {
 }
 
 func TestGroupPathNeverEmpty(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	if m.groupForm.path.Value() == "" {
@@ -609,6 +626,7 @@ func TestGroupPathNeverEmpty(t *testing.T) {
 }
 
 func TestRenameAgentToShellWithChildrenRefused(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -642,6 +660,7 @@ func TestRenameAgentToShellWithChildrenRefused(t *testing.T) {
 }
 
 func TestGroupEditPersistsWorktreeChoice(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("grp", t.TempDir()); err != nil {
 		t.Fatalf("group: %v", err)
@@ -673,6 +692,7 @@ func TestGroupEditPersistsWorktreeChoice(t *testing.T) {
 }
 
 func TestGroupEditPersistsBase(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("grp", repoWithDevelop(t)); err != nil {
 		t.Fatalf("group: %v", err)
@@ -725,6 +745,7 @@ func assertPaneStayedOnSpawnPath(t *testing.T, m *Model, id, want string) {
 }
 
 func TestGroupedSessionRenameEditorIsVisible(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 100, 30
 	if err := m.services.store.CreateGroup("work/inner", ""); err != nil {

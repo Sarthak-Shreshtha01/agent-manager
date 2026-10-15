@@ -38,6 +38,7 @@ func (r *blockedPathSuggestionReader) complete(string) []string {
 }
 
 func TestPathSuggestionsDeferScanAndRejectStaleInput(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SetDir("/first")
@@ -141,6 +142,7 @@ func TestApplyPathSuggestionFillsDirField(t *testing.T) {
 }
 
 func TestPathSuggestionsExitToAdjacentFormFields(t *testing.T) {
+	t.Parallel()
 	root := setupCompletionDir(t)
 	m := buildModel(t)
 	m.openForm()
@@ -171,6 +173,7 @@ func TestPathSuggestionsExitToAdjacentFormFields(t *testing.T) {
 }
 
 func TestGroupPickerExitsToAdjacentFields(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 
 	m.openGroupForm()
@@ -199,6 +202,7 @@ func TestGroupPickerExitsToAdjacentFields(t *testing.T) {
 }
 
 func TestStandaloneGroupPickerWrapsWhenThereAreNoAdjacentFields(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.form.groups = []groupOption{{path: ""}, {path: "alpha"}, {path: "beta"}}
 	m.mode = modeMove
@@ -216,6 +220,7 @@ func TestStandaloneGroupPickerWrapsWhenThereAreNoAdjacentFields(t *testing.T) {
 }
 
 func TestRenamePathSuggestionsExitToName(t *testing.T) {
+	t.Parallel()
 	root := setupCompletionDir(t)
 	m := buildModel(t)
 	m.mode = modeRename
@@ -240,6 +245,7 @@ func TestRenamePathSuggestionsExitToName(t *testing.T) {
 }
 
 func TestGroupFormInheritsParentPath(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	parentPath := t.TempDir()
 	if err := m.services.store.CreateGroup("projects", parentPath); err != nil {
@@ -348,6 +354,7 @@ func TestPathCompleteThroughAFakeHost(t *testing.T) {
 // A scan the form's previous opening asked for never fills the reopened
 // form, even over the same text.
 func TestReopenedFormIgnoresTheLastOpeningsScan(t *testing.T) {
+	t.Parallel()
 	root := setupCompletionDir(t)
 	m := buildModel(t)
 	m.openForm()

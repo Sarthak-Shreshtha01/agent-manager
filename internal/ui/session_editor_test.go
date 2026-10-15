@@ -510,7 +510,7 @@ func TestAttachDoneOpensEditorAndReturnsToTheSession(t *testing.T) {
 	}
 	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -563,7 +563,7 @@ func TestAttachDoneRefusedEditorArmsNoReturn(t *testing.T) {
 	sess := m.sessionRows()[0]
 	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -592,7 +592,7 @@ func TestAttachDoneTerminalEditorArmsTheReturn(t *testing.T) {
 	}
 	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -707,6 +707,7 @@ func TestEditorReturnCompletionCannotCrossHelpOrQuit(t *testing.T) {
 }
 
 func TestEditorReturnCompletionsKeepTheirOwnSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	first := editorReturnTarget{sessionID: "first", foregroundGen: m.gens.foreground, mode: m.mode}
 	second := editorReturnTarget{sessionID: "second", foregroundGen: m.gens.foreground, mode: m.mode}
@@ -748,7 +749,7 @@ func TestAttachDoneEditorFollowsTheSessionThatDetached(t *testing.T) {
 	m.selectSessionRow(t, "elsewhere")
 	clearRequestOnCleanup(t, m, attached.ID)
 
-	if _, err := sessionTmuxCmd(attached.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, attached.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, cmd := m.Update(attachDoneMsg{sessID: attached.ID})
@@ -765,7 +766,7 @@ func TestAttachDoneEditorFollowsTheSessionThatDetached(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		return
 	}
-	if _, err := sessionTmuxCmd(attached.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, attached.ID, "set-option", "-g", "@am_request", tmux.RequestEditor).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	*launched = nil

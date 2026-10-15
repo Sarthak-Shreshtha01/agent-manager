@@ -13,11 +13,11 @@ import (
 func (m *Model) reviewRenderContext() uireview.RenderContext {
 	return uireview.RenderContext{
 		Styles: uireview.Styles{
-			Muted: mutedStyle, Subtle: subtleStyle, Value: valueStyle, Err: errStyle, Done: doneStyle,
-			Annotation: annotationStyle, Section: sectionStyle, Rule: lipgloss.NewStyle().Foreground(colorBorder),
-			Chip: chipStyle, Selected: selectedRowStyle,
-			Accent: colorAccent, Accent2: colorAccent2, Finished: colorFinished, Errored: colorErrored,
-			SelectedReapply: "\x1b[0m" + bgSeq(current.Surface) + fgSeq(current.Bright),
+			Muted: mutedStyle(), Subtle: subtleStyle(), Value: valueStyle(), Err: errStyle(), Done: doneStyle(),
+			Annotation: annotationStyle(), Section: sectionStyle(), Rule: lipgloss.NewStyle().Foreground(colorBorder()),
+			Chip: chipStyle(), Selected: selectedRowStyle(),
+			Accent: colorAccent(), Accent2: colorAccent2(), Finished: colorFinished(), Errored: colorErrored(),
+			SelectedReapply: "\x1b[0m" + bgSeq(current().Surface) + fgSeq(current().Bright),
 			AnnotationBg:    annotationBg(), HandledAnnotationBg: handledAnnotationBg(),
 		},
 		CursorMarker: cursorAnchorMarker,
@@ -82,7 +82,7 @@ func (m *Model) reviewRing(label string, width, height int) string {
 
 func (m *Model) reviewSpinnerLine(label string) string {
 	frame := startupFrames[m.startup.startupPhase%len(startupFrames)]
-	return mutedStyle.Render(frame + " " + label)
+	return mutedStyle().Render(frame + " " + label)
 }
 
 // viewDiffFull is the full-screen review mode: file list on the left,
@@ -102,9 +102,9 @@ func (m *Model) viewDiffFull() string {
 	// Files sit on the rail surface, the code on the backdrop: the same
 	// two-surface split the session list uses, so review reads as the same
 	// application rather than a second one.
-	fileLines := append([]string{"", strings.Repeat(" ", railInset) + subtleStyle.Render("files")},
+	fileLines := append([]string{"", strings.Repeat(" ", railInset) + subtleStyle().Render("files")},
 		indentLines(splitLines(m.viewDiffFileList(fileWidth-2*railGutter, bodyHeight-2)), railInset)...)
-	codeLines := append([]string{"", "  " + subtleStyle.Render(escapeControlsInline(m.review.CodeTitle()))},
+	codeLines := append([]string{"", "  " + subtleStyle().Render(escapeControlsInline(m.review.CodeTitle()))},
 		indentLines(splitLines(m.viewDiffCode(codeWidth-2*contentGutter, bodyHeight-2)), contentGutter)...)
 
 	// The column seam tees into the rules that open and close the body,

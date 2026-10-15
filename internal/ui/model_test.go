@@ -20,6 +20,7 @@ func TestModelFieldCap(t *testing.T) {
 // New hands the stored key table to the tmux driver, so a session the
 // manager creates is bound and labelled the same way focus reads its keys.
 func TestNewHandsTheKeyTableToTmux(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	stored := keybind.DefaultSession().With(keybind.Detach, bindingOf(t, "f9")).With(keybind.Review, bindingOf(t, "ctrl+g"))
 	if err := m.services.store.SetKeys(stored); err != nil {
@@ -35,7 +36,7 @@ func TestNewHandsTheKeyTableToTmux(t *testing.T) {
 	loaded.selectSessionRow(t, "tablebound")
 	sess := railSelectedSession(loaded)
 	t.Cleanup(func() { m.services.tmux.Kill(sess.ID) })
-	right, err := tmuxCmd("display-message", "-p", "-t", "am_"+sess.ID, "#{T:status-right}").CombinedOutput()
+	right, err := tmuxCmd(t, "display-message", "-p", "-t", "am_"+sess.ID, "#{T:status-right}").CombinedOutput()
 	if err != nil {
 		t.Fatalf("status-right: %v", err)
 	}

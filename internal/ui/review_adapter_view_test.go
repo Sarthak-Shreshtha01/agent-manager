@@ -60,6 +60,7 @@ func bigEditedFile(t *testing.T) diff.FileDiff {
 // The review header always names the repo and its branch; in branch scope it
 // shows the base and the branch it diffs into.
 func TestReviewHeaderShowsRepoBranchAndBase(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -90,6 +91,7 @@ func TestReviewHeaderShowsRepoBranchAndBase(t *testing.T) {
 // wears its key, and an auto-detected target says so out loud while an
 // explicitly set one does not.
 func TestReviewHeaderTargetLabelCleanAndKeyed(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -137,6 +139,7 @@ func TestReviewHeaderTargetLabelCleanAndKeyed(t *testing.T) {
 // is the case the totals turn on: git hands back real add and delete counts
 // for it, so a header that kept counting it would disagree with its own list.
 func TestReviewHeaderShowsCodeOnlyFilter(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -168,6 +171,7 @@ func TestReviewHeaderShowsCodeOnlyFilter(t *testing.T) {
 }
 
 func TestDiffScopeCycleAndLayout(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	createSession(t, m, "coder", dir, "")
@@ -190,6 +194,7 @@ func TestDiffScopeCycleAndLayout(t *testing.T) {
 // terminal wraps and pushes every row below it off the bottom, which is how
 // the end of a file ends up selected but off screen.
 func TestDiffFrameFitsTerminal(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitRepoWithLongFile(t, 400)
 	createSession(t, m, "coder", dir, "")
@@ -238,6 +243,7 @@ func TestDiffFrameFitsTerminal(t *testing.T) {
 // A file whose line count is unknown must not be silently summed as zero in
 // the header: the totals carry a marker instead of asserting an exact count.
 func TestHeaderMarksUncountedFile(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("chmod cannot deny reads on Windows")
 	}
@@ -278,6 +284,7 @@ func TestHeaderMarksUncountedFile(t *testing.T) {
 }
 
 func TestDiffHeaderKeepsCountsWhenNarrow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 52, 24
 	openReviewOn(t, m, "very-long-session-name", gitTestRepo(t))
@@ -288,6 +295,7 @@ func TestDiffHeaderKeepsCountsWhenNarrow(t *testing.T) {
 }
 
 func TestDiffFileListTruncatesAtSlash(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	openReviewOn(t, m, "paths", gitTestRepo(t))
 	set := m.review.SetCopy()
@@ -309,6 +317,7 @@ func TestDiffFileListTruncatesAtSlash(t *testing.T) {
 // The same rule for review's file list: tabbing to the last file has to
 // bring it on screen, not just select it.
 func TestDiffFileListCursorAlwaysPainted(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitRepoWithManyFiles(t, 40)
 	createSession(t, m, "coder", dir, "")

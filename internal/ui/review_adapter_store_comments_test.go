@@ -21,6 +21,7 @@ import (
 )
 
 func TestDiffAnnotateAndSend(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	createSession(t, m, "coder", dir, "")
@@ -88,7 +89,7 @@ func TestDiffAnnotateAndSend(t *testing.T) {
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		out, err := tmuxCmd(capture...).CombinedOutput()
+		out, err := tmuxCmd(t, capture...).CombinedOutput()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -146,6 +147,7 @@ func TestDiffAnnotateAndSend(t *testing.T) {
 }
 
 func TestSendAnnotationsDoesNotDeliverAnUnpersistedRound(t *testing.T) {
+	t.Parallel()
 	dbPath := filepath.Join(t.TempDir(), "state.db")
 	m := buildModelWithStorePath(t, dbPath)
 	openReviewOn(t, m, "persist-first", gitRepoWithTwoChangedFiles(t))
@@ -175,7 +177,7 @@ func TestSendAnnotationsDoesNotDeliverAnUnpersistedRound(t *testing.T) {
 	if !ok {
 		t.Fatal("review session disappeared")
 	}
-	out, err := tmuxCmd("capture-pane", "-p", "-J", "-t", "am_"+sess.ID).CombinedOutput()
+	out, err := tmuxCmd(t, "capture-pane", "-p", "-J", "-t", "am_"+sess.ID).CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,6 +187,7 @@ func TestSendAnnotationsDoesNotDeliverAnUnpersistedRound(t *testing.T) {
 }
 
 func TestDiffCommentVisibleInBothLayouts(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	createSession(t, m, "coder", dir, "")
@@ -239,7 +242,7 @@ func TestHandledCommentsStayVisibleWithAMutedColor(t *testing.T) {
 	if annotationBg() == handledAnnotationBg() || !strings.Contains(rendered, annotationBg()) || !strings.Contains(rendered, handledAnnotationBg()) {
 		t.Fatalf("open and handled comments should use different washes: %q", rendered)
 	}
-	if handledAnnotationBg() != bgSeq(mix(current.Bg, current.Finished, 0.14)) || !strings.Contains(rendered, fgSeq(current.Finished)) {
+	if handledAnnotationBg() != bgSeq(mix(current().Bg, current().Finished, 0.14)) || !strings.Contains(rendered, fgSeq(current().Finished)) {
 		t.Fatalf("handled comment should use the theme's finished green: %q", rendered)
 	}
 }
@@ -247,6 +250,7 @@ func TestHandledCommentsStayVisibleWithAMutedColor(t *testing.T) {
 // A silent same-scope reload that shifts line numbers re-points saved comments
 // at the line carrying their excerpt, so the agent gets the location meant.
 func TestAnnotationsReanchorAfterRefresh(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -273,6 +277,7 @@ func TestAnnotationsReanchorAfterRefresh(t *testing.T) {
 }
 
 func TestReviewRoundTracksOutdatedAndHandledComments(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -342,6 +347,7 @@ func TestReviewRoundTracksOutdatedAndHandledComments(t *testing.T) {
 }
 
 func TestAgentHandledUpdateReloadsWithoutDroppingTheComment(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -413,6 +419,7 @@ func TestReanchorKeepsAmbiguousAndAvoidsCollapse(t *testing.T) {
 // prompt does, so it refuses a shell for the same reason: the prompt is an
 // English sentence, and a shell would run it.
 func TestSendAnnotationsRefusesAShell(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	if err := m.services.store.CreateGroup("work", dir); err != nil {
@@ -553,6 +560,7 @@ func TestRefreshDoesNotReanchorOtherScopesComments(t *testing.T) {
 }
 
 func TestMigratedPointsNeverRepeatWithinARound(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	const repo = "/repo"
 	if err := m.services.store.SetReviewState("pts123", repo, store.ReviewState{

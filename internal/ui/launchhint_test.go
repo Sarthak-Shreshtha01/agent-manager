@@ -85,6 +85,7 @@ func TestLaunchHintDialogWithFakeHost(t *testing.T) {
 }
 
 func TestReportLaunchErrorOpensInstallHintForHermes(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	want := "'/opt/hermes/libexec/bin/python3' -m pip install mcp"
 
@@ -111,6 +112,7 @@ func TestReportLaunchErrorOpensInstallHintForHermes(t *testing.T) {
 }
 
 func TestReportLaunchErrorLeavesHermesHintReadOnlyWithoutAnInterpreter(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 
 	m.reportLaunchError(fmt.Errorf("launch: %w", mcpreg.HermesMCPUnavailableError{}))
@@ -133,6 +135,7 @@ func TestReportLaunchErrorLeavesHermesHintReadOnlyWithoutAnInterpreter(t *testin
 }
 
 func TestReportLaunchErrorOpensInstallHintForMissingCLI(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 
 	m.reportLaunchError(config.MissingToolError{Binary: "claude"})
@@ -157,6 +160,7 @@ func TestReportLaunchErrorOpensInstallHintForMissingCLI(t *testing.T) {
 }
 
 func TestReportLaunchErrorOpensHintForUnknownMissingCLI(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 
 	m.reportLaunchError(config.MissingToolError{Binary: "acme"})
@@ -173,6 +177,7 @@ func TestReportLaunchErrorOpensHintForUnknownMissingCLI(t *testing.T) {
 }
 
 func TestSpawnMissingCLIPromptsInstall(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.services.cfg.Tools["claude"] = config.Tool{Command: "am-missing-cli-xyz", DefaultStatus: status.Idle}
 
@@ -205,6 +210,7 @@ func TestSpawnMissingCLIPromptsInstall(t *testing.T) {
 }
 
 func TestReviveMissingCLIPromptsInstall(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := store.Session{ID: newID(), Name: "agent", Tool: "claude", Cwd: t.TempDir()}
 	if err := m.services.store.CreateSession(sess); err != nil {
@@ -231,6 +237,7 @@ func TestReviveMissingCLIPromptsInstall(t *testing.T) {
 }
 
 func TestReportLaunchErrorKeepsPlainErrorsOnStatusLine(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 
 	m.reportLaunchError(fmt.Errorf("tmux create: boom"))
@@ -362,6 +369,7 @@ func TestFormSpawnRefusedByTheHintReleasesItsImages(t *testing.T) {
 // failure is a worktree that cannot be created, which is the far side of
 // spawnSession rather than a field the form could have validated.
 func TestFormSpawnErrorInTheBarKeepsItsImages(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	initGitRepo(t, dir)
@@ -515,6 +523,7 @@ func TestLaunchHintCopyFailureIsReported(t *testing.T) {
 // A tool with no known recipe gets a read-only dialog: nothing to copy,
 // nothing to run.
 func TestLaunchHintWithoutARecipeOffersOnlyClose(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.reportLaunchError(config.MissingToolError{Binary: "acme"})
 
@@ -535,6 +544,7 @@ func TestLaunchHintWithoutARecipeOffersOnlyClose(t *testing.T) {
 // The dialog hands the mouse back to the terminal while it is up, so a
 // drag over the install command selects it, and takes it back on close.
 func TestLaunchHintReleasesTheMouseWhileOpen(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.reportLaunchError(config.MissingToolError{Binary: "claude"})
 
@@ -557,6 +567,7 @@ func TestLaunchHintReleasesTheMouseWhileOpen(t *testing.T) {
 }
 
 func TestLaunchHintStrayKeysKeepTheDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.reportLaunchError(config.MissingToolError{Binary: "claude"})
 
@@ -682,6 +693,7 @@ func TestLaunchHintInstallRunsTheCommandAndRetriesTheLaunch(t *testing.T) {
 }
 
 func TestLaunchHintInstallFailureKeepsTheShellAndReportsTheStatus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	retryName, image := installFixture(t, m, "exit 3")
 
@@ -704,6 +716,7 @@ func TestLaunchHintInstallFailureKeepsTheShellAndReportsTheStatus(t *testing.T) 
 }
 
 func TestLaunchHintInstallThatLeavesTheBinaryOffPathIsReported(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	retryName, _ := installFixture(t, m, "true")
 
@@ -721,6 +734,7 @@ func TestLaunchHintInstallThatLeavesTheBinaryOffPathIsReported(t *testing.T) {
 // Killing the install shell before it finishes drops the pending launch
 // instead of holding it forever.
 func TestLaunchHintInstallShellKilledDropsThePendingLaunch(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	retryName, image := installFixture(t, m, "sleep 30")
 
@@ -746,6 +760,7 @@ func TestLaunchHintInstallShellKilledDropsThePendingLaunch(t *testing.T) {
 // A CLI on the interop PATH but not in the distro is a different problem
 // from one nobody installed, and the dialog has to say so.
 func TestLaunchHintNamesAWindowsOnlyInstall(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("a Windows copy reached through interop only exists under WSL")
 	}
@@ -773,6 +788,7 @@ func TestLaunchHintNamesAWindowsOnlyInstall(t *testing.T) {
 // Two installs at once would leave the first one's launch unfinished, so
 // the second press says where the running one is instead.
 func TestLaunchHintRefusesASecondInstall(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	installFixture(t, m, "sleep 30")
 	m.applyCmd(t, pressInLaunchHint(t, m, 'i'))
@@ -795,6 +811,7 @@ func TestLaunchHintRefusesASecondInstall(t *testing.T) {
 // The dialog holds the keyboard, so the quit key has to keep working
 // there the way it does over the key map.
 func TestLaunchHintQuitsOnCtrlC(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.reportLaunchError(config.MissingToolError{Binary: "claude"})
 
@@ -896,6 +913,7 @@ func TestLaunchHintRetryThatFailsOutrightDropsTheImages(t *testing.T) {
 // is typed one short line and the installer's own quoting reaches sh
 // untouched. Both files are gone once the install has settled.
 func TestLaunchHintInstallRunsFromAScriptAndCleansUp(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	command := `printf '%s\n' "one '\'' two" > /dev/null`
 	installFixture(t, m, command)
@@ -929,6 +947,7 @@ func TestLaunchHintInstallRunsFromAScriptAndCleansUp(t *testing.T) {
 // restore when the install unblocks it: a session brought back but left
 // filed as archived is invisible in the list it returned to.
 func TestInstallFinishesARefusedRestore(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := store.Session{ID: newID(), Name: "agent", Tool: "claude", Cwd: t.TempDir(), Archived: true}
 	if err := m.services.store.CreateSession(sess); err != nil {

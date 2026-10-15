@@ -20,6 +20,7 @@ func (r *reviewReadProbe) ReviewScope(string) (string, error) { r.calls++; retur
 func (r *reviewReadProbe) ReviewRepo(string) (string, error)  { r.calls++; return "", r.err }
 
 func TestReviewOpeningDefersPreferencesAndKeepsReadErrors(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git unavailable")
@@ -44,6 +45,7 @@ func TestReviewOpeningDefersPreferencesAndKeepsReadErrors(t *testing.T) {
 }
 
 func TestReviewPreferencesCannotRetargetReopenedReview(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git unavailable")
@@ -89,6 +91,7 @@ func TestReviewPreferencesCannotOpenDuringQuitOrAfterRelaunch(t *testing.T) {
 }
 
 func TestReviewPreferencesFinishBehindHelpWithoutStealingIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git unavailable")
@@ -106,6 +109,7 @@ func TestReviewPreferencesFinishBehindHelpWithoutStealingIt(t *testing.T) {
 }
 
 func TestReviewPreferencesFinishBehindPickerWithoutLeavingLoadingStuck(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git unavailable")
@@ -128,6 +132,7 @@ func TestReviewPreferencesFinishBehindPickerWithoutLeavingLoadingStuck(t *testin
 }
 
 func TestReviewFocusReturnKeepsItsCapturedSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	a := store.Session{ID: "return-a", Name: "A", Tool: "claude"}
 	b := store.Session{ID: "return-b", Name: "B", Tool: "claude"}

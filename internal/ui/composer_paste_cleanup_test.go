@@ -22,6 +22,7 @@ func TestSweepPastesReportsSweepError(t *testing.T) {
 }
 
 func TestPasteSweepMsgSurfacesErrorOnce(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.Update(pasteSweepMsg{err: errors.New("permission denied")})
 	if m.errBar.text == "" {
@@ -35,6 +36,7 @@ func TestPasteSweepMsgSurfacesErrorOnce(t *testing.T) {
 }
 
 func TestPasteSweepTickSweepsAgainAndRearms(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	_, cmd := m.Update(pasteSweepTickMsg{})
 	if cmd == nil {

@@ -17,6 +17,7 @@ import (
 // The first need for a CLI's rows reads the kept answer, off the update
 // path, and a fresh one is not asked again.
 func TestCatalogIsReadFromTheKeptAnswer(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.services.configDir = t.TempDir()
 	tool := m.services.cfg.Tools["claude"]
@@ -61,6 +62,7 @@ func TestFormLaunchesOnDefaultsWhenTheCLIFailsToAnswer(t *testing.T) {
 // A CLI that failed to answer is asked again after a short wait, not on
 // every pass over its row.
 func TestAFailedCatalogIsRetriedAfterAWait(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	answered(m, claudeLike, catalog.Catalog{})
 	state := m.ledger.catalogs["claude"]

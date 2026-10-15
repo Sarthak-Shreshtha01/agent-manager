@@ -19,9 +19,9 @@ func (m *Model) viewHeaderRows() []string {
 	}
 	left := m.viewBanner()[0]
 	if tag := m.updateTag(); tag != "" {
-		left += subtleStyle.Render("  ") + tag
+		left += subtleStyle().Render("  ") + tag
 	}
-	sep := subtleStyle.Render("   ")
+	sep := subtleStyle().Render("   ")
 	scope := m.headerScope()
 	agents := m.headerAgents()
 	for _, right := range []string{
@@ -44,7 +44,7 @@ func (m *Model) updateTag() string {
 	if m.update.latest == "" {
 		return ""
 	}
-	return lipgloss.NewStyle().Foreground(colorAccent).Render("↑ " + m.update.latest + " available")
+	return lipgloss.NewStyle().Foreground(colorAccent()).Render("↑ " + m.update.latest + " available")
 }
 
 // titleTopRowWithUpdate keeps the update tag on the top edge when the header
@@ -85,11 +85,11 @@ func (m *Model) headerScope() string {
 	if count == 1 {
 		label = " agent"
 	}
-	scope := subtleStyle.Render(" · active")
+	scope := subtleStyle().Render(" · active")
 	if m.rail.ShowArchived() {
-		scope = subtleStyle.Render(" · archived")
+		scope = subtleStyle().Render(" · archived")
 	}
-	return valueStyle.Render(fmt.Sprintf("%d", count)) + subtleStyle.Render(label) + scope
+	return valueStyle().Render(fmt.Sprintf("%d", count)) + subtleStyle().Render(label) + scope
 }
 
 // headerAgents is the fleet's process cost as shares of this machine,
@@ -98,12 +98,12 @@ func (m *Model) headerAgents() string {
 	if m.workspace.agents.count == 0 {
 		return ""
 	}
-	title := lipgloss.NewStyle().Foreground(colorBright).Bold(true).Render("agents total usage:")
+	title := lipgloss.NewStyle().Foreground(colorBright()).Bold(true).Render("agents total usage:")
 	return title + " " +
-		labelStyle.Render("cpu ") + valueStyle.Render(fmt.Sprintf("%.0f%%", m.workspace.agents.cpu)) +
-		subtleStyle.Render(" · ") + labelStyle.Render("ram ") +
-		valueStyle.Render(fmt.Sprintf("%.0f%%", m.workspace.agents.ram)) +
-		subtleStyle.Render(" · ") + valueStyle.Render(humanBytes(m.workspace.agents.rss))
+		labelStyle().Render("cpu ") + valueStyle().Render(fmt.Sprintf("%.0f%%", m.workspace.agents.cpu)) +
+		subtleStyle().Render(" · ") + labelStyle().Render("ram ") +
+		valueStyle().Render(fmt.Sprintf("%.0f%%", m.workspace.agents.ram)) +
+		subtleStyle().Render(" · ") + valueStyle().Render(humanBytes(m.workspace.agents.rss))
 }
 
 // elsewhereNote marks a session this manager does not speak for: its pane
@@ -140,7 +140,7 @@ func (m *Model) viewStatusCounts(compact bool) string {
 		if compact {
 			label = fmt.Sprintf(" %d", counts[st])
 		}
-		parts = append(parts, dot+subtleStyle.Render(label))
+		parts = append(parts, dot+subtleStyle().Render(label))
 	}
-	return strings.Join(parts, subtleStyle.Render("  "))
+	return strings.Join(parts, subtleStyle().Render("  "))
 }

@@ -47,23 +47,23 @@ func (m *Model) focusFactsLine(width int) string {
 	if !ok {
 		return ""
 	}
-	sep := subtleStyle.Render(" · ")
-	left := " " + m.sessionGlyph(sess) + " " + valueStyle.Render(m.displayName(sess)) +
-		sep + valueStyle.Render(sess.Tool) +
+	sep := subtleStyle().Render(" · ")
+	left := " " + m.sessionGlyph(sess) + " " + valueStyle().Render(m.displayName(sess)) +
+		sep + valueStyle().Render(sess.Tool) +
 		sep + lipgloss.NewStyle().Foreground(statusColor(sess.Status)).Render(statusLabel(sess.Status)) +
-		sep + subtleStyle.Render(relSince(lastActivity(sess)))
-	facts := []uifocus.Fact{{Text: valueStyle.Render(truncateTail(shortHome(m.sessionDir(sess), m.env.homeDir), focusFactsDirCap)), Spare: 3}}
+		sep + subtleStyle().Render(relSince(lastActivity(sess)))
+	facts := []uifocus.Fact{{Text: valueStyle().Render(truncateTail(shortHome(m.sessionDir(sess), m.env.homeDir), focusFactsDirCap)), Spare: 3}}
 	if sess.WorktreeBranch != "" {
-		facts = append(facts, uifocus.Fact{Text: subtleStyle.Render("⑂ ") + valueStyle.Render(sess.WorktreeBranch), Spare: 2})
+		facts = append(facts, uifocus.Fact{Text: subtleStyle().Render("⑂ ") + valueStyle().Render(sess.WorktreeBranch), Spare: 2})
 	}
 	if m.workspace.procFor == sess.ID && m.workspace.proc.OK {
 		facts = append(facts,
-			uifocus.Fact{Text: labelStyle.Render("cpu ") + valueStyle.Render(fmt.Sprintf("%.1f%%", m.workspace.proc.CPUPercent)), Spare: 1},
-			uifocus.Fact{Text: labelStyle.Render("ram ") + valueStyle.Render(humanBytes(m.workspace.proc.RSS)), Spare: 1})
+			uifocus.Fact{Text: labelStyle().Render("cpu ") + valueStyle().Render(fmt.Sprintf("%.1f%%", m.workspace.proc.CPUPercent)), Spare: 1},
+			uifocus.Fact{Text: labelStyle().Render("ram ") + valueStyle().Render(humanBytes(m.workspace.proc.RSS)), Spare: 1})
 	}
-	facts = append(facts, uifocus.Fact{Text: labelStyle.Render("started ") + valueStyle.Render(relSince(sess.CreatedAt)), Spare: 4})
+	facts = append(facts, uifocus.Fact{Text: labelStyle().Render("started ") + valueStyle().Render(relSince(sess.CreatedAt)), Spare: 4})
 	if queued := m.workspace.queuedMessages[sess.ID]; queued > 0 {
-		facts = append(facts, uifocus.Fact{Text: valueStyle.Render(fmt.Sprintf("%d queued", queued)), Spare: 0})
+		facts = append(facts, uifocus.Fact{Text: valueStyle().Render(fmt.Sprintf("%d queued", queued)), Spare: 0})
 	}
 
 	right := uifocus.FitFacts(facts, sep, width-ansi.StringWidth(left)-focusFactsGap)
@@ -77,7 +77,7 @@ func (m *Model) focusFactsLine(width int) string {
 // above and below it, in the pane's own tone once it has a box to trace.
 func (m *Model) focusEdge(width int) string {
 	if m.focus.pane.FrameBox().Valid {
-		return focusEdgeStyle.Render(strings.Repeat("─", max(width, 0)))
+		return focusEdgeStyle().Render(strings.Repeat("─", max(width, 0)))
 	}
 	return hrule(width)
 }
@@ -96,5 +96,5 @@ func focusTopRule(width int, keys keybind.Table) string {
 		Back:   keys.Binding(keybind.Detach).Label(),
 		Review: keys.Binding(keybind.Review).Label(),
 		Editor: keys.Binding(keybind.Editor).Label(),
-	}, annotationStyle, focusEdgeStyle)
+	}, annotationStyle(), focusEdgeStyle())
 }

@@ -128,7 +128,7 @@ func TestHelpAdapterUsesFreshThemeStyles(t *testing.T) {
 	previousProfile := lipgloss.ColorProfile()
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.SetColorProfile(previousProfile) })
-	previous := current
+	previous := current()
 	t.Cleanup(func() { applyTheme(previous) })
 	m := helpModel()
 

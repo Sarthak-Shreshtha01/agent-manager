@@ -28,7 +28,7 @@ func ringLoader(width, height int, label string, phase int) []string {
 		case (phase + startupRingPoints - 1) % startupRingPoints:
 			return glow.Render("•")
 		default:
-			return subtleStyle.Render("·")
+			return subtleStyle().Render("·")
 		}
 	}
 
@@ -38,7 +38,7 @@ func ringLoader(width, height int, label string, phase int) []string {
 		centerLine(dot(9)+"       "+dot(3), width),
 		centerLine(dot(8)+"       "+dot(4), width),
 		centerLine(dot(7)+"   "+dot(6)+"   "+dot(5), width),
-		centerLine(valueStyle.Bold(true).Render(label), width),
+		centerLine(valueStyle().Bold(true).Render(label), width),
 	}
 	if height <= len(block) {
 		return block[:height]

@@ -167,6 +167,7 @@ func TestReviewPickerEnterRejectsStaleSource(t *testing.T) {
 }
 
 func TestReviewBaseSavePersistsButDoesNotReloadStaleOrQuittingReview(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name   string
 		mutate func(*Model)
@@ -208,6 +209,7 @@ func TestReviewBaseSavePersistsButDoesNotReloadStaleOrQuittingReview(t *testing.
 }
 
 func TestReviewBaseSaveAllowsOnlyOnePendingRequest(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "base-one", t.TempDir(), "")
 	sess := reviewSessionByName(t, m, "base-one")
@@ -260,6 +262,7 @@ func TestReviewBaseSaveFailureSurfacesAfterNavigation(t *testing.T) {
 }
 
 func TestReviewBaseSaveCompletesBehindReviewHelp(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -305,6 +308,7 @@ func TestReviewBaseSaveCompletesBehindReviewHelp(t *testing.T) {
 }
 
 func TestReviewBaseSaveCompletesBehindBranchPicker(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

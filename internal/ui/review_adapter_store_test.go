@@ -11,6 +11,7 @@ import (
 // A reviewed mark placed on a path in one repo must not bleed onto a
 // same-named path in a sibling repo when cycling with r.
 func TestReviewMarksIsolatedPerRepo(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -45,6 +46,7 @@ func TestReviewMarksIsolatedPerRepo(t *testing.T) {
 // The selected repo is pinned by path, so a reload whose fresh ranking would
 // put a different repo first keeps the user on the repo they chose.
 func TestRepoSelectionSurvivesReload(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -68,6 +70,7 @@ func TestRepoSelectionSurvivesReload(t *testing.T) {
 }
 
 func TestSavedReviewRoundsGainStableIDsAndPointNumbers(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	const sessionID, repo = "abc123", "/repo"
 	if err := m.services.store.SetReviewState(sessionID, repo, store.ReviewState{
@@ -95,6 +98,7 @@ func TestSavedReviewRoundsGainStableIDsAndPointNumbers(t *testing.T) {
 }
 
 func TestReviewProgressAndDraftsRestoreFromStore(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -134,6 +138,7 @@ func TestReviewProgressAndDraftsRestoreFromStore(t *testing.T) {
 // never match a scoped lookup, so restore drops them and the next save
 // clears them from the row.
 func TestRestoreDropsPreScopeReviewedMarks(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

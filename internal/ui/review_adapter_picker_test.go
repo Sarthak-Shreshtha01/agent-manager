@@ -17,6 +17,7 @@ import (
 // A session whose cwd is an umbrella of several repos opens review on the
 // most-active repo, shows the repo in the header, and the r key picks another.
 func TestReviewPicksRepoUnderUmbrella(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -48,6 +49,7 @@ func TestReviewPicksRepoUnderUmbrella(t *testing.T) {
 }
 
 func TestRepoPickerFiltersAndSelects(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -80,6 +82,7 @@ func TestRepoPickerFiltersAndSelects(t *testing.T) {
 }
 
 func TestRepoPickerEscapeKeepsRepo(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -100,6 +103,7 @@ func TestRepoPickerEscapeKeepsRepo(t *testing.T) {
 }
 
 func TestBranchPickerListsWorktreesAndSwitches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -140,6 +144,7 @@ func TestBranchPickerListsWorktreesAndSwitches(t *testing.T) {
 // that worktree was declared via a temp path that git resolves elsewhere
 // (/var -> /private/var on macOS, where the temp dir lives behind a symlink).
 func TestBranchPickerSeedsCursorForSymlinkedWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -205,6 +210,7 @@ func TestBranchPickerSeedsCursorForSymlinkedWorktree(t *testing.T) {
 }
 
 func TestReviewOpensOnDeclaredRepo(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -228,6 +234,7 @@ func TestReviewOpensOnDeclaredRepo(t *testing.T) {
 // A repo picked by hand outranks the agent's declaration, and keeps doing so
 // after review is closed and reopened.
 func TestHandPickedRepoOutlivesReopen(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -267,6 +274,7 @@ func TestHandPickedRepoOutlivesReopen(t *testing.T) {
 // A hand-picked repo that disappears must be reported and forgotten, so the
 // agent's declaration takes over instead of a dead path shadowing it forever.
 func TestVanishedHandPickedRepoIsReportedAndForgotten(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -318,6 +326,7 @@ func TestVanishedHandPickedRepoIsReportedAndForgotten(t *testing.T) {
 }
 
 func TestDeclaredWorktreeOutsideCwdIsAccepted(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -362,6 +371,7 @@ func TestDeclaredWorktreeOutsideCwdIsAccepted(t *testing.T) {
 // A declared repo the session cwd does not contain must be reported, not
 // silently swapped for whatever the ranking put on top.
 func TestDeclaredRepoOutsideCwdIsReported(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -392,6 +402,7 @@ func TestDeclaredRepoOutsideCwdIsReported(t *testing.T) {
 // Picking a repo after the session has left m.sessions must say so instead of
 // dropping the user back into review with the old repo and no explanation.
 func TestRepoPickerReportsMissingSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -436,6 +447,7 @@ func TestRepoPickerReportsMissingSession(t *testing.T) {
 // The picker works off a snapshot, so Enter must load the repo whose row was on
 // screen and must never index past the list.
 func TestRepoPickerSurvivesShrinkingRootList(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -482,6 +494,7 @@ func TestRepoPickerSurvivesShrinkingRootList(t *testing.T) {
 }
 
 func TestRepoPickerFitsTerminalHeight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 80, 24
 	roots := make([]string, 0, 20)
@@ -525,6 +538,7 @@ func TestRepoPickerFitsTerminalHeight(t *testing.T) {
 // The B picker lists auto plus the repo's refs; picking a ref persists it per
 // repo and forces the branch scope, and auto clears the stored base.
 func TestBasePickerPersistsSwitchesScopeAndClears(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -605,6 +619,7 @@ func TestBasePickerPersistsSwitchesScopeAndClears(t *testing.T) {
 // open - keyed off the raw selection - so auto can clear the bad base, which is
 // the only recovery path.
 func TestInvalidStoredBaseStillOpensPickerAndRecovers(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

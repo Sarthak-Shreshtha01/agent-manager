@@ -34,7 +34,7 @@ func TestInputKeysUseServingControlWithoutDriverFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	driver, err := tmux.NewWithSocket(testSocket)
+	driver, err := tmux.NewWithSocket(m.services.tmux.SocketName())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestInputPasteCannotBeOvertakenByEnter(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	driver, err := tmux.NewWithSocket(testSocket)
+	driver, err := tmux.NewWithSocket(m.services.tmux.SocketName())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,6 +244,7 @@ func TestInputPasteCannotBeOvertakenByEnter(t *testing.T) {
 }
 
 func TestInputRefusesRelaunchedTarget(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "input-target", t.TempDir(), "")
 	stale := m.sessionRows()[0]
@@ -298,6 +299,7 @@ func TestBlockedInputWorkerKeepsUpdateResponsiveAndDrainsOnQuit(t *testing.T) {
 }
 
 func TestTypedPromptReceiptRefusesRelaunchedTarget(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "input-target", t.TempDir(), "")
 	stale := m.sessionRows()[0]
@@ -317,6 +319,7 @@ func TestTypedPromptReceiptRefusesRelaunchedTarget(t *testing.T) {
 }
 
 func TestInputRefusesMovedSocket(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "input-target", t.TempDir(), "")
 	stale := m.sessionRows()[0]
@@ -330,6 +333,7 @@ func TestInputRefusesMovedSocket(t *testing.T) {
 }
 
 func TestInputRefusesChangedCreationEvenWithSameLaunch(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "input-identity", t.TempDir(), "")
 	stale := m.sessionRows()[0]

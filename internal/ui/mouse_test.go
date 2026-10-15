@@ -116,6 +116,7 @@ func TestDragReleasePersistsAndExits(t *testing.T) {
 
 // Motion updates the live ratio only; tmux resize happens once on release.
 func TestDragResizesTmuxOnlyOnRelease(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "split-drag", t.TempDir(), "")
 	id := m.sessionRows()[0].ID
@@ -128,7 +129,7 @@ func TestDragResizesTmuxOnlyOnRelease(t *testing.T) {
 	}
 
 	// Drift the session away so a real resize is observable.
-	if _, err := tmuxCmd("resize-window", "-t", "am_"+id, "-x", "100", "-y", "30").CombinedOutput(); err != nil {
+	if _, err := tmuxCmd(t, "resize-window", "-t", "am_"+id, "-x", "100", "-y", "30").CombinedOutput(); err != nil {
 		t.Fatalf("resize-window: %v", err)
 	}
 	if w := windowWidth(t, id); w != 100 {
@@ -299,6 +300,7 @@ func paintedGroupLines(t *testing.T, m *Model, path string) []int {
 // A click on a session row selects it, reading the geometry the frame
 // recorded while painting rather than re-deriving it (#110).
 func TestClickSelectsRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -324,6 +326,7 @@ func TestClickSelectsRow(t *testing.T) {
 }
 
 func TestClickOnAnotherRowFromFocusFocusesIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -356,6 +359,7 @@ func TestClickOnAnotherRowFromFocusFocusesIt(t *testing.T) {
 }
 
 func TestClickOnFocusedSessionRowLeavesFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -387,6 +391,7 @@ func TestClickOnFocusedSessionRowLeavesFocus(t *testing.T) {
 }
 
 func TestClickInFocusedPaneStaysFocused(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -418,6 +423,7 @@ func TestClickInFocusedPaneStaysFocused(t *testing.T) {
 // row, not the cursor: a wheel notch, a j or the poll can walk the cursor
 // away between the two presses.
 func TestDoubleClickFocusesTheRowUnderThePointer(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -447,6 +453,7 @@ func TestDoubleClickFocusesTheRowUnderThePointer(t *testing.T) {
 // The pair is matched on the row's identity: a rebuild between the presses
 // renumbers m.rows, so an index that meant this row can mean another.
 func TestDoubleClickPairsAcrossARebuild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	dir := t.TempDir()
@@ -494,6 +501,7 @@ func TestDoubleClickPairsAcrossARebuild(t *testing.T) {
 // A session that has painted nothing yet leaves no pane box, and its
 // column is still its own: clicking it must not eject the user.
 func TestClickInTheFocusedColumnStaysFocused(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -530,6 +538,7 @@ func TestClickInTheFocusedColumnStaysFocused(t *testing.T) {
 // Full screen focus paints no rail, so the list frame's hits must not
 // outlive it and hand a click a row nobody pointed at.
 func TestClickInFullScreenFocusStaysFocused(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -561,6 +570,7 @@ func TestClickInFullScreenFocusStaysFocused(t *testing.T) {
 }
 
 func TestDoubleClickFocusesTheRowJustSelected(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -587,6 +597,7 @@ func TestDoubleClickFocusesTheRowJustSelected(t *testing.T) {
 }
 
 func TestDoubleClickFocusesWhenEnterAttaches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	m.prefs.focusOnEnter = false
@@ -610,6 +621,7 @@ func TestDoubleClickFocusesWhenEnterAttaches(t *testing.T) {
 }
 
 func TestSlowSecondClickDoesNotFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -632,6 +644,7 @@ func TestSlowSecondClickDoesNotFocus(t *testing.T) {
 }
 
 func TestClickOnSelectedGroupTogglesCollapse(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("work", dir); err != nil {
@@ -679,6 +692,7 @@ func TestClickOnSelectedGroupTogglesCollapse(t *testing.T) {
 // row under it. The divider is resolved before the row is, so a hit target
 // that reached back over that column would cost every row its right edge.
 func TestClickOnRailLastColumnSelectsRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -702,6 +716,7 @@ func TestClickOnRailLastColumnSelectsRow(t *testing.T) {
 // A click past the divider, in the content column, must not steal the
 // selection: the rail is what click-to-select owns.
 func TestClickInContentColumnDoesNotSelect(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -813,6 +828,7 @@ func TestDividerClickWithoutMotionCommitsNothing(t *testing.T) {
 // A press whose release never lands — dragging out of the window — must not
 // strand the list: the keyboard stays live, and the next key ends the drag.
 func TestKeyEndsADragWhoseReleaseNeverLands(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -843,6 +859,7 @@ func TestKeyEndsADragWhoseReleaseNeverLands(t *testing.T) {
 // the release belongs to. The divider would follow the click column and
 // persist there, so the stale drag ends before the press is resolved.
 func TestRowClickAfterALostReleaseLeavesTheDividerAlone(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -894,6 +911,7 @@ func TestRowClickAfterALostReleaseLeavesTheDividerAlone(t *testing.T) {
 // keyboard must not fall through to row selection: resize mode owns every
 // press until it exits.
 func TestPressOffDividerWhileArmedDoesNotSelectRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -922,6 +940,7 @@ func TestPressOffDividerWhileArmedDoesNotSelectRow(t *testing.T) {
 // is rail, and the quick bar can dock below it. Both still have to line up
 // with railHits the way the split layout does.
 func TestClickSelectsRowInFullLayout(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -948,6 +967,7 @@ func TestClickSelectsRowInFullLayout(t *testing.T) {
 // no divider is painted there; a click at that phantom column must select
 // the rail row under it, not arm a drag over a seam that does not exist.
 func TestClickAtDividerXInFullLayoutSelectsRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -973,6 +993,7 @@ func TestClickAtDividerXInFullLayoutSelectsRow(t *testing.T) {
 // should select the entry, not whatever railHits index that physical line
 // would be under a compact row.
 func TestClickSelectsRowAcrossComfortableLines(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -1003,6 +1024,7 @@ func TestClickSelectsRowAcrossComfortableLines(t *testing.T) {
 // rail's other chrome — the search field, the filter badges, the padding
 // and the meters — still picks nothing.
 func TestClickOnMoreCounterSelectsTheRowItHides(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, name := range []string{"one", "two", "three", "four", "five", "six", "seven"} {
 		createSession(t, m, name, t.TempDir(), "")
@@ -1045,6 +1067,7 @@ func TestClickOnMoreCounterSelectsTheRowItHides(t *testing.T) {
 // A counter only scrolls: its row is off screen, so a click there neither
 // focuses that row on release nor finds a handle or a menu button on it.
 func TestMoreCounterOnlyScrolls(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, name := range []string{"one", "two", "three", "four", "five", "six", "seven"} {
 		createSession(t, m, name, t.TempDir(), "")
@@ -1087,6 +1110,7 @@ func TestMoreCounterOnlyScrolls(t *testing.T) {
 // picks nothing rather than misattributing to whichever row happens to sit
 // at that index.
 func TestClickOnRailChromeDoesNotSelect(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -1174,6 +1198,7 @@ func TestWheelMovesCursorWhileSearchingOrPrompting(t *testing.T) {
 
 // Search keeps click-to-select for the same reason it keeps the wheel.
 func TestClickSelectsRowWhileSearching(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -1200,6 +1225,7 @@ func TestClickSelectsRowWhileSearching(t *testing.T) {
 // Entering a session ends the list's click run: the press that comes back
 // here would otherwise pair with the one that opened it and focus again.
 func TestClickLeavingFocusDoesNotRefocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -1237,6 +1263,7 @@ func TestClickLeavingFocusDoesNotRefocus(t *testing.T) {
 // A press search swallows opens no run, so the first press after it closes
 // is a plain select rather than the second half of a full layout pair.
 func TestClickWhileSearchingOpensNoClickRun(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -1264,6 +1291,7 @@ func TestClickWhileSearchingOpensNoClickRun(t *testing.T) {
 // Search owns Enter, so neither layout's focus gesture fires while it is
 // open: it must not steal the key the field is waiting for.
 func TestClicksDoNotFocusWhileSearching(t *testing.T) {
+	t.Parallel()
 	for _, full := range []bool{false, true} {
 		t.Run(fmt.Sprintf("full=%v", full), func(t *testing.T) {
 			m := buildModel(t)
@@ -1390,6 +1418,7 @@ func leftPress(m *Model, x, y int) *Model {
 }
 
 func TestClickOnMessagesCardOpensNotices(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 120, 34
 	x, y := messagesCell(t, m)
@@ -1399,6 +1428,7 @@ func TestClickOnMessagesCardOpensNotices(t *testing.T) {
 }
 
 func TestMessagesLegendOpensNoticesByMouseAndKey(t *testing.T) {
+	t.Parallel()
 	for _, full := range []bool{false, true} {
 		for _, width := range []int{30, 60, 120} {
 			for _, binding := range []string{"M", "alt+m"} {
@@ -1472,6 +1502,7 @@ func TestMessagesLegendClickOnlyOpensFromTheList(t *testing.T) {
 }
 
 func TestClickOnMetersBesideTheCardDoesNothing(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 120, 34
 	_, y := messagesCell(t, m)
@@ -1481,6 +1512,7 @@ func TestClickOnMetersBesideTheCardDoesNothing(t *testing.T) {
 }
 
 func TestClickOnFullScreenBadgeOpensNotices(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 120, 34
 	m.prefs.fullLayout = true
@@ -1495,6 +1527,7 @@ func TestClickOnFullScreenBadgeOpensNotices(t *testing.T) {
 }
 
 func TestClickOnMessagesCardWhileSearchingKeepsTheField(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 120, 34
 	m.rail.SetSearch(m.rail.Search(), true)
@@ -1505,6 +1538,7 @@ func TestClickOnMessagesCardWhileSearchingKeepsTheField(t *testing.T) {
 }
 
 func TestClickOnMessagesCardWhileFocusedIsLeftToFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height = 200, 34
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -1523,6 +1557,7 @@ func TestClickOnMessagesCardWhileFocusedIsLeftToFocus(t *testing.T) {
 }
 
 func TestSingleClickFocusesOnRelease(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -1552,6 +1587,7 @@ func TestSingleClickFocusesOnRelease(t *testing.T) {
 }
 
 func TestSingleClickFocusesWhenEnterAttaches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.focusOnEnter = false
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -1574,6 +1610,7 @@ func TestSingleClickFocusesWhenEnterAttaches(t *testing.T) {
 }
 
 func TestSingleClickReleasedOnAnotherRowDoesNotFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -1599,6 +1636,7 @@ func TestSingleClickReleasedOnAnotherRowDoesNotFocus(t *testing.T) {
 }
 
 func TestSingleClickInFullLayoutOnlySelects(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.fullLayout = true
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -1621,6 +1659,7 @@ func TestSingleClickInFullLayoutOnlySelects(t *testing.T) {
 }
 
 func TestClicksWorkWhileTheQuickBarIsOpen(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")

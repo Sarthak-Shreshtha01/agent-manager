@@ -7,6 +7,7 @@ import (
 // A session open full screen owns the whole body, so the frame paints no
 // rail line and leaves no hit behind for a click to resolve against.
 func TestFullFocusFrameRecordsNoRailHits(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")

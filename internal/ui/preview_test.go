@@ -96,6 +96,7 @@ func TestMoveCursorDebouncesPreview(t *testing.T) {
 // touched: a manager whose preview only refreshes on selection is a
 // screenshot, not a monitor.
 func TestPreviewFollowsPaneWithoutCursorMoves(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "watcher", t.TempDir(), "")
 	m.selectSessionRow(t, "watcher")
@@ -134,6 +135,7 @@ func TestPreviewFollowsPaneWithoutCursorMoves(t *testing.T) {
 }
 
 func TestTypedPromptsAreHeldPerSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "typed-a", t.TempDir(), "")
 	createSession(t, m, "typed-b", t.TempDir(), "")

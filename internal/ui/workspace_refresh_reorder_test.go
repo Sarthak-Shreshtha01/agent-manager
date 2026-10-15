@@ -13,6 +13,7 @@ import (
 // A Rail reorder completes on the effect lane, and its completion fences
 // every listing read before it: an in-flight poll cannot paint the old order.
 func TestReorderSurvivesInFlightPoll(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, sess := range []store.Session{
 		{ID: "a", Name: "alpha", Tool: "claude", Cwd: "/tmp", Status: "idle"},
@@ -58,6 +59,7 @@ func rowIDs(m *Model) []string {
 }
 
 func TestGroupReorderSurvivesInFlightPoll(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	for _, group := range []string{"alpha", "bravo", "charlie"} {
@@ -105,6 +107,7 @@ func TestGroupReorderSurvivesInFlightPoll(t *testing.T) {
 
 // A listing read after the reorder completed is current and applies whole.
 func TestFreshPollAfterReorderApplies(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, name := range []string{"alpha", "bravo"} {
 		createSession(t, m, name, t.TempDir(), "")
@@ -126,6 +129,7 @@ func TestFreshPollAfterReorderApplies(t *testing.T) {
 }
 
 func TestOlderPollAfterFreshPollCannotUndoReorder(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, sess := range []store.Session{
 		{ID: "a", Name: "alpha", Tool: "claude", Cwd: "/tmp", Status: "idle"},
@@ -154,6 +158,7 @@ func TestOlderPollAfterFreshPollCannotUndoReorder(t *testing.T) {
 }
 
 func TestOlderListingStillDeliversNotificationFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, sess := range []store.Session{
 		{ID: "a", Name: "alpha", Tool: "claude", Cwd: "/tmp", Status: "idle"},
@@ -209,6 +214,7 @@ func TestOlderListingStillDeliversNotificationFocus(t *testing.T) {
 // A stale listing is discarded whole, so another manager's unrelated reorder
 // it carried lands with the next current listing instead.
 func TestStaleGroupPollKeepsAnotherManagersUnrelatedReorder(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	for _, name := range []string{"alpha", "bravo", "charlie", "delta", "echo"} {
@@ -250,6 +256,7 @@ func TestStaleGroupPollKeepsAnotherManagersUnrelatedReorder(t *testing.T) {
 }
 
 func TestOlderListingStillCompletesAfterTurnRequest(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := askAfterTurn(t, m, "alpha", store.AfterTurnKill)

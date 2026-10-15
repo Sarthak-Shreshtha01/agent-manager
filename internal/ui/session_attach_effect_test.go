@@ -12,6 +12,7 @@ import (
 )
 
 func TestPreparedAttachDoesNotReplaceNewerHelp(t *testing.T) {
+	t.Parallel()
 	for _, returning := range []bool{false, true} {
 		t.Run(map[bool]string{false: "attach", true: "reattach"}[returning], func(t *testing.T) {
 			m := buildModel(t)
@@ -57,7 +58,7 @@ func TestAttachReportsTransportFailureWithoutCallingPaneDead(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	driver, err := tmux.NewWithSocket(testSocket)
+	driver, err := tmux.NewWithSocket(m.services.tmux.SocketName())
 	if err != nil {
 		t.Fatal(err)
 	}

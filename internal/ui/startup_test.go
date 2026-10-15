@@ -82,6 +82,7 @@ func TestStartupTickRunsWhileReviewLoads(t *testing.T) {
 }
 
 func TestStartupErrorStaysVisibleUntilFirstRefresh(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.startup.booting = true
 	m.Update(errMsg{errors.New("startup poll failed")})

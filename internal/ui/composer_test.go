@@ -257,6 +257,7 @@ func TestComposerInsertTokenSpacesOffTheWordsAroundIt(t *testing.T) {
 // says so and stays exactly as it was, rather than inserting a chip the
 // textarea would truncate into text nothing points at.
 func TestComposerPasteRefusedWhenThePromptIsFull(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.input.CharLimit = 40
@@ -371,6 +372,7 @@ func TestComposerNoImageFallsThroughToABlurredFormPrompt(t *testing.T) {
 
 // The same fallback, once the bar it was typed into is gone.
 func TestComposerTextPasteDroppedWhenItsBoxIsClosed(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.input.SetValue("kept")
@@ -391,6 +393,7 @@ func TestComposerTextPasteDroppedWhenItsBoxIsClosed(t *testing.T) {
 // and opening another is quick enough to beat the read home, and the text
 // belongs to the prompt that is gone, not to the one now on screen.
 func TestComposerPasteFromAClosedBoxSkipsItsSuccessor(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	stale := m.form.prompt.gen
@@ -429,6 +432,7 @@ func TestComposerPasteFromAClosedBoxSkipsItsSuccessor(t *testing.T) {
 // A paste result carries the box it was started from, so the two screens
 // cannot land each other's images.
 func TestComposerTargetsRouteToTheirOwnBox(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.openForm()

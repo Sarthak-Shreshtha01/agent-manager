@@ -246,7 +246,7 @@ func (m *Model) handleSettingsLoaded(msg settingsLoadedMsg) (tea.Model, tea.Cmd)
 		m.settings.dialog = m.settings.stateFromCache(m.services.cfg)
 		// A manual theme the shell changed meanwhile repaints here, so esc
 		// keeps it instead of writing back the palette cached at startup.
-		if d := &m.settings.dialog; !d.ThemeAuto && current.Name != d.ManualTheme {
+		if d := &m.settings.dialog; !d.ThemeAuto && current().Name != d.ManualTheme {
 			d.ShowTheme(d.ManualTheme)
 			applyTheme(themes[d.ThemeIndex])
 			SyncTerminalColors()

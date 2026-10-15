@@ -72,7 +72,7 @@ func (m *Model) openQuickModeWithReader(reader settingsValueReader) tea.Cmd {
 	input.ShowLineNumbers = false
 	input.SetPromptFunc(2, func(lineIndex int) string {
 		if lineIndex == 0 {
-			return keyStyle.Render("❯ ")
+			return keyStyle().Render("❯ ")
 		}
 		return "  "
 	})
@@ -274,7 +274,7 @@ func (m *Model) handleQuickClick(hit quickHit) tea.Cmd {
 const quickModeTitle = "Quick prompt mode"
 
 func (m *Model) quickFooter() string {
-	edge := keyStyle.Render(quickEdge)
+	edge := keyStyle().Render(quickEdge)
 	gutter := strings.Repeat(" ", quickGutter-1)
 	keys := splitLines(legendBar([]legendSection{{title: quickModeTitle, pairs: m.quick.Legend(m.quickBarHost())}}, max(m.layout.width-1, 1)))
 	rows := quickBarMaxRows + 1
@@ -320,11 +320,11 @@ func (m *Model) viewQuickBar(width, maxRows int) string {
 // quickAnswerRow names the session an answer goes to, with its state and
 // tool where the width has room.
 func quickAnswerRow(entry treeRow, name string, width int) string {
-	label := labelStyle.Render(padRight("answer", detailLabelWidth)) + subtleStyle.Render("│ ")
+	label := labelStyle().Render(padRight("answer", detailLabelWidth)) + subtleStyle().Render("│ ")
 	sess := entry.sess
 	state := lipgloss.NewStyle().Foreground(statusColor(sess.Status)).
 		Render(statusGlyph(sess.Status) + " " + statusLabel(sess.Status))
 	return fitColumns(
-		[]string{label + lipgloss.NewStyle().Foreground(colorBright).Bold(true).Render(name)},
-		[]string{state + " " + chipStyle.Render(sess.Tool), state, ""}, width)
+		[]string{label + lipgloss.NewStyle().Foreground(colorBright()).Bold(true).Render(name)},
+		[]string{state + " " + chipStyle().Render(sess.Tool), state, ""}, width)
 }

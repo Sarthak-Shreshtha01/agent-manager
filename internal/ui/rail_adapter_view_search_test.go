@@ -49,7 +49,7 @@ func TestSearchLightsTheQueryInsideASessionName(t *testing.T) {
 	entry := treeRow{sess: store.Session{
 		ID: "s1", Name: "alpha-build", Tool: "grok", Status: status.Idle, CreatedAt: time.Now(),
 	}}
-	lit := searchMatchStyle.Render("bui")
+	lit := searchMatchStyle().Render("bui")
 
 	m := &Model{rail: railModelSearching(nil, 0, "BUI")}
 	row := m.renderTreeRow(entry, false, 80, 0, panelHex())
@@ -61,7 +61,7 @@ func TestSearchLightsTheQueryInsideASessionName(t *testing.T) {
 	}
 
 	selected := m.renderTreeRow(entry, true, 80, 0, selectedHex())
-	bright := lipgloss.NewStyle().Foreground(colorBright).Bold(true)
+	bright := lipgloss.NewStyle().Foreground(colorBright()).Bold(true)
 	if !strings.Contains(selected, bright.Render("alpha-")) || !strings.Contains(selected, lit) {
 		t.Fatalf("selected row should keep its bright name around the lit span:\n%q", selected)
 	}
@@ -74,7 +74,7 @@ func TestSearchLightsTheQueryInsideASessionName(t *testing.T) {
 
 	m.rail.SetSearch("", m.rail.Searching())
 	row = m.renderTreeRow(entry, false, 80, 0, panelHex())
-	if !strings.Contains(row, valueStyle.Render("alpha-build")) {
+	if !strings.Contains(row, valueStyle().Render("alpha-build")) {
 		t.Fatalf("no query should render the plain name:\n%q", row)
 	}
 }
@@ -83,7 +83,7 @@ func TestSearchLightsTheQueryInsideAGroupName(t *testing.T) {
 	forceANSI256(t)
 	m := &Model{rail: railModelSearching(nil, 0, "END")}
 	row := m.renderTreeRow(treeRow{isGroup: true, group: "work/backend"}, false, 80, 0, panelHex())
-	if !strings.Contains(row, searchMatchStyle.Render("end")) {
+	if !strings.Contains(row, searchMatchStyle().Render("end")) {
 		t.Fatalf("group name should light the query:\n%q", row)
 	}
 	if !strings.Contains(ansi.Strip(row), "backend") {

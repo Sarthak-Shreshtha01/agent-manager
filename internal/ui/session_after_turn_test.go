@@ -26,6 +26,7 @@ func askAfterTurn(t *testing.T, m *Model, name, action string) store.Session {
 // The archive takes the steps the a key takes: the agent and the shells
 // nested under it stop, their last screens stay, and the rows leave the list.
 func TestASessionAskingToBeArchivedGoesOnceItsTurnEnds(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -57,6 +58,7 @@ func TestASessionAskingToBeArchivedGoesOnceItsTurnEnds(t *testing.T) {
 }
 
 func TestASessionAskingToBeKilledStaysListedDead(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := askAfterTurn(t, m, "alpha", store.AfterTurnKill)
@@ -76,6 +78,7 @@ func TestASessionAskingToBeKilledStaysListedDead(t *testing.T) {
 
 // A report the Model reads after a new turn began must not end that turn.
 func TestAStaleReportLeavesAWorkingSessionAlone(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := askAfterTurn(t, m, "alpha", store.AfterTurnKill)
@@ -94,6 +97,7 @@ func TestAStaleReportLeavesAWorkingSessionAlone(t *testing.T) {
 // A restart or revive since the request means the user wants this agent
 // running, so the request dies with the run that made it.
 func TestARelaunchDropsAnEarlierRequest(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -113,6 +117,7 @@ func TestARelaunchDropsAnEarlierRequest(t *testing.T) {
 }
 
 func TestTheCancelKeyKeepsTheSessionPastItsTurn(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := askAfterTurn(t, m, "alpha", store.AfterTurnKill)
@@ -136,6 +141,7 @@ func TestTheCancelKeyKeepsTheSessionPastItsTurn(t *testing.T) {
 // The cancel runs on the effect lane: Update returns before the row is
 // cleared, and the cleared row is the one the rail paints afterwards.
 func TestCancelEndClearsTheRowThroughTheEffectLane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := askAfterTurn(t, m, "alpha", store.AfterTurnArchive)

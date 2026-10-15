@@ -8,6 +8,7 @@ import (
 )
 
 func TestKillEndsTheSessionAndKeepsItRevivable(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "hungry", t.TempDir(), "")
 	m.selectSessionRow(t, "hungry")
@@ -56,6 +57,7 @@ func TestKillEndsTheSessionAndKeepsItRevivable(t *testing.T) {
 }
 
 func TestKillGroupEndsEverySessionInside(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	seedGroups(t, m, "work", "work/api")
@@ -79,6 +81,7 @@ func TestKillGroupEndsEverySessionInside(t *testing.T) {
 }
 
 func TestKillAllEndsEveryLiveSessionInView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	seedGroups(t, m, "work")
@@ -101,6 +104,7 @@ func TestKillAllEndsEveryLiveSessionInView(t *testing.T) {
 }
 
 func TestKillRefusesWhenNothingIsRunning(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedGroups(t, m, "work")
 	createSession(t, m, "ghost", t.TempDir(), "work")
@@ -129,6 +133,7 @@ func TestKillRefusesWhenNothingIsRunning(t *testing.T) {
 }
 
 func TestKillAgentIncludesChildren(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -154,6 +159,7 @@ func TestKillAgentIncludesChildren(t *testing.T) {
 }
 
 func TestKillChildIsSingleSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -171,6 +177,7 @@ func TestKillChildIsSingleSession(t *testing.T) {
 }
 
 func TestKillDeadAgentStillKillsItsLiveChild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -199,6 +206,7 @@ func TestKillDeadAgentStillKillsItsLiveChild(t *testing.T) {
 }
 
 func TestKillAgentConfirmNamesExtraTerminals(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {

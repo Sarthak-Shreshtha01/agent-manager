@@ -29,6 +29,7 @@ func (r *blockedDirectoryPreflight) resolve(string, []string) (string, bool) {
 func (r *blockedDirectoryPreflight) repoCapable(string) bool { return r.repoOK }
 
 func TestSpawnWorkerDefersFilesystemReadAndCapturesDraft(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SetName("captured")
@@ -68,6 +69,7 @@ func TestSpawnWorkerDefersFilesystemReadAndCapturesDraft(t *testing.T) {
 }
 
 func TestAcceptedSpawnSurvivesChangedDraftWithoutClosingIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SetName("first")
@@ -91,6 +93,7 @@ func TestAcceptedSpawnSurvivesChangedDraftWithoutClosingIt(t *testing.T) {
 }
 
 func TestQuickPreflightCapturesTargetBeforeCursorMoves(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	backend := t.TempDir()
 	frontend := t.TempDir()
@@ -121,6 +124,7 @@ func TestQuickPreflightCapturesTargetBeforeCursorMoves(t *testing.T) {
 }
 
 func TestGroupPreflightFailureKeepsFormAndDoesNotMutate(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.name.SetValue("docs")
@@ -141,6 +145,7 @@ func TestGroupPreflightFailureKeepsFormAndDoesNotMutate(t *testing.T) {
 }
 
 func TestAcceptedGroupDrainsBlockedValidationOnQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.name.SetValue("accepted")
@@ -194,6 +199,7 @@ func storeRows(t *testing.T, m *Model) int {
 // and the form still open. The committed session appears only when the
 // queued effect completes.
 func TestSpawnFormDefersCreationFromUpdate(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	cmd := submitFormSpawn(t, m, "first", t.TempDir())
 	if m.errBar.text != "" {
@@ -230,6 +236,7 @@ func TestSpawnFormDefersCreationFromUpdate(t *testing.T) {
 // Quick spawn on a selected group defers the same way: nothing exists
 // between the key press and the effect completion.
 func TestQuickSpawnDefersCreationFromUpdate(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -270,6 +277,7 @@ func TestQuickSpawnDefersCreationFromUpdate(t *testing.T) {
 // Group creation persists only when the effect completes; the form stays
 // open until then.
 func TestGroupFormDefersCreationFromUpdate(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.name.SetValue("manual")
@@ -308,6 +316,7 @@ func TestGroupFormDefersCreationFromUpdate(t *testing.T) {
 // A worker-level failure leaves nothing durable behind: no row, no ledger
 // entry, and the form stays open for the fix.
 func TestSpawnWorkerFailureLeavesNothingBehind(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	cmd := submitFormSpawn(t, m, "first", t.TempDir())
 	// Close the store before the effect runs: the worker's first read fails
@@ -332,6 +341,7 @@ func TestSpawnWorkerFailureLeavesNothingBehind(t *testing.T) {
 // cannot retarget an accepted spawn. The completion applies the captured
 // group and prompt, not whatever the cursor points at by then.
 func TestSpawnCompletesAgainstCapturedIdentity(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -370,6 +380,7 @@ func TestSpawnCompletesAgainstCapturedIdentity(t *testing.T) {
 // A window update must return while a spawn is queued: the writer runs only
 // when the effect command runs, never on the update path.
 func TestSpawnUpdateReturnsWhileWriterIsQueued(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	submitFormSpawn(t, m, "first", t.TempDir())
 	// The effect is queued, not begun: no row, no pane, and a window update
@@ -395,6 +406,7 @@ func TestSpawnUpdateReturnsWhileWriterIsQueued(t *testing.T) {
 // A completion applies exactly once: a duplicate completion message must be
 // a no-op, adding no second row and advancing no observation fence.
 func TestSpawnDuplicateCompletionIsIdempotent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	submitFormSpawn(t, m, "first", t.TempDir())
 	msg := m.effects.main.active.command()
@@ -416,6 +428,7 @@ func TestSpawnDuplicateCompletionIsIdempotent(t *testing.T) {
 // An in-band quit drains an accepted spawn before emitting tea.Quit; a
 // dispatch that arrives after the quit is refused, not run.
 func TestSpawnDrainsAcceptedOnQuitAndRefusesLate(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	accepted := submitFormSpawn(t, m, "first", t.TempDir())
 	_, command := m.requestQuit()
@@ -442,6 +455,7 @@ func TestSpawnDrainsAcceptedOnQuitAndRefusesLate(t *testing.T) {
 // dispatch: the newer screen keeps the foreground and the form's images
 // are dropped rather than handed to a dead composer.
 func TestSpawnFailureDoesNotReplaceNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	cmd := submitFormSpawn(t, m, "first", t.TempDir())
 	// The user closes this form and opens a fresh one in the same slot: a
@@ -470,6 +484,7 @@ func TestSpawnFailureDoesNotReplaceNewerDialog(t *testing.T) {
 // must reconcile the durable inventory without closing the newer form or
 // stealing its selection.
 func TestGroupFormCompletionDoesNotReplaceNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.name.SetValue("first")
@@ -553,6 +568,7 @@ func TestSpawnGenericErrorReturnsImagesToForm(t *testing.T) {
 }
 
 func TestSpawnFailurePreservesNewAttachments(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	request := spawnRequest{kind: spawnForm, composerGen: m.form.prompt.gen, images: []imageAttachment{{path: "old"}}}
@@ -564,6 +580,7 @@ func TestSpawnFailurePreservesNewAttachments(t *testing.T) {
 }
 
 func TestQuickSpawnCompletionPreservesEditedDraft(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.input.SetValue("first task")
@@ -578,6 +595,7 @@ func TestQuickSpawnCompletionPreservesEditedDraft(t *testing.T) {
 }
 
 func TestSpawnRepeatedSubmitKeepsOneAcceptedJob(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	submitFormSpawn(t, m, "first", t.TempDir())
 	_, repeated := m.submitForm()
@@ -594,6 +612,7 @@ func TestSpawnRepeatedSubmitKeepsOneAcceptedJob(t *testing.T) {
 }
 
 func TestSpawnRetryRetainsManagerAndConversationIdentity(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	tool := m.services.cfg.Tools["claude"]
 	tool.Command = "am-missing-cli-xyz"
@@ -616,6 +635,7 @@ func TestSpawnRetryRetainsManagerAndConversationIdentity(t *testing.T) {
 }
 
 func TestGroupCompletionPreservesEditedForm(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.name.SetValue("first")

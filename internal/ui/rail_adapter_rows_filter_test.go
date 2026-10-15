@@ -14,6 +14,7 @@ import (
 )
 
 func TestToggleEmptyGroupsFiltersTreeWithoutDeletingGroups(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width = 200
 	for _, group := range []string{"empty", "work", "work/leaf", "work/unused"} {
@@ -61,6 +62,7 @@ func TestToggleEmptyGroupsFiltersTreeWithoutDeletingGroups(t *testing.T) {
 }
 
 func TestHideEmptyGroupsDoesNotFilterTheArchivedView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("empty", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -90,6 +92,7 @@ func TestHideEmptyGroupsDoesNotFilterTheArchivedView(t *testing.T) {
 }
 
 func TestEmptyGroupsKeyIsRefusedInTheArchivedView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	for _, path := range []string{"empty", "work"} {
@@ -127,6 +130,7 @@ func TestEmptyGroupsKeyIsRefusedInTheArchivedView(t *testing.T) {
 }
 
 func TestStatusFilterKeyKeepsAttentionSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, sess := range []store.Session{
 		{ID: "w", Name: "needs-you", Tool: "claude", Cwd: "/tmp", Status: status.Waiting},
@@ -191,6 +195,7 @@ func TestStatusFilterKeyKeepsAttentionSessions(t *testing.T) {
 }
 
 func TestStatusFilterIgnoresFolds(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("work", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -232,6 +237,7 @@ func TestStatusFilterEmptyState(t *testing.T) {
 }
 
 func TestStatusFilterGroupRosterMatchesCount(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("fleet", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -406,6 +412,7 @@ func attentionFilterAckFixture(t *testing.T) *Model {
 }
 
 func TestForkClearsStatusFilter(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "source", dir, "")

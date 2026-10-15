@@ -9,6 +9,7 @@ import (
 )
 
 func TestRailStateDecisionPreservesLatestCollapseSnapshot(t *testing.T) {
+	t.Parallel()
 	for _, scenario := range []string{"reveal", "rename"} {
 		t.Run(scenario, func(t *testing.T) {
 			m := buildModel(t)

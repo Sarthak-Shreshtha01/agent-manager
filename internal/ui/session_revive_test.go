@@ -20,6 +20,7 @@ import (
 )
 
 func TestReviveRecreatesDeadSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "phoenix", t.TempDir(), "")
 
@@ -98,6 +99,7 @@ func TestReviveRecreatesDeadSession(t *testing.T) {
 }
 
 func TestReviveOfADeletedRowLeavesNoPane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "phoenix", t.TempDir(), "")
 
@@ -135,6 +137,7 @@ func TestRevivedLaunchTimeSitsInsideStartingGrace(t *testing.T) {
 // resumes the right conversation, and only the blind revive_command
 // fallback warrants the warning.
 func TestDegradedResumeNoticeWarnsOnlyForBlindFallbacks(t *testing.T) {
+	t.Parallel()
 	base := config.Tool{
 		Command:           "claude",
 		ReviveCommand:     "claude --continue",
@@ -171,6 +174,7 @@ func TestDegradedResumeNoticeWarnsOnlyForBlindFallbacks(t *testing.T) {
 }
 
 func TestReviveAllRecreatesEveryDeadSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "alpha", dir, "")
@@ -208,6 +212,7 @@ func TestReviveAllRecreatesEveryDeadSession(t *testing.T) {
 }
 
 func TestReviveRefusesLiveSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	// A tool whose process stays up: revive leaves a pane alone only while
 	// something is running in it.
@@ -227,6 +232,7 @@ func TestReviveRefusesLiveSession(t *testing.T) {
 }
 
 func TestReviveRefusesMissingDir(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "homeless", dir, "")
@@ -248,6 +254,7 @@ func TestReviveRefusesMissingDir(t *testing.T) {
 }
 
 func TestReviveGroupBringsBackEverySessionInside(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	seedGroups(t, m, "work", "work/api")
@@ -289,6 +296,7 @@ func TestReviveGroupBringsBackEverySessionInside(t *testing.T) {
 }
 
 func TestReviveGroupConfirmedRevivesWhatItCan(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	gone, kept := t.TempDir(), t.TempDir()
 	seedGroups(t, m, "work")
@@ -323,6 +331,7 @@ func TestReviveGroupConfirmedRevivesWhatItCan(t *testing.T) {
 }
 
 func TestReviveBatchCancelLeavesEverySessionDead(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		key  tea.KeyMsg
@@ -363,6 +372,7 @@ func TestReviveBatchCancelLeavesEverySessionDead(t *testing.T) {
 }
 
 func TestReviveBatchSkipsASessionBackBeforeTheAnswer(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	seedGroups(t, m, "work")
@@ -396,6 +406,7 @@ func TestReviveBatchSkipsASessionBackBeforeTheAnswer(t *testing.T) {
 }
 
 func TestReviveOneDeadSessionSkipsTheCard(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	seedGroups(t, m, "work")
@@ -422,6 +433,7 @@ func TestReviveOneDeadSessionSkipsTheCard(t *testing.T) {
 }
 
 func TestReviveRunningAgentRevivesDeadChild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -451,6 +463,7 @@ func TestReviveRunningAgentRevivesDeadChild(t *testing.T) {
 }
 
 func TestReviveAgentIncludesDeadChildren(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -495,6 +508,7 @@ func TestReviveAgentIncludesDeadChildren(t *testing.T) {
 // session identity, the MCP registration and the hook settings that a CLI
 // started by hand from that shell has no way to pick up.
 func TestReviveStartsTheAgentAgainInALivePane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSessionOn(t, m, "quit-and-back", "quietchat", t.TempDir())
 	sess := m.sessionRows()[0]
@@ -595,6 +609,7 @@ func launchCaptureCommand(argsFile string) string {
 }
 
 func TestReviveResumesTheStoredConversationOverAStaleListedRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "phoenix", t.TempDir(), "")
 	listed := m.sessionRows()[0]
@@ -626,6 +641,7 @@ func TestReviveResumesTheStoredConversationOverAStaleListedRow(t *testing.T) {
 }
 
 func TestRestartStampsTheLaunchItExported(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "phoenix", t.TempDir(), "")
 	sess := m.sessionRows()[0]

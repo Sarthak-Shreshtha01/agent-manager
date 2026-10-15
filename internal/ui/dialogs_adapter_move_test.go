@@ -7,6 +7,7 @@ import (
 )
 
 func TestMoveSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("target/deep", ""); err != nil {
@@ -31,6 +32,7 @@ func TestMoveSession(t *testing.T) {
 }
 
 func TestMoveGroupRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("alpha/inner", ""); err != nil {
@@ -66,6 +68,7 @@ func TestMoveGroupRow(t *testing.T) {
 }
 
 func TestMoveGroupRowExcludesDescendants(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("alpha/inner/deep", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -82,6 +85,7 @@ func TestMoveGroupRowExcludesDescendants(t *testing.T) {
 }
 
 func TestMoveTerminalOntoAgentNests(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -112,6 +116,7 @@ func TestMoveTerminalOntoAgentNests(t *testing.T) {
 }
 
 func TestMoveTerminalOntoGroupUnnests(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -136,6 +141,7 @@ func TestMoveTerminalOntoGroupUnnests(t *testing.T) {
 }
 
 func TestMoveReportsPlacementFailure(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -173,6 +179,7 @@ func TestMoveReportsPlacementFailure(t *testing.T) {
 }
 
 func TestMoveReportsMissingSource(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -198,6 +205,7 @@ func TestMoveReportsMissingSource(t *testing.T) {
 }
 
 func TestMovePickerKeepsTheTerminalsOwnGroupSelected(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	for _, group := range []string{"alpha", "beta"} {
@@ -219,6 +227,7 @@ func TestMovePickerKeepsTheTerminalsOwnGroupSelected(t *testing.T) {
 }
 
 func TestMoveAgentPickerHasNoSessionTargets(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -237,6 +246,7 @@ func TestMoveAgentPickerHasNoSessionTargets(t *testing.T) {
 }
 
 func TestMoveCompletionDoesNotCloseReopenedSameTargetDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("target", ""); err != nil {
 		t.Fatal(err)
