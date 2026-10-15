@@ -76,6 +76,14 @@ go build ./...
 
 The test suite includes end-to-end tests against a real tmux server on its own socket. Install tmux to run those tests locally; tmux-dependent tests are skipped when tmux is unavailable. `env -u TMUX` is required when your shell is already inside tmux, or the tests land on that server.
 
+On Windows the suite drives psmux 3.4.0 or newer with PowerShell 7.3 or newer, and the test tools lean on Git for Windows. `cat`, `echo`, `printf` and `true` from `C:\Program Files\Git\usr\bin` must be on `PATH`, as they are on GitHub's Windows runners. Each psmux session is its own server and each pane a PowerShell, so the `ui` package runs past go test's default ten minutes:
+
+```powershell
+go test -timeout 40m ./...
+```
+
+`-race` needs cgo on Windows, so the Windows run leaves it out and the Ubuntu job covers the race suite.
+
 ## Code style
 
 - Match the surrounding code. Names describe intent; comments explain a non-obvious *why* and stay rare.
