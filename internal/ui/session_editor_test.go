@@ -112,7 +112,7 @@ func TestOpenEditorLaunchesGUIEditorOnSessionDirectory(t *testing.T) {
 	// The live pane answers with the directory tmux resolved, which on
 	// macOS is the target of the /var symlink the temp dir sits behind.
 	want := []string{"code", resolved(t, dir)}
-	if !slices.Equal(*launched, want) {
+	if !samePaths(*launched, want) {
 		t.Fatalf("launched %v, want %v", *launched, want)
 	}
 	if !strings.Contains(m.errBar.text, "code") {
@@ -535,7 +535,7 @@ func TestAttachDoneOpensEditorAndReturnsToTheSession(t *testing.T) {
 	if done.returnTo.sessionID != sess.ID || done.returnTo.foregroundGen != m.gens.foreground || done.returnTo.mode != m.mode {
 		t.Fatalf("return target = %+v, want session %q at generation %d mode %v", done.returnTo, sess.ID, m.gens.foreground, m.mode)
 	}
-	if want := []string{"code", resolved(t, dir)}; !slices.Equal(*launched, want) {
+	if want := []string{"code", resolved(t, dir)}; !samePaths(*launched, want) {
 		t.Fatalf("launched %v, want %v", *launched, want)
 	}
 
@@ -757,7 +757,7 @@ func TestAttachDoneEditorFollowsTheSessionThatDetached(t *testing.T) {
 	*m = *updated.(*Model)
 	applyEditorLookup(t, m, cmd)
 
-	if want := []string{"code", resolved(t, attachedDir)}; !slices.Equal(*launched, want) {
+	if want := []string{"code", resolved(t, attachedDir)}; !samePaths(*launched, want) {
 		t.Fatalf("launched %v, want the attached session's directory %v", *launched, want)
 	}
 

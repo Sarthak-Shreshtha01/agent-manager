@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -687,7 +686,7 @@ func TestFocusF3OpensEditor(t *testing.T) {
 	}
 	applyEditorLookup(t, m, cmd)
 
-	if want := []string{"code", resolved(t, dir)}; !slices.Equal(*launched, want) {
+	if want := []string{"code", resolved(t, dir)}; !samePaths(*launched, want) {
 		t.Fatalf("launched %v, want %v", *launched, want)
 	}
 	if m.mode != modeFocus {
@@ -1661,7 +1660,7 @@ func TestFocusModeRemappedReviewAndEditorKeys(t *testing.T) {
 	if done, ok := cmd().(editorDoneMsg); !ok || done.err != nil {
 		t.Fatalf("editor launch reported %#v", done)
 	}
-	if want := []string{"code", resolved(t, dir)}; !slices.Equal(*launched, want) {
+	if want := []string{"code", resolved(t, dir)}; !samePaths(*launched, want) {
 		t.Fatalf("launched %v, want %v", *launched, want)
 	}
 

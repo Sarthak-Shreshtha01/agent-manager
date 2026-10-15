@@ -22,6 +22,9 @@ func TestFailedArchiveRestoresSurvivingSelectionWatcher(t *testing.T) {
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
+	// Archive snapshots only a pane that has drawn; a fresh psmux pane can
+	// still be blank, and then no write fails.
+	waitForPreview(t, m)
 	sess := railSelectedSession(m)
 	seedLifecycleWatcher(t, m, sess.ID)
 	m.services.setSnapshot = func(string, string) error { return errors.New("disk full") }
