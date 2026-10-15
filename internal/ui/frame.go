@@ -20,7 +20,7 @@ func (m *Model) prepareFrame() {
 	// A colorless profile renders the backdrop as a bare reset, which would
 	// strip the bold and reverse cells it lands beside.
 	if !m.prefs.terminalBackground && lipgloss.ColorProfile() != termenv.Ascii {
-		frame = fillBackdrop(frame, m.layout.width, current.Bg, current.Text)
+		frame = fillBackdrop(frame, m.layout.width, current().Bg, current().Text)
 	}
 	m.layout.frame = frame
 }

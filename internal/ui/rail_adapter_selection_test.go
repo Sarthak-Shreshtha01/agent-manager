@@ -6,6 +6,7 @@ import (
 )
 
 func TestCursorWrapsAroundTheList(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "first", dir, "")
@@ -31,6 +32,7 @@ func TestCursorWrapsAroundTheList(t *testing.T) {
 // Right steps into the row under the cursor: a session is focused, and a
 // collapsed group opens without the toggle closing an open one.
 func TestRightStepsIntoTheRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("grouped", ""); err != nil {
 		t.Fatalf("create group: %v", err)

@@ -8,6 +8,7 @@ import (
 // A click on a banner leaves the session id in the config directory; the
 // next pass picks it up and moves the cursor to that row.
 func TestRefreshSelectsSessionNamedByClickedNotification(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSessionOn(t, m, "first", "quietchat", t.TempDir())
 	createSessionOn(t, m, "second", "quietchat", t.TempDir())
@@ -39,6 +40,7 @@ func TestRefreshSelectsSessionNamedByClickedNotification(t *testing.T) {
 // The keyboard is inside a pane in focus mode, so moving the cursor under
 // it would leave every keystroke going to the session the user left.
 func TestClickedNotificationLeavesFocusBeforeSelecting(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSessionOn(t, m, "typing", "quietchat", t.TempDir())
 	createSessionOn(t, m, "waiting", "quietchat", t.TempDir())
@@ -74,6 +76,7 @@ func TestClickedNotificationLeavesFocusBeforeSelecting(t *testing.T) {
 // A banner outlives its session: the row can be gone by the time the user
 // clicks it, and that must cost neither the cursor nor the focused pane.
 func TestClickedNotificationForAGoneSessionChangesNothing(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name string
 		mode mode

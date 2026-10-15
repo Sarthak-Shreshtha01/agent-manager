@@ -16,6 +16,7 @@ import (
 // manager keeps, and the app-wide keys — which would go to the agent, not
 // the manager — stay out.
 func TestFooterInFocusMode(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "focused", t.TempDir(), "")
 	m.mode = modeFocus
@@ -97,6 +98,7 @@ func TestScrolledStatusNamesPgDnWhileItPages(t *testing.T) {
 }
 
 func TestArrowStepFooterHintsFollowSetting(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("arrow-group", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -127,6 +129,7 @@ func TestArrowStepFooterHintsFollowSetting(t *testing.T) {
 // preview box, and a box that moves resizes every session's pane, which
 // costs an agent drawing on the normal screen a full transcript redraw.
 func TestTransientFootersKeepListHeight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sizer", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -151,6 +154,7 @@ func TestTransientFootersKeepListHeight(t *testing.T) {
 // With nothing under the cursor there is nothing to act on, so the footer
 // carries only the app-wide tier.
 func TestFooterWithoutASelectedRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	resetRailModel(m)
 	footer := ansi.Strip(m.viewFooter())
@@ -163,6 +167,7 @@ func TestFooterWithoutASelectedRow(t *testing.T) {
 }
 
 func TestFooterTierFollowsTheCursor(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "legend", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -195,6 +200,7 @@ func TestFooterTierFollowsTheCursor(t *testing.T) {
 // A toggle's label names what the key will do next, not the state it is
 // already in, so the footer reads as an instruction.
 func TestFooterTogglesNameTheNextAction(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	// Wide enough that the row budget keeps every app-wide binding.
 	m.layout.width = 260
@@ -237,6 +243,7 @@ func TestFooterTogglesNameTheNextAction(t *testing.T) {
 }
 
 func TestLegendOffersEmptyGroupsOnlyInTheActiveView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	offered := func() bool {
 		for _, pair := range m.viewLegend().pairs {
@@ -262,6 +269,7 @@ func TestLegendOffersEmptyGroupsOnlyInTheActiveView(t *testing.T) {
 // The focus footer reads the key table: a moved key shows under its new
 // name, and an action turned off has no hint to mislead with.
 func TestFooterInFocusModeNamesTheKeyTable(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	useSessionKeys(t, m, []string{"f9"}, nil, []string{"alt+e"})
 	m.mode = modeFocus
@@ -279,6 +287,7 @@ func TestFooterInFocusModeNamesTheKeyTable(t *testing.T) {
 }
 
 func TestRowLegendDropsRestoreInActiveView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -314,6 +323,7 @@ func TestRowLegendDropsRestoreInActiveView(t *testing.T) {
 // In the archived view, archiveSelected no-ops, so the legend should offer
 // only restore, on both a session row and a group row.
 func TestRowLegendDropsArchiveInArchivedView(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 

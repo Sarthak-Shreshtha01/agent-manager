@@ -9,6 +9,7 @@ import (
 )
 
 func TestAttachDoneOpensReviewWhenMarkerSet(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -18,7 +19,7 @@ func TestAttachDoneOpensReviewWhenMarkerSet(t *testing.T) {
 	sess := m.sessionRows()[0]
 	clearRequestOnCleanup(t, m, sess.ID)
 
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -38,6 +39,7 @@ func TestAttachDoneOpensReviewWhenMarkerSet(t *testing.T) {
 }
 
 func TestAttachDoneStaysInListWithoutMarker(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "plainexit", t.TempDir(), "")
 	m.selectSessionRow(t, "plainexit")
@@ -54,6 +56,7 @@ func TestAttachDoneStaysInListWithoutMarker(t *testing.T) {
 }
 
 func TestAttachAcknowledgesFinished(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alert-me", t.TempDir(), "")
 
@@ -91,6 +94,7 @@ func TestAttachAcknowledgesFinished(t *testing.T) {
 }
 
 func TestDotAcknowledgesOnlyCurrentFinishedStatus(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name       string
 		listed     string
@@ -135,6 +139,7 @@ func TestDotAcknowledgesOnlyCurrentFinishedStatus(t *testing.T) {
 }
 
 func TestDotKeepsArchivedFinishedStatus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "kept", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -165,6 +170,7 @@ func TestDotKeepsArchivedFinishedStatus(t *testing.T) {
 }
 
 func TestAttachKeepsWorking(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "busy-one", t.TempDir(), "")
 
@@ -197,6 +203,7 @@ func TestAttachKeepsWorking(t *testing.T) {
 // reads it as working (TestRebaselineKeepsFinishedWithoutFlashingWorking
 // proves that precondition). Attach must clear it the same way detach does.
 func TestAttachClearsStaleHashBeforeReflow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SetName("attach-reflow")
@@ -245,6 +252,7 @@ func TestAttachClearsStaleHashBeforeReflow(t *testing.T) {
 // y on a dead row names the way back, the way every other lifecycle key
 // does, instead of letting the capture fail with raw tmux stderr.
 func TestCopyReplyOnADeadSessionHints(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -267,6 +275,7 @@ func TestCopyReplyOnADeadSessionHints(t *testing.T) {
 
 // A group has no reply of its own, so y on one does nothing at all.
 func TestCopyReplyIgnoresGroupRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("team", dir); err != nil {
@@ -287,6 +296,7 @@ func TestCopyReplyIgnoresGroupRows(t *testing.T) {
 // The copy reports what landed on the clipboard, and says so plainly when
 // the turn held nothing worth copying.
 func TestReplyCopiedMsgReports(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if _, cmd := m.Update(replyCopiedMsg{name: "alpha"}); cmd != nil {
 		t.Fatal("an empty copy should not queue more work")
@@ -306,6 +316,7 @@ func TestReplyCopiedMsgReports(t *testing.T) {
 // both name the tool behind the caveat and read as warnings rather than
 // as outcomes or failures.
 func TestReplyCopiedMsgWarnsOnAnUnboundedCopy(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.Update(replyCopiedMsg{chars: 12426, name: "alpha", tool: "grok", unbounded: true})
 	if !strings.Contains(m.errBar.text, "grok marks no turn start here") {

@@ -11,6 +11,7 @@ import (
 )
 
 func TestArchiveReconcilesDurableRowsBeforeLaterFailure(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	first := store.Session{ID: "cafe", Name: "first", Tool: "claude", Cwd: t.TempDir(), Status: status.Dead}
 	if err := m.services.store.CreateSession(first); err != nil {
@@ -31,6 +32,7 @@ func TestArchiveReconcilesDurableRowsBeforeLaterFailure(t *testing.T) {
 }
 
 func TestRestoreReconcilesDurableRowsBeforeLaterFailure(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	first := store.Session{ID: "cafe", Name: "first", Tool: "claude", Cwd: t.TempDir(), Status: status.Dead, Archived: true}
 	second := store.Session{ID: "beef", Name: "second", Tool: "claude", Cwd: filepath.Join(t.TempDir(), "missing"), Status: status.Dead, Archived: true}
@@ -55,6 +57,7 @@ func TestRestoreReconcilesDurableRowsBeforeLaterFailure(t *testing.T) {
 }
 
 func TestFailedGroupRestoreDoesNotClearMembership(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dbPath := filepath.Join(t.TempDir(), "state.db")
 	st, err := store.Open(dbPath)

@@ -251,6 +251,7 @@ func openReviewOn(t *testing.T, m *Model, name, dir string) {
 // and an in-flight reload result is dropped instead of shifting lines under
 // the open editor.
 func TestNoReloadWhileAnnotating(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -302,6 +303,7 @@ func (m *Model) refreshDiff(t *testing.T) {
 // A scope cycle loads a different file set; it must not re-anchor a comment's
 // stored line against content it was never made against.
 func TestScopeCycleDoesNotReanchor(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -507,6 +509,7 @@ func umbrellaWithBranchedRepo(t *testing.T) (umbrella, repoRoot string) {
 // resolved root), the poller applying it, then the UI load. The load must key
 // its read the same resolved way or the override silently never reaches review.
 func TestCLIReviewBaseReachesLoadAcrossSymlinkBoundary(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -584,6 +587,7 @@ func TestCLIReviewBaseReachesLoadAcrossSymlinkBoundary(t *testing.T) {
 }
 
 func TestDiffProbeSetsLoadingSoItDoesNotStack(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	openReviewOn(t, m, "probe-load", gitTestRepo(t))
 	gen := m.review.Snapshot().Generation

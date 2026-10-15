@@ -42,6 +42,7 @@ func writeName(t *testing.T, m *Model, id, name string) string {
 }
 
 func TestRefreshWithStaleSelectionFetchesPreview(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "fresh-one", t.TempDir(), "")
 	m.selectSessionRow(t, "fresh-one")

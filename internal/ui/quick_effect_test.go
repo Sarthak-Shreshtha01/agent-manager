@@ -23,6 +23,7 @@ func quickSendTestServices(m *Model) effectServices {
 }
 
 func TestQuickSendWorkerRejectsChangedIncarnationBeforeTransport(t *testing.T) {
+	t.Parallel()
 	for _, change := range []struct {
 		name string
 		run  func(*Model, string) error
@@ -59,6 +60,7 @@ func TestQuickSendWorkerRejectsChangedIncarnationBeforeTransport(t *testing.T) {
 }
 
 func TestQuickSendWorkerClassifiesTransportAndRecordsOnlyConfirmed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		result  tmux.SendResult
@@ -105,6 +107,7 @@ func TestQuickSendWorkerClassifiesTransportAndRecordsOnlyConfirmed(t *testing.T)
 }
 
 func TestQuickSendRefusalRestoresAcceptedImages(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "target", t.TempDir(), "")
 	m.selectSessionRow(t, "target")
@@ -137,6 +140,7 @@ func TestQuickSendRefusalRestoresAcceptedImages(t *testing.T) {
 }
 
 func TestQuickSendUncertainClearsAcceptedDraftWithoutRetry(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "target", t.TempDir(), "")
 	m.selectSessionRow(t, "target")
@@ -175,6 +179,7 @@ func TestQuickSendUncertainClearsAcceptedDraftWithoutRetry(t *testing.T) {
 }
 
 func TestQuickSendDoesNotFabricateMetadataWhenGuardLosesRace(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "target", t.TempDir(), "")
 	captured := m.sessionRows()[0]
@@ -213,6 +218,7 @@ func TestQuickSendDoesNotFabricateMetadataWhenGuardLosesRace(t *testing.T) {
 }
 
 func TestQuickSendStaleRefusalDefersImageCleanup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	path := tempImage(t, "stale-refusal.png")
 	request := quickSendRequest{
@@ -233,6 +239,7 @@ func TestQuickSendStaleRefusalDefersImageCleanup(t *testing.T) {
 }
 
 func TestBlockedQuickSendsKeepUpdateResponsiveRunFIFOAndDrainOnQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "target", t.TempDir(), "")
 	m.selectSessionRow(t, "target")

@@ -44,8 +44,8 @@ func divider(label string, width int) string {
 	return presentation.Divider(
 		label,
 		width,
-		sectionStyle,
-		lipgloss.NewStyle().Foreground(colorBorder),
+		sectionStyle(),
+		lipgloss.NewStyle().Foreground(colorBorder()),
 	)
 }
 

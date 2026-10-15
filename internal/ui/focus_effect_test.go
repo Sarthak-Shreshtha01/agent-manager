@@ -11,6 +11,7 @@ import (
 )
 
 func TestFocusEntersOnlyAfterTheProbeRuns(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -28,6 +29,7 @@ func TestFocusEntersOnlyAfterTheProbeRuns(t *testing.T) {
 }
 
 func TestFocusFenceKeepsNewerSelection(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -44,6 +46,7 @@ func TestFocusFenceKeepsNewerSelection(t *testing.T) {
 }
 
 func TestFocusDeadSessionNeverEnters(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -65,6 +68,7 @@ func TestFocusDeadSessionNeverEnters(t *testing.T) {
 }
 
 func TestFocusProbeAcknowledgesFinished(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alert-me", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -94,6 +98,7 @@ func TestFocusProbeAcknowledgesFinished(t *testing.T) {
 }
 
 func TestAckDefersTheStoreWrite(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alert-me", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -125,6 +130,7 @@ func TestAckDefersTheStoreWrite(t *testing.T) {
 }
 
 func TestAckIgnoresGoneSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "gone", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -144,6 +150,7 @@ func TestAckIgnoresGoneSession(t *testing.T) {
 }
 
 func TestAttachDeadSessionReportsFromCompletion(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -163,6 +170,7 @@ func TestAttachDeadSessionReportsFromCompletion(t *testing.T) {
 }
 
 func TestAttachWorkerAcknowledgesFinished(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alert-me", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -194,6 +202,7 @@ func TestAttachWorkerAcknowledgesFinished(t *testing.T) {
 }
 
 func TestAttachWorkerKeepsWorking(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "busy-one", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -215,6 +224,7 @@ func TestAttachWorkerKeepsWorking(t *testing.T) {
 }
 
 func TestDetachProbeReadsAndClearsInOneStep(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -223,7 +233,7 @@ func TestDetachProbeReadsAndClearsInOneStep(t *testing.T) {
 	m.selectSessionRow(t, "reviewme")
 	sess := m.sessionRows()[0]
 	clearRequestOnCleanup(t, m, sess.ID)
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -248,6 +258,7 @@ func TestDetachProbeReadsAndClearsInOneStep(t *testing.T) {
 }
 
 func TestFocusFenceDropsEntryAfterDialogOpened(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -284,6 +295,7 @@ func TestPasteAndFollowingRawKeyShareTheOrderedLane(t *testing.T) {
 }
 
 func TestFocusCompletionDoesNotReenterAfterNewerInput(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -296,6 +308,7 @@ func TestFocusCompletionDoesNotReenterAfterNewerInput(t *testing.T) {
 }
 
 func TestDetachCompletionDoesNotReplaceNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -309,6 +322,7 @@ func TestDetachCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 }
 
 func TestAcknowledgementCompletionFencesOlderPolls(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -327,6 +341,7 @@ func TestAcknowledgementCompletionFencesOlderPolls(t *testing.T) {
 }
 
 func TestDetachCompletionDoesNotOpenReviewDuringQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")
@@ -347,7 +362,7 @@ func detachWithReviewRequest(t *testing.T, m *Model) {
 	m.selectSessionRow(t, "alpha")
 	sess, _ := m.selected()
 	clearRequestOnCleanup(t, m, sess.ID)
-	if _, err := sessionTmuxCmd(sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
+	if _, err := sessionTmuxCmd(t, sess.ID, "set-option", "-g", "@am_request", tmux.RequestReview).CombinedOutput(); err != nil {
 		t.Fatalf("set marker: %v", err)
 	}
 	updated, _ := m.Update(attachDoneMsg{sessID: sess.ID})
@@ -355,6 +370,7 @@ func detachWithReviewRequest(t *testing.T, m *Model) {
 }
 
 func TestDetachRequestSurvivesListNavigation(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -374,6 +390,7 @@ func TestDetachRequestSurvivesListNavigation(t *testing.T) {
 }
 
 func TestDetachRequestDroppedForNewerDialogIsReported(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	detachWithReviewRequest(t, m)
 	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
@@ -388,6 +405,7 @@ func TestDetachRequestDroppedForNewerDialogIsReported(t *testing.T) {
 }
 
 func TestDetachRequestYieldsToQueuedFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	detachWithReviewRequest(t, m)
 	m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
@@ -402,6 +420,7 @@ func TestDetachRequestYieldsToQueuedFocus(t *testing.T) {
 }
 
 func TestPendingFocusSurvivesTheInitiatingMouseRelease(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m.selectSessionRow(t, "alpha")

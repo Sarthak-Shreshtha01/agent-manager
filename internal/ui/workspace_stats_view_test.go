@@ -123,7 +123,7 @@ func TestTemperatureReadingsEachKeepTheirColor(t *testing.T) {
 	forceANSI256(t)
 
 	row := tempReadings(sysstat.Snapshot{CPUTempOK: true, CPUTemp: 61, GPUTempOK: true, GPUTemp: 55})
-	want := sgrOf(valueStyle.Render("x"))
+	want := sgrOf(valueStyle().Render("x"))
 	for _, reading := range []string{"cpu 61°C", "gpu 55°C"} {
 		before, _, found := strings.Cut(row, reading)
 		if !found {

@@ -39,6 +39,7 @@ func groupWithShell(t *testing.T, m *Model, group string) {
 }
 
 func TestRestingShellUsesCaretGlyph(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	shell := spawnTerminal(t, m)
@@ -50,6 +51,7 @@ func TestRestingShellUsesCaretGlyph(t *testing.T) {
 }
 
 func TestDeadInlineShellKeepsItsStatusGlyph(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	shell := spawnTerminal(t, m)
@@ -71,6 +73,7 @@ func TestDeadInlineShellKeepsItsStatusGlyph(t *testing.T) {
 }
 
 func TestUnnestedShellSitsInItsGroup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	groupWithShell(t, m, "backend")
 	shell := spawnTerminal(t, m)
@@ -90,6 +93,7 @@ func TestUnnestedShellSitsInItsGroup(t *testing.T) {
 }
 
 func TestRollupsCountAgentsOnly(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	groupWithShell(t, m, "backend")
 	createSession(t, m, "agent-one", t.TempDir(), "backend")
@@ -116,6 +120,7 @@ func TestRollupsCountAgentsOnly(t *testing.T) {
 }
 
 func TestCursorOnShellStaysPainted(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	createSession(t, m, "agent-one", t.TempDir(), "")
@@ -141,6 +146,7 @@ func TestCursorOnShellStaysPainted(t *testing.T) {
 }
 
 func TestRailReturnsItsBudget(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	createSession(t, m, "agent-one", t.TempDir(), "")

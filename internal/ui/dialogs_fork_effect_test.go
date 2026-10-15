@@ -49,6 +49,7 @@ func forkRow(m *Model, name string) (store.Session, bool) {
 // The dialog submit must not read the store, resolve files, type keys or
 // launch: only a queued, frozen request may follow it.
 func TestForkSubmitDefersWorkOffTheUpdatePath(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	argsFile := forkFileTool(t, m, "claude")
@@ -94,6 +95,7 @@ func TestForkSubmitDefersWorkOffTheUpdatePath(t *testing.T) {
 // A completion must apply the durable fork row without replacing a newer
 // dialog, moving the selection, or clearing its status text.
 func TestForkCompletionDoesNotStealNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -219,6 +221,7 @@ func TestForkRequestDeepCopiesMutableSourceFields(t *testing.T) {
 // A fork accepted before quit drains to a durable row; a fork queued after
 // quit is refused, and a late command after StopEffects touches nothing.
 func TestForkQuitDrainsAcceptedJobAndRefusesLate(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	forkFileTool(t, m, "claude")
@@ -279,6 +282,7 @@ func TestForkQuitDrainsAcceptedJobAndRefusesLate(t *testing.T) {
 // Running a fork command twice and delivering its completion twice must
 // produce exactly one durable row.
 func TestForkDuplicateCompletionIsIdempotent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	forkFileTool(t, m, "claude")
@@ -317,6 +321,7 @@ func TestForkDuplicateCompletionIsIdempotent(t *testing.T) {
 // A launch refusal must keep the captured request for the install's retry,
 // not a closure that re-reads model state.
 func TestForkLaunchFailureRetainsCapturedRequest(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	m.selectSessionRow(t, "source")
@@ -355,6 +360,7 @@ func TestForkLaunchFailureRetainsCapturedRequest(t *testing.T) {
 // The worker re-reads the source by manager id, so a directory that died
 // after the dialog opened is refused at execution time, not submit time.
 func TestForkRefusesASourceDirectoryThatDied(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows will not remove a live pane's working directory")
 	}
@@ -392,6 +398,7 @@ func TestForkRefusesASourceDirectoryThatDied(t *testing.T) {
 // the re-read validates liveness, and the changed captured identity is
 // refused instead of forking the replacement conversation.
 func TestForkRefusesASourceThatRestartedWhileQueued(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	forkFileTool(t, m, "claude")
@@ -431,6 +438,7 @@ func TestForkRefusesASourceThatRestartedWhileQueued(t *testing.T) {
 // completion of the older one must apply its durable row without closing
 // the newer dialog.
 func TestForkCompletionAfterSameSourceReopenKeepsNewerDialog(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	forkFileTool(t, m, "claude")
@@ -556,6 +564,7 @@ func TestForkKeysRetryDoesNotForkSourceTwice(t *testing.T) {
 // A fork must stay starting, which attention excludes, so a completed
 // launch clears the status filter the way the keyboard path did.
 func TestForkCompletionClearsStatusFilter(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "source", t.TempDir(), "")
 	forkFileTool(t, m, "claude")
@@ -584,6 +593,7 @@ func TestForkCompletionClearsStatusFilter(t *testing.T) {
 }
 
 func TestForkRepeatedSubmitKeepsOneAcceptedJob(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.fork.Open("source", "")
 	m.queueFork(forkRequest{source: store.Session{ID: "source"}, name: "child", gen: m.fork.Gen()})

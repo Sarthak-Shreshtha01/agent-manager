@@ -108,8 +108,8 @@ func prepareFocusFrame(m *Model, preview string, width, height, x, y, caretRow i
 		OriginX:        x,
 		OriginY:        y,
 		CaretRow:       caretRow,
-		CursorStyle:    lipgloss.NewStyle().Foreground(colorBg).Background(colorAccent),
-		SelectionStyle: lipgloss.NewStyle().Foreground(colorBg).Background(colorAccent2),
+		CursorStyle:    lipgloss.NewStyle().Foreground(colorBg()).Background(colorAccent()),
+		SelectionStyle: lipgloss.NewStyle().Foreground(colorBg()).Background(colorAccent2()),
 	})
 }
 

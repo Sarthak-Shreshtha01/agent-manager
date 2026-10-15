@@ -8,6 +8,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	"github.com/YoanWai/agent-manager/internal/ui/theme"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -22,14 +23,8 @@ const (
 	ShellGlyph      = "❯"
 )
 
-// Theme is the feature-local copy of the active root presentation tokens.
-type Theme struct {
-	Bg, Surface, Overlay, Border        string
-	Bright, Text, Dim, Subtle           string
-	Accent, Accent2, Remote             string
-	Working, Waiting, Finished, Errored string
-	Idle                                string
-}
+// Theme is the palette the root renders with, read straight from ui/theme.
+type Theme = theme.Theme
 
 // Rename is a root-owned editor rendered in the row named by Target.
 // View is already measured by the root widget; Rail only places it.
@@ -293,23 +288,4 @@ func overlayAt(frame string, overlay []string, left, top int) string {
 	return strings.Join(lines, "\n")
 }
 
-func mix(a, b string, ratio float64) string {
-	if ratio < 0 {
-		ratio = 0
-	}
-	if ratio > 1 {
-		ratio = 1
-	}
-	parse := func(hex string) (int, int, int) {
-		hex = strings.TrimPrefix(hex, "#")
-		if len(hex) != 6 {
-			return 0, 0, 0
-		}
-		value, _ := strconv.ParseInt(hex, 16, 64)
-		return int(value >> 16), int(value >> 8 & 0xff), int(value & 0xff)
-	}
-	ar, ag, ab := parse(a)
-	br, bg, bb := parse(b)
-	blend := func(x, y int) int { return int(float64(x)*(1-ratio) + float64(y)*ratio + 0.5) }
-	return fmt.Sprintf("#%02x%02x%02x", blend(ar, br), blend(ag, bg), blend(ab, bb))
-}
+func mix(a, b string, ratio float64) string { return theme.Mix(a, b, ratio) }

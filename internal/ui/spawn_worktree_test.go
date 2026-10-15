@@ -12,6 +12,7 @@ import (
 )
 
 func TestFormWorktreeToggleSeedsFromSetting(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	if m.form.Worktree() {
@@ -28,6 +29,7 @@ func TestFormWorktreeToggleSeedsFromSetting(t *testing.T) {
 }
 
 func TestFormWorktreeGatedInNonRepoDir(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	plain := t.TempDir()
 	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
@@ -67,6 +69,7 @@ func TestFormWorktreeGatedInNonRepoDir(t *testing.T) {
 }
 
 func TestWorktreeCapabilityExpiresSoAFreshRepoIsSeen(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := filepath.Join(t.TempDir(), "repo")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -110,6 +113,7 @@ func (r *blockedRepoPreflight) repoCapable(string) bool {
 }
 
 func TestWorktreeProbeDefersGitAndRejectsReopenedForm(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	dir := t.TempDir()
@@ -143,6 +147,7 @@ func TestWorktreeProbeDefersGitAndRejectsReopenedForm(t *testing.T) {
 }
 
 func TestPrepareFrameConsumesCapturedWorktreeFacts(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.ledger.worktreeRepos = nil
@@ -153,6 +158,7 @@ func TestPrepareFrameConsumesCapturedWorktreeFacts(t *testing.T) {
 }
 
 func TestFormWorktreeStaysOnInRepoDir(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := filepath.Join(t.TempDir(), "repo")
 	if err := os.MkdirAll(repo, 0o755); err != nil {

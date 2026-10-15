@@ -12,6 +12,7 @@ import (
 )
 
 func TestDefaultToolFallsBackWhenSettingStale(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.SetDefaultTool("deleted-tool"); err != nil {
 		t.Fatalf("set setting: %v", err)
@@ -34,6 +35,7 @@ func repoWithDevelop(t *testing.T) string {
 }
 
 func TestGroupFormStepsBaseThroughTheRepoBranches(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := repoWithDevelop(t)
 	m.openGroupForm()
@@ -65,6 +67,7 @@ func TestGroupFormStepsBaseThroughTheRepoBranches(t *testing.T) {
 }
 
 func TestGroupFormShowsTheBaseAutoInherits(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("parent", t.TempDir()); err != nil {
 		t.Fatalf("group: %v", err)
@@ -81,6 +84,7 @@ func TestGroupFormShowsTheBaseAutoInherits(t *testing.T) {
 }
 
 func TestGroupFormBaseNeedsARepository(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.path.SetValue(t.TempDir())
@@ -96,6 +100,7 @@ func TestGroupFormBaseNeedsARepository(t *testing.T) {
 }
 
 func TestSpawnWorktreeBranchesFromTheGroupBase(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := repoWithDevelop(t)
 	if err := m.services.store.CreateGroup("parent", repo); err != nil {
@@ -122,6 +127,7 @@ func TestSpawnWorktreeBranchesFromTheGroupBase(t *testing.T) {
 }
 
 func TestFormShowsAndFetchesTheWorktreeBase(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	remote := seedRepo(t)
 	clone := filepath.Join(t.TempDir(), "clone")
@@ -198,6 +204,7 @@ func TestSettingsFetchOnSpawnTurnsTheFetchOff(t *testing.T) {
 }
 
 func TestFormMarksAFailedBaseFetch(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	remote := seedRepo(t)
 	clone := filepath.Join(t.TempDir(), "clone")
@@ -219,6 +226,7 @@ func TestFormMarksAFailedBaseFetch(t *testing.T) {
 }
 
 func TestFormRemembersLastSpawnTool(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	pickFormTool(t, m, "ready-tool")
@@ -231,6 +239,7 @@ func TestFormRemembersLastSpawnTool(t *testing.T) {
 }
 
 func TestFormCancelDoesNotRememberLastPick(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	pickFormTool(t, m, "ready-tool")
@@ -288,6 +297,7 @@ func TestFormRemembersPickOnlyAfterInstallRetrySucceeds(t *testing.T) {
 }
 
 func TestFormRemembersLastSpawnWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SeedWorktree(true)
@@ -300,6 +310,7 @@ func TestFormRemembersLastSpawnWorktree(t *testing.T) {
 }
 
 func TestFormLastWorktreeYieldsToGroupDefault(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SeedWorktree(true)
@@ -337,6 +348,7 @@ func TestFormLastWorktreeYieldsToGroupDefault(t *testing.T) {
 }
 
 func TestFormHiddenLastToolFallsBackToSettings(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	pickFormTool(t, m, "ready-tool")

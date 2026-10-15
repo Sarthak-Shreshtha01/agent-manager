@@ -220,6 +220,7 @@ func TestReviewSendRefusesRelaunchedTargetBeforePersistenceOrTransport(t *testin
 }
 
 func TestReviewSendCommandCapturesSessionIncarnation(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "review-incarnation", t.TempDir(), "")
 	session := reviewSessionByName(t, m, "review-incarnation")
@@ -427,6 +428,7 @@ func TestReviewNormalizePersistsCurrentShape(t *testing.T) {
 }
 
 func TestReviewSaveDefersToEffectLane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -482,6 +484,7 @@ func TestReviewSaveFailureSurfacesAfterReviewChanges(t *testing.T) {
 }
 
 func TestReviewStatusSeesPriorSave(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -513,6 +516,7 @@ func TestReviewStatusSeesPriorSave(t *testing.T) {
 }
 
 func TestReviewSendDrainsOnQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -550,6 +554,7 @@ func TestReviewSendDrainsOnQuit(t *testing.T) {
 }
 
 func TestReviewLoadNormalizesThroughLane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -598,6 +603,7 @@ func TestReviewLoadNormalizesThroughLane(t *testing.T) {
 }
 
 func TestReviewSendOnceRefusesDuplicateSubmit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -624,6 +630,7 @@ func TestReviewSendOnceRefusesDuplicateSubmit(t *testing.T) {
 }
 
 func TestReviewNormalizeDispatchesAsNormalizeOp(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -674,6 +681,7 @@ func TestReviewNormalizeDispatchesAsNormalizeOp(t *testing.T) {
 }
 
 func TestStaleNormalizeDoesNotOverwriteNewerSave(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")

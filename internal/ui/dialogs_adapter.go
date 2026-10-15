@@ -103,11 +103,11 @@ func (m *Model) viewConfirm() string {
 // confirmCard is the shared yes/no card, also drawn by Settings' reset.
 func (m *Model) confirmCard(title, question, consequence string, destructive bool, answer string) string {
 	width := m.cardWidth()
-	tone := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	tone := lipgloss.NewStyle().Foreground(colorAccent()).Bold(true)
 	if destructive {
-		tone = errStyle
+		tone = errStyle()
 	}
-	body := uidialogs.ConfirmBody(question, consequence, cardInnerWidth(width), tone, mutedStyle)
+	body := uidialogs.ConfirmBody(question, consequence, cardInnerWidth(width), tone, mutedStyle())
 	return m.cardSized(width, title, body, uidialogs.ConfirmHints(answer))
 }
 
@@ -285,8 +285,8 @@ func (m *Model) handleForkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) viewFork() string {
 	return m.drawCard(m.fork.View(uidialogs.ForkStyles{
-		Value: valueStyle,
-		Group: lipgloss.NewStyle().Foreground(colorAccent2),
+		Value: valueStyle(),
+		Group: lipgloss.NewStyle().Foreground(colorAccent2()),
 		Field: formField,
 		Input: textInputView,
 	}))
@@ -409,10 +409,10 @@ func (m *Model) renameGroupDir() string {
 func (m *Model) viewRenameGroupFields(group string, width int) string {
 	view := uidialogs.GroupFieldsView{
 		Width:     width,
-		Label:     labelStyle,
-		Focused:   lipgloss.NewStyle().Foreground(colorAccent),
-		Subtle:    subtleStyle,
-		Value:     valueStyle,
+		Label:     labelStyle(),
+		Focused:   lipgloss.NewStyle().Foreground(colorAccent()),
+		Subtle:    subtleStyle(),
+		Value:     valueStyle(),
 		Input:     textInputView,
 		Worktrees: groupWorktreeOptions,
 		Base:      groupBaseChoice(m.rename.base, m.groupBase(parentGroup(group))),

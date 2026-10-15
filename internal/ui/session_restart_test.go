@@ -12,6 +12,7 @@ import (
 
 // A restart starts a fresh conversation on the model the session chose.
 func TestRestartKeepsTheSessionChoice(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	tool := m.services.cfg.Tools["claude"]
 	tool.ModelArgs = "--model {model}"
@@ -36,6 +37,7 @@ func TestRestartKeepsTheSessionChoice(t *testing.T) {
 // but a conversation the agent has never seen. The old one is retired rather
 // than resumed, so the resume flags revive would have used stay unused.
 func TestRestartLaunchesAFreshConversation(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "phoenix", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -102,6 +104,7 @@ func TestRestartLaunchesAFreshConversation(t *testing.T) {
 // hand the launch, so restart clears the binding and leaves the id for the
 // poller to capture once the new conversation lands.
 func TestRestartClearsCapturedConversationID(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "codexish", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -144,6 +147,7 @@ func TestRestartClearsCapturedConversationID(t *testing.T) {
 // Restart also serves the session that is still running: it ends the agent
 // holding the context and brings the row back empty-handed.
 func TestRestartEndsALiveAgentFirst(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "busy", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -177,6 +181,7 @@ func TestRestartEndsALiveAgentFirst(t *testing.T) {
 }
 
 func TestRestartRefusesGroupRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("work", dir); err != nil {
@@ -240,6 +245,7 @@ func TestRestartLaunchIsAFreshStartForEveryShippedTool(t *testing.T) {
 }
 
 func TestRestartAgentStaysSingleSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {

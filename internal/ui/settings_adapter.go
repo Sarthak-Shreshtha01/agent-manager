@@ -78,7 +78,7 @@ func (s *settingsFeature) stateFromCache(cfg config.Config) settingsState {
 		Hidden:  s.cache.hidden,
 		Editors: s.cache.editors,
 		Tools:   settingsTools(cfg),
-		Theme:   current.Name,
+		Theme:   current().Name,
 	})
 }
 
@@ -331,15 +331,15 @@ func (m *Model) viewSettings() string {
 
 func settingsStyles() uisettings.Styles {
 	return uisettings.Styles{
-		Value:      valueStyle,
-		Subtle:     subtleStyle,
-		Muted:      mutedStyle,
-		Key:        keyStyle,
-		Annotation: annotationStyle,
-		Marker:     lipgloss.NewStyle().Foreground(colorAccent),
-		Focused:    lipgloss.NewStyle().Foreground(colorAccent).Bold(true),
-		Action:     lipgloss.NewStyle().Foreground(colorAccent2).Bold(true),
-		ActionText: lipgloss.NewStyle().Foreground(colorAccent2),
+		Value:      valueStyle(),
+		Subtle:     subtleStyle(),
+		Muted:      mutedStyle(),
+		Key:        keyStyle(),
+		Annotation: annotationStyle(),
+		Marker:     lipgloss.NewStyle().Foreground(colorAccent()),
+		Focused:    lipgloss.NewStyle().Foreground(colorAccent()).Bold(true),
+		Action:     lipgloss.NewStyle().Foreground(colorAccent2()).Bold(true),
+		ActionText: lipgloss.NewStyle().Foreground(colorAccent2()),
 	}
 }
 

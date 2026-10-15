@@ -21,21 +21,21 @@ func (m *Model) computerLines(width int) []string {
 	}
 
 	render := func(label string, percent float64, extra, bar string) string {
-		line := pad + labelStyle.Width(5).Render(label) + bar +
-			valueStyle.Render(fmt.Sprintf(" %3.0f%%", percent))
+		line := pad + labelStyle().Width(5).Render(label) + bar +
+			valueStyle().Render(fmt.Sprintf(" %3.0f%%", percent))
 		if extra != "" {
-			line += subtleStyle.Render(" " + extra)
+			line += subtleStyle().Render(" " + extra)
 		}
 		return line
 	}
 	meter := func(label string, percent float64, ok bool, extra string) string {
 		if !ok {
-			return pad + labelStyle.Width(5).Render(label) + subtleStyle.Render("n/a")
+			return pad + labelStyle().Width(5).Render(label) + subtleStyle().Render("n/a")
 		}
 		return render(label, percent, extra, gauge(percent, barWidth, false))
 	}
 
-	lines := []string{pad + subtleStyle.Render("computer")}
+	lines := []string{pad + subtleStyle().Render("computer")}
 	lines = append(lines,
 		meter("cpu", snap.CPUPercent, snap.CPUOK, ""),
 		meter("mem", snap.MemPercent, snap.MemOK, humanBytes(snap.MemUsed)+"/"+humanBytes(snap.MemTotal)),
@@ -51,7 +51,7 @@ func (m *Model) computerLines(width int) []string {
 		line := meter("disk", snap.DiskPercent, true, extra)
 		if ansi.StringWidth(line) > width {
 			lines = append(lines, meter("disk", snap.DiskPercent, true, ""),
-				pad+strings.Repeat(" ", 5)+subtleStyle.Render(extra))
+				pad+strings.Repeat(" ", 5)+subtleStyle().Render(extra))
 		} else {
 			lines = append(lines, line)
 		}
@@ -67,12 +67,12 @@ func (m *Model) computerLines(width int) []string {
 			gauge(snap.BatteryPercent, barWidth, true)))
 	}
 	if temps := tempReadings(snap); temps != "" {
-		lines = append(lines, pad+labelStyle.Width(5).Render("temp")+temps)
+		lines = append(lines, pad+labelStyle().Width(5).Render("temp")+temps)
 	}
 	if m.workspace.net.rates {
-		lines = append(lines, pad+labelStyle.Width(5).Render("net")+
-			valueStyle.Render("↓ "+humanBytes(m.workspace.net.down)+"/s")+
-			subtleStyle.Render("  ↑ "+humanBytes(m.workspace.net.up)+"/s"))
+		lines = append(lines, pad+labelStyle().Width(5).Render("net")+
+			valueStyle().Render("↓ "+humanBytes(m.workspace.net.down)+"/s")+
+			subtleStyle().Render("  ↑ "+humanBytes(m.workspace.net.up)+"/s"))
 	}
 	return append(lines, "")
 }
@@ -80,15 +80,15 @@ func (m *Model) computerLines(width int) []string {
 func tempReadings(snap sysstat.Snapshot) string {
 	var parts []string
 	if snap.CPUTempOK {
-		parts = append(parts, valueStyle.Render(fmt.Sprintf("cpu %.0f°C", snap.CPUTemp)))
+		parts = append(parts, valueStyle().Render(fmt.Sprintf("cpu %.0f°C", snap.CPUTemp)))
 	}
 	if snap.GPUTempOK {
-		parts = append(parts, valueStyle.Render(fmt.Sprintf("gpu %.0f°C", snap.GPUTemp)))
+		parts = append(parts, valueStyle().Render(fmt.Sprintf("gpu %.0f°C", snap.GPUTemp)))
 	}
 	if snap.SoCTempOK {
-		parts = append(parts, valueStyle.Render(fmt.Sprintf("soc %.0f°C", snap.SoCTemp)))
+		parts = append(parts, valueStyle().Render(fmt.Sprintf("soc %.0f°C", snap.SoCTemp)))
 	}
-	return strings.Join(parts, subtleStyle.Render("  "))
+	return strings.Join(parts, subtleStyle().Render("  "))
 }
 
 func (m *Model) railFootLines(width int) []string {
@@ -104,9 +104,9 @@ func (m *Model) railFootLines(width int) []string {
 func (m *Model) fullFootLine(width int) []string {
 	reading := func(label, value string, ok bool) string {
 		if !ok {
-			return labelStyle.Render(label+" ") + subtleStyle.Render("n/a")
+			return labelStyle().Render(label+" ") + subtleStyle().Render("n/a")
 		}
-		return labelStyle.Render(label+" ") + valueStyle.Render(value)
+		return labelStyle().Render(label+" ") + valueStyle().Render(value)
 	}
 	snap := m.workspace.snap
 	parts := []string{
@@ -125,7 +125,7 @@ func (m *Model) fullFootLine(width int) []string {
 		parts = append(parts, reading("batt", value, true))
 	}
 	if temps := tempReadings(snap); temps != "" {
-		parts = append(parts, labelStyle.Render("temp ")+temps)
+		parts = append(parts, labelStyle().Render("temp ")+temps)
 	}
 	if m.workspace.net.rates {
 		parts = append(parts, reading("net", "↓ "+humanBytes(m.workspace.net.down)+"/s ↑ "+humanBytes(m.workspace.net.up)+"/s", true))

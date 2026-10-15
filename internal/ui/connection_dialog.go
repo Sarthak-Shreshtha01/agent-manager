@@ -119,8 +119,8 @@ func (d *connectionDialog) view(h connectionDialogHost) string {
 	}
 	body := formField("name", textInputView(d.name), d.focus == cfName) +
 		formField("ssh to", textInputView(d.destination), d.focus == cfDestination) + "\n" +
-		mutedStyle.Render("  Its sessions show under this name. The host needs agent-manager on") + "\n" +
-		mutedStyle.Render("  its login PATH and a key this machine's ssh can use without a prompt.")
+		mutedStyle().Render("  Its sessions show under this name. The host needs agent-manager on") + "\n" +
+		mutedStyle().Render("  its login PATH and a key this machine's ssh can use without a prompt.")
 	return h.card(title, body, [][2]string{{"tab/↑↓", "move"}, {"↵", "save"}, {"esc", "cancel"}})
 }
 

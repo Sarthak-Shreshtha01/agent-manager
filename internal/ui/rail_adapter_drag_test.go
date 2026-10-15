@@ -58,6 +58,7 @@ func release(t *testing.T, m *Model, at tea.MouseMsg) *Model {
 }
 
 func TestDragOntoAnotherGroupsHeaderMovesTheSessionInto(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	withGroups(t, m, dir, "alpha", "beta")
@@ -78,6 +79,7 @@ func TestDragOntoAnotherGroupsHeaderMovesTheSessionInto(t *testing.T) {
 }
 
 func TestDragBeforeASessionInAnotherGroupLandsAheadOfIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	withGroups(t, m, dir, "alpha", "beta")
@@ -99,6 +101,7 @@ func TestDragBeforeASessionInAnotherGroupLandsAheadOfIt(t *testing.T) {
 }
 
 func TestDragATerminalOntoAnAgentNestsIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	withGroups(t, m, dir, "alpha", "beta")
@@ -115,6 +118,7 @@ func TestDragATerminalOntoAnAgentNestsIt(t *testing.T) {
 }
 
 func TestDragAGroupIntoAnotherGroupThroughItsRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	withGroups(t, m, dir, "alpha", "beta")
@@ -136,6 +140,7 @@ func TestDragAGroupIntoAnotherGroupThroughItsRows(t *testing.T) {
 }
 
 func TestEscCancelsAPendingMove(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	withGroups(t, m, dir, "alpha", "beta")
@@ -150,6 +155,7 @@ func TestEscCancelsAPendingMove(t *testing.T) {
 }
 
 func TestKeptSearchTakesNoCrossLevelMoves(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	withGroups(t, m, dir, "alpha", "beta")

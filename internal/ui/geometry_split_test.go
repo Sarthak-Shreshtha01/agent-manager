@@ -120,6 +120,7 @@ func TestResizeModeKeyArmsDrag(t *testing.T) {
 }
 
 func TestArrowNudgeAndPipeCommits(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	st := m.services.store
 	m.layout.width, m.layout.height, m.layout.split.ratio = 100, 40, 0.34
@@ -161,6 +162,7 @@ func TestArrowNudgeAndPipeCommits(t *testing.T) {
 }
 
 func TestEnterCommitsResize(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	st := m.services.store
 	m.layout.width, m.layout.height, m.layout.split.ratio = 100, 40, 0.34
@@ -202,6 +204,7 @@ func TestArrowCancelRestoresRatio(t *testing.T) {
 }
 
 func TestQuitFromResizePersistsRatio(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	st := m.services.store
 	m.layout.width, m.layout.height, m.layout.split.ratio = 100, 40, 0.34
@@ -229,6 +232,7 @@ func TestQuitFromResizePersistsRatio(t *testing.T) {
 }
 
 func TestCtrlCFromResizePersistsRatioAfterAcceptedQuit(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	st := m.services.store
 	m.layout.width, m.layout.height, m.layout.split.ratio = 100, 40, 0.34
@@ -251,6 +255,7 @@ func TestCtrlCFromResizePersistsRatioAfterAcceptedQuit(t *testing.T) {
 }
 
 func TestInstallerRefusedQuitKeepsResizeInteraction(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height, m.layout.split.ratio = 100, 40, 0.34
 	updated, _ := m.enterResizeMode()
@@ -272,6 +277,7 @@ func TestInstallerRefusedQuitKeepsResizeInteraction(t *testing.T) {
 }
 
 func TestInstallerRefusedQuitKeepsMouseDrag(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.layout.width, m.layout.height, m.layout.split.ratio = 100, 40, 0.42
 	m.layout.split.dragging = true
@@ -292,6 +298,7 @@ func TestInstallerRefusedQuitKeepsMouseDrag(t *testing.T) {
 }
 
 func TestSplitPersistenceIsDeferredAndOrdered(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	st := m.services.store
 
@@ -375,6 +382,7 @@ func TestBodyYRangeMatchesListChrome(t *testing.T) {
 }
 
 func TestNewLoadsPersistedSplitRatio(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.SetSetting(splitRatioSetting, "0.45"); err != nil {
 		t.Fatalf("set setting: %v", err)

@@ -731,6 +731,7 @@ func TestSettingsRequestCopiesMutableValues(t *testing.T) {
 }
 
 func TestLaterSuccessfulSettingsSaveReappliesCommittedPrefs(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	request := settingsRequest{values: []settingValue{{Key: listDensitySetting, Value: "comfortable"}}}
 	m.prefs.comfortableRows = false

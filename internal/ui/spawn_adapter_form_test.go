@@ -23,6 +23,7 @@ import (
 )
 
 func TestNewSessionFormUsesSettingsDefaultTool(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.SetDefaultTool("ready-tool"); err != nil {
 		t.Fatal(err)
@@ -34,6 +35,7 @@ func TestNewSessionFormUsesSettingsDefaultTool(t *testing.T) {
 }
 
 func TestOpenFormDefersSettingsReadAndAcceptsPristineDefaults(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	reader := &blockedSettingReader{
 		started: make(chan struct{}),
@@ -68,6 +70,7 @@ func TestOpenFormDefersSettingsReadAndAcceptsPristineDefaults(t *testing.T) {
 }
 
 func TestFormSettingsLoadRefusesLocalChoiceAndReopenedForm(t *testing.T) {
+	t.Parallel()
 	t.Run("local choice", func(t *testing.T) {
 		m := buildModel(t)
 		cmd := m.openForm()
@@ -103,6 +106,7 @@ func TestFormSettingsLoadRefusesLocalChoiceAndReopenedForm(t *testing.T) {
 }
 
 func TestFormSettingsLoadAppliesSuccessfulReadsOnPartialFailure(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	reader := &settingsScriptWriter{
 		failGetOn: quickCloseSetting,
@@ -144,6 +148,7 @@ func submitFormSession(t *testing.T, m *Model, name string) {
 }
 
 func TestNewSessionPreselectsContextGroup(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("alpha/beta", ""); err != nil {
@@ -173,6 +178,7 @@ func TestNewSessionPreselectsContextGroup(t *testing.T) {
 }
 
 func TestGroupFormCreatesUnderParent(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("projects", ""); err != nil {
 		t.Fatalf("seed group: %v", err)
@@ -202,6 +208,7 @@ func TestGroupFormCreatesUnderParent(t *testing.T) {
 }
 
 func TestGroupFormShowsNewEmptyGroupWithWorktreeOff(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.rail.SetHideEmptyGroups(true)
 	m.rail.SetSearch("does-not-match", m.rail.Searching())
@@ -233,6 +240,7 @@ func TestGroupFormShowsNewEmptyGroupWithWorktreeOff(t *testing.T) {
 }
 
 func TestGroupFormExpandsParentToShowNewChild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("projects", t.TempDir()); err != nil {
 		t.Fatalf("seed group: %v", err)
@@ -257,6 +265,7 @@ func TestGroupFormExpandsParentToShowNewChild(t *testing.T) {
 }
 
 func TestGroupFormRejectsDuplicateWithoutChangingIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	first := t.TempDir()
 	second := t.TempDir()
@@ -289,6 +298,7 @@ func TestGroupFormRejectsDuplicateWithoutChangingIt(t *testing.T) {
 }
 
 func TestGroupParentPickerExcludesArchivedGroups(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, group := range []string{"active", "archived", "archived/child"} {
 		if err := m.services.store.CreateGroup(group, t.TempDir()); err != nil {
@@ -311,6 +321,7 @@ func TestGroupParentPickerExcludesArchivedGroups(t *testing.T) {
 }
 
 func TestGroupFormFieldsTrackCardWidth(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	want := m.formValueWidth() - 3
@@ -326,6 +337,7 @@ func TestGroupFormFieldsTrackCardWidth(t *testing.T) {
 }
 
 func TestGroupDefaultPathFillsSessionDir(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	groupDir := t.TempDir()
 	if err := m.services.store.CreateGroup("workspace", groupDir); err != nil {
@@ -342,6 +354,7 @@ func TestGroupDefaultPathFillsSessionDir(t *testing.T) {
 }
 
 func TestFormPromptComposesWithSettings(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	tool := m.services.cfg.Tools["claude-hooked"]
 	tool.Command = "cat"
@@ -362,6 +375,7 @@ func TestFormPromptComposesWithSettings(t *testing.T) {
 }
 
 func TestFormLongDirKeepsCursorEndVisible(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.FocusStep(m.spawnHost(), 2) // name -> tool -> dir
@@ -525,6 +539,7 @@ func TestFormChipRendersInTheCard(t *testing.T) {
 }
 
 func TestFormSubmitWaitsForAPasteStillReading(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	focusFormPrompt(t, m)
@@ -546,6 +561,7 @@ func TestFormSubmitWaitsForAPasteStillReading(t *testing.T) {
 }
 
 func TestFormLongPromptWrapsAcrossRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.FocusStep(m.spawnHost(), -2) // name -> group -> prompt
@@ -557,6 +573,7 @@ func TestFormLongPromptWrapsAcrossRows(t *testing.T) {
 }
 
 func TestFormTypesWordsNamedLikeKeys(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	for i, word := range []string{"enter", "tab", "esc"} {
@@ -581,6 +598,7 @@ func TestComposerRowsCountAnExactFillAsAWrap(t *testing.T) {
 }
 
 func TestFormGroupArrowsMoveFocusNotSelection(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("alpha", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -622,6 +640,7 @@ func TestFormGroupArrowsMoveFocusNotSelection(t *testing.T) {
 }
 
 func TestGroupFormParentArrowsMoveFocusNotSelection(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("alpha", ""); err != nil {
 		t.Fatalf("create group: %v", err)
@@ -648,6 +667,7 @@ func TestGroupFormParentArrowsMoveFocusNotSelection(t *testing.T) {
 }
 
 func TestFormRejectsDashLeadingPrompt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SetName("flagged")
@@ -669,6 +689,7 @@ func TestFormRejectsDashLeadingPrompt(t *testing.T) {
 // Only a spawn that hands over the rename directive has a name to wait for;
 // one the user named itself is already at its final name.
 func TestSpawnAwaitsARenameOnlyWhenItAsksForOne(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -690,6 +711,7 @@ func TestSpawnAwaitsARenameOnlyWhenItAsksForOne(t *testing.T) {
 }
 
 func TestSpawnMarksDeferredDirective(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -720,6 +742,7 @@ func TestSpawnMarksDeferredDirective(t *testing.T) {
 }
 
 func TestDeferredDirectiveSentWhenPaneReady(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.spawnSession("ready-tool", "ready-tool-abcd", t.TempDir(), "", "", true, false, config.Choice{}); err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -749,6 +772,7 @@ func TestDeferredDirectiveSentWhenPaneReady(t *testing.T) {
 }
 
 func TestSendModePromptSurvivesPollerRestart(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.spawnSession("send-tool", "custom", t.TempDir(), "", "do the work", false, false, config.Choice{}); err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -779,6 +803,7 @@ func TestSendModePromptSurvivesPollerRestart(t *testing.T) {
 }
 
 func TestSendModeReconcilesUncertainPriorDeliveryWithoutResending(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.spawnSession("send-tool", "custom", t.TempDir(), "", "do not resend", false, false, config.Choice{}); err != nil {
 		t.Fatalf("spawn: %v", err)
@@ -834,6 +859,7 @@ func sessionHasPendingInput(t *testing.T, m *Model, id, want string) bool {
 }
 
 func TestBuildLaunchCarriesSessionID(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	plain := m.services.cfg.Tools["claude"]
 	_, env, err := m.buildLaunch("plain", plain, plain.Command, "abcd1234", t.TempDir(), time.Time{})
@@ -871,6 +897,7 @@ func initGitRepo(t *testing.T, dir string) {
 }
 
 func TestSpawnWorktreeSessionCreatesWorktree(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	repo := filepath.Join(t.TempDir(), "repo")
 	if err := os.MkdirAll(repo, 0o755); err != nil {
@@ -899,6 +926,7 @@ func TestSpawnWorktreeSessionCreatesWorktree(t *testing.T) {
 }
 
 func TestSpawnWorktreeInNonRepoBlocks(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	plain := t.TempDir()
 	err := m.spawnSession("claude", "wt-fail", plain, "", "", false, true, config.Choice{})
@@ -915,6 +943,7 @@ func TestSpawnWorktreeInNonRepoBlocks(t *testing.T) {
 }
 
 func TestSpawnWorktreeRollsBackWhenLaunchBuildFails(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("chmod cannot deny writes on Windows")
 	}
@@ -944,6 +973,7 @@ func TestSpawnWorktreeRollsBackWhenLaunchBuildFails(t *testing.T) {
 }
 
 func TestFormWorktreeSeedsFromGroupDefault(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.CreateGroup("grp", t.TempDir()); err != nil {
 		t.Fatalf("group: %v", err)
@@ -965,6 +995,7 @@ func TestFormWorktreeSeedsFromGroupDefault(t *testing.T) {
 }
 
 func TestGroupFormStoresWorktreeChoice(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
 	m.groupForm.name.SetValue("wtgrp")
@@ -986,6 +1017,7 @@ func TestGroupFormStoresWorktreeChoice(t *testing.T) {
 // a command-line prompt is stored; a tool typed into gets its prompt as the
 // first pending input instead. Read before the first poll, which delivers it.
 func TestSpawnStoresOnlyACommandLinePrompt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -1018,6 +1050,7 @@ func TestSpawnStoresOnlyACommandLinePrompt(t *testing.T) {
 }
 
 func TestFormUpDownMoveTheCaretBetweenPromptRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	focusFormPrompt(t, m)

@@ -75,7 +75,7 @@ func TestOpenedEditorReadsAsAnOutcome(t *testing.T) {
 	if len(*launched) == 0 {
 		t.Fatalf("the editor never launched, status = %q", m.errBar.text)
 	}
-	if want := doneStyle.Render("● " + m.errBar.text); m.statusLine() != want {
+	if want := doneStyle().Render("● " + m.errBar.text); m.statusLine() != want {
 		t.Fatalf("status line is %q, want the outcome styling %q", m.statusLine(), want)
 	}
 }
@@ -89,7 +89,7 @@ func TestUpToDateReadsAsAnOutcome(t *testing.T) {
 	if m.errBar.text != "already up to date" {
 		t.Fatalf("status text is %q", m.errBar.text)
 	}
-	if want := doneStyle.Render("● already up to date"); m.statusLine() != want {
+	if want := doneStyle().Render("● already up to date"); m.statusLine() != want {
 		t.Fatalf("status line is %q, want %q", m.statusLine(), want)
 	}
 }
@@ -101,7 +101,7 @@ func TestFailureAfterAnOutcomeReadsAsAFailure(t *testing.T) {
 	m := shotModel()
 	m.reportDone("opened /tmp/project in code")
 	m.errBar.text = "git not found in PATH"
-	if want := errStyle.Render("✕ git not found in PATH"); m.statusLine() != want {
+	if want := errStyle().Render("✕ git not found in PATH"); m.statusLine() != want {
 		t.Fatalf("status line is %q, want %q", m.statusLine(), want)
 	}
 
@@ -112,7 +112,7 @@ func TestFailureAfterAnOutcomeReadsAsAFailure(t *testing.T) {
 		m.ageError()
 	}
 	m.errBar.text = "opened /tmp/project in code"
-	if want := errStyle.Render("✕ opened /tmp/project in code"); m.statusLine() != want {
+	if want := errStyle().Render("✕ opened /tmp/project in code"); m.statusLine() != want {
 		t.Fatalf("status line is %q, want %q", m.statusLine(), want)
 	}
 }
@@ -133,8 +133,8 @@ func TestReviewFooterMarksAnOutcome(t *testing.T) {
 
 // Splicing a card into a styled row must not shift the cells around it.
 func TestSpliceAtColumnKeepsWidth(t *testing.T) {
-	row := paint(keyStyle.Render("session ")+subtleStyle.Render("running"), 40, panelHex())
-	spliced := spliceAtColumn(row, paint(errStyle.Render("boom"), 6, blockHex()), 20)
+	row := paint(keyStyle().Render("session ")+subtleStyle().Render("running"), 40, panelHex())
+	spliced := spliceAtColumn(row, paint(errStyle().Render("boom"), 6, blockHex()), 20)
 	if got := ansi.StringWidth(spliced); got != 40 {
 		t.Fatalf("spliced row is %d wide, want 40: %q", got, ansi.Strip(spliced))
 	}

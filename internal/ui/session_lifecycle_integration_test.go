@@ -15,6 +15,7 @@ import (
 )
 
 func TestCreateArchiveRestoreDelete(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 
@@ -134,6 +135,7 @@ func readWhenWritten(t *testing.T, path string) string {
 }
 
 func TestNewSessionShowsStartingImmediately(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openForm()
 	m.form.SetName("boot")

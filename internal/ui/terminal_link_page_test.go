@@ -113,6 +113,7 @@ func TestLinkPageClosedInputReturns(t *testing.T) {
 }
 
 func TestLinkPageMsgHandsTheTerminalOver(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	_, cmd := m.Update(linkPageMsg{url: "https://example.com/manual"})
 	if cmd == nil || cmd() == nil {

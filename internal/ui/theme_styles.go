@@ -3,6 +3,7 @@ package ui
 import (
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
@@ -10,105 +11,164 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Colors are resolved from the active Theme by applyTheme; nothing here
-// hardcodes a palette. See theme.go for the token meanings.
-var (
-	colorBg      lipgloss.Color
-	colorSurface lipgloss.Color
-	colorOverlay lipgloss.Color
-	colorBorder  lipgloss.Color
-	colorBright  lipgloss.Color
-	colorText    lipgloss.Color
-	colorDim     lipgloss.Color
-	colorSubtle  lipgloss.Color
-	colorAccent  lipgloss.Color
-	colorAccent2 lipgloss.Color
-	colorRemote  lipgloss.Color
-	colorSelBg   lipgloss.Color
+// themeStyles is every style derived from one palette. applyTheme builds a
+// whole set and publishes it with one atomic store, and nothing writes a set
+// after that, so a Model rendering on one goroutine while another Model
+// applies a theme reads either set, never a half-built mix. The accessors
+// below are what the rest of the package reads; nothing hardcodes a palette.
+// See theme.go for the token meanings.
+type themeStyles struct {
+	theme Theme
 
-	colorWorking  lipgloss.Color
-	colorWaiting  lipgloss.Color
-	colorFinished lipgloss.Color
-	colorErrored  lipgloss.Color
-	colorIdle     lipgloss.Color
-)
+	section     lipgloss.Style
+	selectedRow lipgloss.Style
 
-var (
-	sectionStyle     lipgloss.Style
-	selectedRowStyle lipgloss.Style
+	muted  lipgloss.Style
+	subtle lipgloss.Style
+	value  lipgloss.Style
+	label  lipgloss.Style
+	err    lipgloss.Style
+	done   lipgloss.Style
+	warn   lipgloss.Style
+	key    lipgloss.Style
 
-	mutedStyle  lipgloss.Style
-	subtleStyle lipgloss.Style
-	valueStyle  lipgloss.Style
-	labelStyle  lipgloss.Style
-	errStyle    lipgloss.Style
-	doneStyle   lipgloss.Style
-	warnStyle   lipgloss.Style
-	keyStyle    lipgloss.Style
+	annotation  lipgloss.Style
+	scopeBadge  lipgloss.Style
+	focusBadge  lipgloss.Style
+	inboxBadge  lipgloss.Style
+	searchMatch lipgloss.Style
+	focusEdge   lipgloss.Style
 
-	annotationStyle  lipgloss.Style
-	scopeBadgeStyle  lipgloss.Style
-	focusBadgeStyle  lipgloss.Style
-	inboxBadgeStyle  lipgloss.Style
-	searchMatchStyle lipgloss.Style
-	focusEdgeStyle   lipgloss.Style
+	chip             lipgloss.Style
+	imageChip        lipgloss.Style
+	imageChipPasting lipgloss.Style
 
-	chipStyle             lipgloss.Style
-	imageChipStyle        lipgloss.Style
-	imageChipPastingStyle lipgloss.Style
-
-	legendTitleStyle lipgloss.Style
-	legendBadgeStyle lipgloss.Style
-	legendAlertStyle lipgloss.Style
-	legendLabelStyle lipgloss.Style
-	legendLeadKey    lipgloss.Style
-	legendLeadLabel  lipgloss.Style
-)
-
-func init() { applyTheme(themes[0]) }
-
-// rebuildStyles re-derives every style from the colors applyTheme just set.
-func rebuildStyles() {
-	sectionStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
-
-	selectedRowStyle = lipgloss.NewStyle().Background(colorSelBg).Foreground(colorBright)
-
-	mutedStyle = lipgloss.NewStyle().Foreground(colorDim)
-	subtleStyle = lipgloss.NewStyle().Foreground(colorSubtle)
-	valueStyle = lipgloss.NewStyle().Foreground(colorText)
-	labelStyle = lipgloss.NewStyle().Foreground(colorSubtle)
-	errStyle = lipgloss.NewStyle().Foreground(colorErrored).Bold(true)
-	doneStyle = lipgloss.NewStyle().Foreground(colorFinished)
-	warnStyle = lipgloss.NewStyle().Foreground(colorWorking).Bold(true)
-	keyStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-
-	annotationStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-	scopeBadgeStyle = lipgloss.NewStyle().Foreground(colorBg).Background(colorAccent2).Bold(true).Padding(0, 1)
-	focusBadgeStyle = lipgloss.NewStyle().Foreground(colorBg).Background(colorAccent).Bold(true)
-	searchMatchStyle = lipgloss.NewStyle().Foreground(colorBg).Background(colorAccent)
-	// Foreground only: a fill would punch a chip through the band a selected
-	// row paints behind it.
-	inboxBadgeStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-	focusEdgeStyle = lipgloss.NewStyle().Foreground(colorAccent)
-
-	chipStyle = lipgloss.NewStyle().Background(colorSurface).Padding(0, 1)
-	imageChipStyle = lipgloss.NewStyle().
-		Foreground(colorBright).
-		Background(colorSurface)
-	imageChipPastingStyle = lipgloss.NewStyle().
-		Foreground(colorWorking).
-		Background(colorSurface)
-
-	legendTitleStyle = lipgloss.NewStyle().Foreground(colorSubtle).Bold(true)
-	legendBadgeStyle = lipgloss.NewStyle().
-		Foreground(colorBg).Background(colorAccent).Bold(true).Padding(0, 1)
-	legendAlertStyle = lipgloss.NewStyle().
-		Foreground(colorBg).Background(colorWorking).Bold(true).Padding(0, 1)
-	legendLabelStyle = lipgloss.NewStyle().Foreground(colorText)
-	lead := lipgloss.Color(mix(current.Bg, current.Accent, 0.28))
-	legendLeadKey = lipgloss.NewStyle().Foreground(colorAccent).Background(lead).Bold(true).PaddingLeft(1)
-	legendLeadLabel = lipgloss.NewStyle().Foreground(colorBright).Background(lead).Padding(0, 1)
+	legendTitle lipgloss.Style
+	legendBadge lipgloss.Style
+	legendAlert lipgloss.Style
+	legendLabel lipgloss.Style
+	leadKey     lipgloss.Style
+	leadLabel   lipgloss.Style
 }
+
+// activeStyles is the published set. It is a package variable rather than a
+// field on Model because the free render helpers (keyCap, pill, paint's
+// tones, hrule) read it from everywhere; one atomic pointer keeps that
+// reach without a data race. It starts on the default palette.
+var activeStyles = publishStyles(themes[0])
+
+func publishStyles(t Theme) *atomic.Pointer[themeStyles] {
+	active := new(atomic.Pointer[themeStyles])
+	active.Store(newThemeStyles(t))
+	return active
+}
+
+// newThemeStyles derives every style from a token set.
+func newThemeStyles(t Theme) *themeStyles {
+	var (
+		bg       = lipgloss.Color(t.Bg)
+		surface  = lipgloss.Color(t.Surface)
+		bright   = lipgloss.Color(t.Bright)
+		text     = lipgloss.Color(t.Text)
+		dim      = lipgloss.Color(t.Dim)
+		subtle   = lipgloss.Color(t.Subtle)
+		accent   = lipgloss.Color(t.Accent)
+		accent2  = lipgloss.Color(t.Accent2)
+		working  = lipgloss.Color(t.Working)
+		finished = lipgloss.Color(t.Finished)
+		errored  = lipgloss.Color(t.Errored)
+		lead     = lipgloss.Color(mix(t.Bg, t.Accent, 0.28))
+	)
+	return &themeStyles{
+		theme: t,
+
+		section:     lipgloss.NewStyle().Bold(true).Foreground(accent),
+		selectedRow: lipgloss.NewStyle().Background(surface).Foreground(bright),
+
+		muted:  lipgloss.NewStyle().Foreground(dim),
+		subtle: lipgloss.NewStyle().Foreground(subtle),
+		value:  lipgloss.NewStyle().Foreground(text),
+		label:  lipgloss.NewStyle().Foreground(subtle),
+		err:    lipgloss.NewStyle().Foreground(errored).Bold(true),
+		done:   lipgloss.NewStyle().Foreground(finished),
+		warn:   lipgloss.NewStyle().Foreground(working).Bold(true),
+		key:    lipgloss.NewStyle().Foreground(accent).Bold(true),
+
+		annotation:  lipgloss.NewStyle().Foreground(accent).Bold(true),
+		scopeBadge:  lipgloss.NewStyle().Foreground(bg).Background(accent2).Bold(true).Padding(0, 1),
+		focusBadge:  lipgloss.NewStyle().Foreground(bg).Background(accent).Bold(true),
+		searchMatch: lipgloss.NewStyle().Foreground(bg).Background(accent),
+		// Foreground only: a fill would punch a chip through the band a
+		// selected row paints behind it.
+		inboxBadge: lipgloss.NewStyle().Foreground(accent).Bold(true),
+		focusEdge:  lipgloss.NewStyle().Foreground(accent),
+
+		chip: lipgloss.NewStyle().Background(surface).Padding(0, 1),
+		imageChip: lipgloss.NewStyle().
+			Foreground(bright).
+			Background(surface),
+		imageChipPasting: lipgloss.NewStyle().
+			Foreground(working).
+			Background(surface),
+
+		legendTitle: lipgloss.NewStyle().Foreground(subtle).Bold(true),
+		legendBadge: lipgloss.NewStyle().
+			Foreground(bg).Background(accent).Bold(true).Padding(0, 1),
+		legendAlert: lipgloss.NewStyle().
+			Foreground(bg).Background(working).Bold(true).Padding(0, 1),
+		legendLabel: lipgloss.NewStyle().Foreground(text),
+		leadKey:     lipgloss.NewStyle().Foreground(accent).Background(lead).Bold(true).PaddingLeft(1),
+		leadLabel:   lipgloss.NewStyle().Foreground(bright).Background(lead).Padding(0, 1),
+	}
+}
+
+// current is the live token set; renderers that need a raw SGR sequence
+// (rather than a lipgloss style) read their hex from here.
+func current() Theme { return activeStyles.Load().theme }
+
+func colorBg() lipgloss.Color       { return lipgloss.Color(current().Bg) }
+func colorSurface() lipgloss.Color  { return lipgloss.Color(current().Surface) }
+func colorOverlay() lipgloss.Color  { return lipgloss.Color(current().Overlay) }
+func colorBorder() lipgloss.Color   { return lipgloss.Color(current().Border) }
+func colorBright() lipgloss.Color   { return lipgloss.Color(current().Bright) }
+func colorText() lipgloss.Color     { return lipgloss.Color(current().Text) }
+func colorDim() lipgloss.Color      { return lipgloss.Color(current().Dim) }
+func colorSubtle() lipgloss.Color   { return lipgloss.Color(current().Subtle) }
+func colorAccent() lipgloss.Color   { return lipgloss.Color(current().Accent) }
+func colorAccent2() lipgloss.Color  { return lipgloss.Color(current().Accent2) }
+func colorRemote() lipgloss.Color   { return lipgloss.Color(current().Remote) }
+func colorSelBg() lipgloss.Color    { return colorSurface() }
+func colorWorking() lipgloss.Color  { return lipgloss.Color(current().Working) }
+func colorWaiting() lipgloss.Color  { return lipgloss.Color(current().Waiting) }
+func colorFinished() lipgloss.Color { return lipgloss.Color(current().Finished) }
+func colorErrored() lipgloss.Color  { return lipgloss.Color(current().Errored) }
+func colorIdle() lipgloss.Color     { return lipgloss.Color(current().Idle) }
+
+func sectionStyle() lipgloss.Style          { return activeStyles.Load().section }
+func selectedRowStyle() lipgloss.Style      { return activeStyles.Load().selectedRow }
+func mutedStyle() lipgloss.Style            { return activeStyles.Load().muted }
+func subtleStyle() lipgloss.Style           { return activeStyles.Load().subtle }
+func valueStyle() lipgloss.Style            { return activeStyles.Load().value }
+func labelStyle() lipgloss.Style            { return activeStyles.Load().label }
+func errStyle() lipgloss.Style              { return activeStyles.Load().err }
+func doneStyle() lipgloss.Style             { return activeStyles.Load().done }
+func warnStyle() lipgloss.Style             { return activeStyles.Load().warn }
+func keyStyle() lipgloss.Style              { return activeStyles.Load().key }
+func annotationStyle() lipgloss.Style       { return activeStyles.Load().annotation }
+func scopeBadgeStyle() lipgloss.Style       { return activeStyles.Load().scopeBadge }
+func focusBadgeStyle() lipgloss.Style       { return activeStyles.Load().focusBadge }
+func inboxBadgeStyle() lipgloss.Style       { return activeStyles.Load().inboxBadge }
+func searchMatchStyle() lipgloss.Style      { return activeStyles.Load().searchMatch }
+func focusEdgeStyle() lipgloss.Style        { return activeStyles.Load().focusEdge }
+func chipStyle() lipgloss.Style             { return activeStyles.Load().chip }
+func imageChipStyle() lipgloss.Style        { return activeStyles.Load().imageChip }
+func imageChipPastingStyle() lipgloss.Style { return activeStyles.Load().imageChipPasting }
+func legendTitleStyle() lipgloss.Style      { return activeStyles.Load().legendTitle }
+func legendBadgeStyle() lipgloss.Style      { return activeStyles.Load().legendBadge }
+func legendAlertStyle() lipgloss.Style      { return activeStyles.Load().legendAlert }
+func legendLabelStyle() lipgloss.Style      { return activeStyles.Load().legendLabel }
+func legendLeadKey() lipgloss.Style         { return activeStyles.Load().leadKey }
+func legendLeadLabel() lipgloss.Style       { return activeStyles.Load().leadLabel }
 
 // renderSelectedRow wraps a pre-styled line with the selected row's
 // background and foreground. Internal SGR resets emitted by per-segment
@@ -117,32 +177,32 @@ func rebuildStyles() {
 // Re-applying the selected bg+fg after every reset keeps the row tinted
 // end-to-end.
 func renderSelectedRow(s string) string {
-	reapply := "\x1b[0m" + bgSeq(current.Surface) + fgSeq(current.Bright)
-	return selectedRowStyle.Render(strings.ReplaceAll(s, "\x1b[0m", reapply))
+	reapply := "\x1b[0m" + bgSeq(current().Surface) + fgSeq(current().Bright)
+	return selectedRowStyle().Render(strings.ReplaceAll(s, "\x1b[0m", reapply))
 }
 
 // The accent lift separates reviewer notes from the diff itself. Resolve it
 // per call so live theme and color-profile changes take effect immediately.
 func annotationBg() string {
-	return bgSeq(mix(current.Bg, current.Accent, 0.18))
+	return bgSeq(mix(current().Bg, current().Accent, 0.18))
 }
 
 func handledAnnotationBg() string {
-	return bgSeq(mix(current.Bg, current.Finished, 0.14))
+	return bgSeq(mix(current().Bg, current().Finished, 0.14))
 }
 
 func statusColor(s string) lipgloss.Color {
 	switch s {
 	case status.Working, status.Starting:
-		return colorWorking
+		return colorWorking()
 	case status.Waiting:
-		return colorWaiting
+		return colorWaiting()
 	case status.Finished:
-		return colorFinished
+		return colorFinished()
 	case status.Errored, status.Dead:
-		return colorErrored
+		return colorErrored()
 	default:
-		return colorIdle
+		return colorIdle()
 	}
 }
 
@@ -220,7 +280,7 @@ func gauge(percent float64, width int, invert bool) string {
 		bar += lipgloss.NewStyle().Foreground(color).Render(gaugeHalf)
 		rest--
 	}
-	track := lipgloss.NewStyle().Foreground(colorOverlay).Render(strings.Repeat(gaugeGlyph, rest))
+	track := lipgloss.NewStyle().Foreground(colorOverlay()).Render(strings.Repeat(gaugeGlyph, rest))
 	return bar + track
 }
 
@@ -230,21 +290,21 @@ func gauge(percent float64, width int, invert bool) string {
 // theme whose working color is blue would otherwise paint a cold gauge.
 func gaugeRamp(percent float64) string {
 	if percent >= 85 {
-		return current.Errored
+		return current().Errored
 	}
-	return mix(current.Finished, current.Errored, percent/85)
+	return mix(current().Finished, current().Errored, percent/85)
 }
 
 // pill renders a small label chip: tinted text on the surface fill, so a
 // row of them reads as tokens rather than as more prose.
 func pill(text string, fg lipgloss.Color) string {
-	return chipStyle.Foreground(fg).Render(text)
+	return chipStyle().Foreground(fg).Render(text)
 }
 
 // inboxBadge marks a session another agent has messages waiting for, in
 // the manager's own accent so it cannot be read as a state the agent is in.
 func inboxBadge(count int) string {
-	return inboxBadgeStyle.Render("✉" + strconv.Itoa(count))
+	return inboxBadgeStyle().Render("✉" + strconv.Itoa(count))
 }
 
 // afterTurnGlyphs mark a session that asked to be archived or killed once
@@ -260,7 +320,7 @@ var afterTurnNote = map[string]string{
 }
 
 func afterTurnBadge(action string) string {
-	return inboxBadgeStyle.Render(afterTurnGlyphs[action])
+	return inboxBadgeStyle().Render(afterTurnGlyphs[action])
 }
 
 // keyPill renders a chip with the key that changes it dimmed in front, so
@@ -268,45 +328,45 @@ func afterTurnBadge(action string) string {
 // shortcut. The key is dim enough to lose to the value at a glance but
 // reads clearly when hunted.
 func keyPill(key, text string, fg lipgloss.Color) string {
-	return subtleStyle.Render(key+" ") + pill(text, fg)
+	return subtleStyle().Render(key+" ") + pill(text, fg)
 }
 
 // keyCap renders one binding: the key in accent, its action beside it. The
 // key stays plain text; the legend's badge carries the visual weight, so a
 // row of bindings reads as prose under a header rather than as buttons.
 func keyCap(key, label string) string {
-	return keyStyle.Render(key) + " " + legendLabelStyle.Render(label)
+	return keyStyle().Render(key) + " " + legendLabelStyle().Render(label)
 }
 
 // The docs launch wears the Focused badge so it reads ahead of the keys beside it.
 func hintCap(key, label string) string {
 	if (key == "o" && label == "docs") || label == "open the docs" {
-		return legendBadgeStyle.Render(key + " " + label)
+		return legendBadgeStyle().Render(key + " " + label)
 	}
 	return keyCap(key, label)
 }
 
 func keyCapLead(key, label string) string {
-	return legendLeadKey.Render(key) + legendLeadLabel.Render(label)
+	return legendLeadKey().Render(key) + legendLeadLabel().Render(label)
 }
 
 func keyCapAlert(key, label string) string {
-	return legendAlertStyle.Render(key + " " + label)
+	return legendAlertStyle().Render(key + " " + label)
 }
 
 // keyCapQuiet is keyCap for a secondary tier: the label drops to the dim
 // tone so the tier recedes behind the one above it.
 func keyCapQuiet(key, label string) string {
-	return keyStyle.Render(key) + " " + mutedStyle.Render(label)
+	return keyStyle().Render(key) + " " + mutedStyle().Render(label)
 }
 
 // imageChip tints a pasted-image token. Color only: the token's own
 // characters are what the textarea measured when it wrapped the line.
 func imageChip(token string) string {
-	return imageChipStyle.Render(token)
+	return imageChipStyle().Render(token)
 }
 
 // imageChipPasting tints a chip whose clipboard read is still running.
 func imageChipPasting(token string) string {
-	return imageChipPastingStyle.Render(token)
+	return imageChipPastingStyle().Render(token)
 }

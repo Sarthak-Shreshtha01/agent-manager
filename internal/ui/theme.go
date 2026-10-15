@@ -18,33 +18,9 @@ func themeIndex(name string) int { return uitheme.Index(name) }
 
 func mix(a, b string, ratio float64) string { return uitheme.Mix(a, b, ratio) }
 
-// applyTheme rebuilds every package-level style from a token set. The TUI
-// runs one model per process, so the styles stay package-level and a theme
-// switch simply repaints from the next frame on.
-func applyTheme(t Theme) {
-	current = t
-
-	colorBg = lipgloss.Color(t.Bg)
-	colorSurface = lipgloss.Color(t.Surface)
-	colorOverlay = lipgloss.Color(t.Overlay)
-	colorBorder = lipgloss.Color(t.Border)
-	colorBright = lipgloss.Color(t.Bright)
-	colorText = lipgloss.Color(t.Text)
-	colorDim = lipgloss.Color(t.Dim)
-	colorSubtle = lipgloss.Color(t.Subtle)
-	colorAccent = lipgloss.Color(t.Accent)
-	colorAccent2 = lipgloss.Color(t.Accent2)
-	colorRemote = lipgloss.Color(t.Remote)
-	colorSelBg = colorSurface
-
-	colorWorking = lipgloss.Color(t.Working)
-	colorWaiting = lipgloss.Color(t.Waiting)
-	colorFinished = lipgloss.Color(t.Finished)
-	colorErrored = lipgloss.Color(t.Errored)
-	colorIdle = lipgloss.Color(t.Idle)
-
-	rebuildStyles()
-}
+// applyTheme publishes the styles for a token set; a theme switch repaints
+// from the next frame on.
+func applyTheme(t Theme) { activeStyles.Store(newThemeStyles(t)) }
 
 // agentPaneTheme is the backdrop and text color an agent pane sits on: the
 // theme's own, the same colors the terminal is set to and the capture is
@@ -52,15 +28,11 @@ func applyTheme(t Theme) {
 // light agents.
 func agentPaneTheme() tmux.PaneTheme {
 	fgbg := "15;0"
-	if current.LightBackdrop() {
+	if current().LightBackdrop() {
 		fgbg = "0;15"
 	}
-	return tmux.PaneTheme{Foreground: current.Text, Background: current.Bg, ColorFgBg: fgbg}
+	return tmux.PaneTheme{Foreground: current().Text, Background: current().Bg, ColorFgBg: fgbg}
 }
-
-// current is the live token set; renderers that need a raw SGR sequence
-// (rather than a lipgloss style) read their hex from here.
-var current = themes[0]
 
 // SyncTerminalColors sets the terminal's own text and background colors to
 // the theme's (OSC 10 and 11). The frame can only paint its cell grid; any
@@ -69,7 +41,7 @@ var current = themes[0]
 // look exact, and text an agent prints in the default color must read on
 // that background. Terminals without OSC 10 and 11 ignore them.
 func SyncTerminalColors() {
-	emitToTerminal("\x1b]10;" + current.Text + "\x07\x1b]11;" + current.Bg + "\x07")
+	emitToTerminal("\x1b]10;" + current().Text + "\x07\x1b]11;" + current().Bg + "\x07")
 }
 
 // syncPaneTheme hands the tmux server the colors agent panes render on,

@@ -11,6 +11,7 @@ import (
 )
 
 func TestAStaleRefreshKeepsASessionLaunchedAfterItWasListed(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 
@@ -36,6 +37,7 @@ func TestAStaleRefreshKeepsASessionLaunchedAfterItWasListed(t *testing.T) {
 }
 
 func TestAStaleRefreshKeepsALaunchListedWhileTmuxWasStartingIt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 
@@ -82,6 +84,7 @@ func staleRefreshAfter(m *Model) refreshMsg {
 }
 
 func TestAStaleRefreshDoesNotBringBackASessionJustDeleted(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	if err := m.spawnSession("claude", "doomed", t.TempDir(), "", "", false, false, config.Choice{}); err != nil {
@@ -106,6 +109,7 @@ func TestAStaleRefreshDoesNotBringBackASessionJustDeleted(t *testing.T) {
 }
 
 func TestAStaleRefreshDoesNotBringBackASessionJustArchived(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	if err := m.spawnSession("claude", "shelved", t.TempDir(), "", "", false, false, config.Choice{}); err != nil {
@@ -131,6 +135,7 @@ func TestAStaleRefreshDoesNotBringBackASessionJustArchived(t *testing.T) {
 // A poll that listed the store before the delete delivers its full list
 // afterwards; that stale copy must not put the row back on screen.
 func TestAStalePollCannotResurrectADeletedRow(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "doomed", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -152,6 +157,7 @@ func TestAStalePollCannotResurrectADeletedRow(t *testing.T) {
 }
 
 func TestAStalePollCannotBringAnArchivedRowBackLive(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "shelved", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -176,6 +182,7 @@ func TestAStalePollCannotBringAnArchivedRowBackLive(t *testing.T) {
 }
 
 func TestAFreshListingRetiresDeletionMarkers(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "doomed", t.TempDir(), "")
 	listedAt := time.Now()
@@ -193,6 +200,7 @@ func TestAFreshListingRetiresDeletionMarkers(t *testing.T) {
 }
 
 func TestAStalePollCannotRestoreADeletedGroupHeader(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("zone", dir); err != nil {
@@ -243,6 +251,7 @@ func TestAStalePollCannotRestoreADeletedGroupHeader(t *testing.T) {
 // A poll that listed the store before a restore still says the row is
 // archived; that stale copy must not undo the restore for a frame.
 func TestAStalePollCannotUndoARestore(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "returning", t.TempDir(), "")
 	sess := m.sessionRows()[0]
@@ -278,6 +287,7 @@ func TestAStalePollCannotUndoARestore(t *testing.T) {
 }
 
 func TestAStalePollCannotBringAnArchivedGroupBackLive(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("zone", dir); err != nil {

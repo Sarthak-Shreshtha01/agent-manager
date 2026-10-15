@@ -10,6 +10,7 @@ import (
 )
 
 func TestPortableReorderKeysSwapVisibleSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, sess := range []store.Session{
 		{ID: "a", Name: "keep-alpha", Tool: "claude", Cwd: "/tmp", Status: "idle"},
@@ -50,6 +51,7 @@ func TestPortableReorderKeysSwapVisibleSessions(t *testing.T) {
 }
 
 func TestReorderGroupSkipsFilteredSibling(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, group := range []string{"alpha", "hidden", "gamma"} {
 		if err := m.services.store.CreateGroup(group, ""); err != nil {
@@ -89,6 +91,7 @@ func TestReorderGroupSkipsFilteredSibling(t *testing.T) {
 }
 
 func TestReorderSyntheticGroupUpdatesImmediately(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, group := range []string{"alpha/deep", "beta/deep", "gamma/deep"} {
 		if err := m.services.store.CreateGroup(group, ""); err != nil {
@@ -113,6 +116,7 @@ func TestReorderSyntheticGroupUpdatesImmediately(t *testing.T) {
 }
 
 func TestReorderChildStaysWithItsSiblings(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -140,6 +144,7 @@ func TestReorderChildStaysWithItsSiblings(t *testing.T) {
 }
 
 func TestReorderChildIgnoresAnotherParentsChild(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -169,6 +174,7 @@ func TestReorderChildIgnoresAnotherParentsChild(t *testing.T) {
 }
 
 func TestReorderAgentSkipsChildren(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -200,6 +206,7 @@ func TestReorderAgentSkipsChildren(t *testing.T) {
 }
 
 func TestHandleLiftsARowStraightFromFocus(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -237,6 +244,7 @@ func sessionOrder(m *Model) []string {
 }
 
 func TestEveryMovableRowPaintsItsHandle(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -251,6 +259,7 @@ func TestEveryMovableRowPaintsItsHandle(t *testing.T) {
 }
 
 func TestHandleDragReordersAndDrops(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, name := range []string{"alpha", "beta", "gamma"} {
 		createSession(t, m, name, t.TempDir(), "")
@@ -268,6 +277,7 @@ func TestHandleDragReordersAndDrops(t *testing.T) {
 }
 
 func TestHandleThenKeysAndEscPutsItBack(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	for _, name := range []string{"alpha", "beta", "gamma"} {
 		createSession(t, m, name, t.TempDir(), "")
@@ -297,6 +307,7 @@ func TestHandleThenKeysAndEscPutsItBack(t *testing.T) {
 }
 
 func TestAnotherHandleTakesOverALiftedRowInOnePress(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -312,6 +323,7 @@ func TestAnotherHandleTakesOverALiftedRowInOnePress(t *testing.T) {
 }
 
 func TestAPressOnALiftedRowsLabelPutsItDownAndClicks(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	m = liftByHandle(t, m, "alpha")
@@ -334,6 +346,7 @@ func TestAPressOnALiftedRowsLabelPutsItDownAndClicks(t *testing.T) {
 // Lifting a row selects it, and its preview has to follow: the handle's
 // press is the only event before the drag, so its fetch cannot be dropped.
 func TestLiftingARowFetchesItsPreview(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
 	createSession(t, m, "beta", t.TempDir(), "")
@@ -351,6 +364,7 @@ func TestLiftingARowFetchesItsPreview(t *testing.T) {
 // The handle sits on a row's first line only: in a comfortable row the
 // prompt and reply lines below it are the row's label, which a click focuses.
 func TestHandleColumnBelowTheFirstLineIsTheLabel(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	createSession(t, m, "alpha", t.TempDir(), "")

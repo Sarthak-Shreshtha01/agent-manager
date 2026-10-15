@@ -61,14 +61,14 @@ func (m *Model) helpContext(width int) uihelp.Context {
 		QuickKeys:    uihelp.QuickKeys{Model: quickModelKey, Effort: quickEffortKey, Profile: quickProfileKey},
 		CursorMarker: cursorAnchorMarker,
 		Styles: uihelp.Styles{
-			Section: sectionStyle,
-			Rule:    lipgloss.NewStyle().Foreground(colorBorder),
-			Key:     keyStyle,
-			Muted:   mutedStyle,
-			Subtle:  subtleStyle,
-			Value:   valueStyle,
-			Match:   lipgloss.NewStyle().Foreground(colorBright).Bold(true),
-			Cursor:  lipgloss.NewStyle().Foreground(colorAccent),
+			Section: sectionStyle(),
+			Rule:    lipgloss.NewStyle().Foreground(colorBorder()),
+			Key:     keyStyle(),
+			Muted:   mutedStyle(),
+			Subtle:  subtleStyle(),
+			Value:   valueStyle(),
+			Match:   lipgloss.NewStyle().Foreground(colorBright()).Bold(true),
+			Cursor:  lipgloss.NewStyle().Foreground(colorAccent()),
 		},
 	}
 }
@@ -97,7 +97,7 @@ func (m *Model) viewHelp() string {
 		layout.content.Lines,
 		layout.rows,
 		layout.content.Offset,
-		subtleStyle,
+		subtleStyle(),
 	)...)
 	frame := renderDialog(
 		layout.dialog,

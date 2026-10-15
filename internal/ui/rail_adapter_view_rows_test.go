@@ -16,6 +16,7 @@ import (
 )
 
 func TestGroupRowRendersGroupPane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -51,6 +52,7 @@ func TestGroupRowRendersGroupPane(t *testing.T) {
 // A group stays one line at any density: it has neither a prompt nor a
 // reply to carry.
 func TestComfortableGroupRowStacks(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	m.openGroupForm()
@@ -73,6 +75,7 @@ func TestComfortableGroupRowStacks(t *testing.T) {
 // three-line row trimmed to one reads as a compact row that lost its
 // message lines.
 func TestComfortableRowSurvivesShortRail(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	for _, name := range []string{"one", "two", "three", "four"} {
@@ -96,6 +99,7 @@ func TestComfortableRowSurvivesShortRail(t *testing.T) {
 // A nested entry's second line carries its ancestors' branches straight
 // down, so the tree column has no gap between an entry and the next.
 func TestComfortableMetaLineKeepsTreeGuides(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	m.openGroupForm()
@@ -298,11 +302,11 @@ func TestRootRowIsDimmerThanNamedGroups(t *testing.T) {
 		t.Fatal("no rows, want root")
 	}
 	root := m.renderTreeRow(railRows(m)[0], false, 40, 0, panelHex())
-	dimmed := strings.TrimPrefix(fgSeq(mix(current.Accent2, current.Subtle, 0.5)), "\x1b[")
+	dimmed := strings.TrimPrefix(fgSeq(mix(current().Accent2, current().Subtle, 0.5)), "\x1b[")
 	if !strings.Contains(root, dimmed) {
 		t.Fatalf("root is not painted in the dimmed tone: %q", root)
 	}
-	if accent := strings.TrimPrefix(fgSeq(current.Accent2), "\x1b["); strings.Contains(root, accent) {
+	if accent := strings.TrimPrefix(fgSeq(current().Accent2), "\x1b["); strings.Contains(root, accent) {
 		t.Fatalf("root still carries the group accent: %q", root)
 	}
 }
@@ -326,8 +330,8 @@ func TestSelectedRowMetaUsesBrightNotSubtle(t *testing.T) {
 	if !strings.Contains(selected, "\x1b[") {
 		t.Fatal("selected row has no SGR; color profile not active")
 	}
-	subtleSeq := sgrOf(subtleStyle.Render("x"))
-	brightSeq := sgrOf(lipgloss.NewStyle().Foreground(colorBright).Render("x"))
+	subtleSeq := sgrOf(subtleStyle().Render("x"))
+	brightSeq := sgrOf(lipgloss.NewStyle().Foreground(colorBright()).Render("x"))
 	if strings.Contains(selected, subtleSeq) {
 		t.Fatalf("selected row still uses the subtle fg %q:\n%q", subtleSeq, selected)
 	}
@@ -443,6 +447,7 @@ func TestSessionRowStandsInForAnAwaitedName(t *testing.T) {
 // beside it in the same frame, so every reading of a session stands in for
 // the awaited name together.
 func TestEveryReadingOfASessionStandsInForAnAwaitedName(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -481,6 +486,7 @@ func TestEveryReadingOfASessionStandsInForAnAwaitedName(t *testing.T) {
 // keeps its inbox badge: the name goes first, then the focus badge, since
 // the pane beside the rail already shows what is focused.
 func TestInboxBadgeOutlivesTheNameAndTheFocusBadge(t *testing.T) {
+	t.Parallel()
 	for _, width := range []int{29, 27} {
 		m := buildModel(t)
 		m.workspace.groupPaths = map[string]string{"a/b/c": "/tmp"}
@@ -804,6 +810,7 @@ func spawnUnnamed(t *testing.T, m *Model, prompt string) store.Session {
 }
 
 func TestAWaitingRowIsNamedByThePromptItWasGiven(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := spawnUnnamed(t, m, "add cursor pagination to the sessions list endpoint")
 
@@ -814,6 +821,7 @@ func TestAWaitingRowIsNamedByThePromptItWasGiven(t *testing.T) {
 }
 
 func TestAWaitingRowNeverShowsTheRenameDirective(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := spawnUnnamed(t, m, "rate limit the public search route")
 
@@ -826,6 +834,7 @@ func TestAWaitingRowNeverShowsTheRenameDirective(t *testing.T) {
 }
 
 func TestAWaitingRowSpawnedWithNoPromptKeepsThePlaceholder(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := spawnUnnamed(t, m, "")
 
@@ -835,6 +844,7 @@ func TestAWaitingRowSpawnedWithNoPromptKeepsThePlaceholder(t *testing.T) {
 }
 
 func TestAWaitingRowKeepsThePromptToOneShortLine(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := spawnUnnamed(t, m, "split the staging workspace\nout of the prod state file\nand re-run the plan")
 
@@ -848,6 +858,7 @@ func TestAWaitingRowKeepsThePromptToOneShortLine(t *testing.T) {
 }
 
 func TestAPromptNamedRowFallsBackToItsGeneratedNamePastTheGrace(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	sess := spawnUnnamed(t, m, "cache the session lookup for 30 seconds")
 

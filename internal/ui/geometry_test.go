@@ -10,7 +10,7 @@ import (
 
 func windowSize(t *testing.T, id string) (int, int) {
 	t.Helper()
-	out, err := tmuxCmd("display-message", "-p", "-t", "am_"+id,
+	out, err := tmuxCmd(t, "display-message", "-p", "-t", "am_"+id,
 		"#{window_width} #{window_height}").CombinedOutput()
 	if err != nil {
 		t.Fatalf("display-message: %v: %s", err, out)
@@ -28,13 +28,14 @@ func windowSize(t *testing.T, id string) (int, int) {
 // size; the first refresh after startup must bring a wrong-width window to
 // the preview panel so its captures fit without a terminal resize.
 func TestFirstRefreshResizesExistingSessions(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "leftover", t.TempDir(), "")
 	id := m.sessionRows()[0].ID
 
 	// Drift the window as if an older manager had sized it to the terminal;
 	// a fresh manager also starts with no geometry cached for it.
-	if _, err := tmuxCmd("resize-window", "-t", "am_"+id, "-x", "191", "-y", "55").CombinedOutput(); err != nil {
+	if _, err := tmuxCmd(t, "resize-window", "-t", "am_"+id, "-x", "191", "-y", "55").CombinedOutput(); err != nil {
 		t.Fatalf("resize-window: %v", err)
 	}
 
@@ -46,7 +47,7 @@ func TestFirstRefreshResizesExistingSessions(t *testing.T) {
 	}
 
 	// Later refreshes leave sizes alone (attach keeps its own resync path).
-	if _, err := tmuxCmd("resize-window", "-t", "am_"+id, "-x", "100", "-y", "30").CombinedOutput(); err != nil {
+	if _, err := tmuxCmd(t, "resize-window", "-t", "am_"+id, "-x", "100", "-y", "30").CombinedOutput(); err != nil {
 		t.Fatalf("resize-window: %v", err)
 	}
 	m.applyCmd(t, m.refreshCmd())
@@ -58,12 +59,13 @@ func TestFirstRefreshResizesExistingSessions(t *testing.T) {
 // A WindowSizeMsg carrying the current size (as a tmux-attach resume does)
 // skips the per-session tmux resize; a real size change still applies it.
 func TestUnchangedWindowSizeSkipsResize(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sized", t.TempDir(), "")
 	id := m.sessionRows()[0].ID
 
 	// Drift the session window away from the manager size behind its back.
-	if _, err := tmuxCmd("resize-window", "-t", "am_"+id, "-x", "100", "-y", "30").CombinedOutput(); err != nil {
+	if _, err := tmuxCmd(t, "resize-window", "-t", "am_"+id, "-x", "100", "-y", "30").CombinedOutput(); err != nil {
 		t.Fatalf("resize-window: %v", err)
 	}
 
@@ -93,6 +95,7 @@ func TestUnchangedWindowSizeSkipsResize(t *testing.T) {
 // replacement is pinned to the exact box, taller or shorter, since a pane
 // born a moment ago has no scrollback to keep.
 func TestRelaunchedSessionIsRepinnedToThePreviewPanel(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	createSession(t, m, "revived", dir, "")
@@ -126,6 +129,7 @@ func TestRelaunchedSessionIsRepinnedToThePreviewPanel(t *testing.T) {
 // The launch paths that run without a manager read the box out of the
 // store, so the manager has to keep it current there.
 func TestRefreshPublishesThePaneSize(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sized", t.TempDir(), "")
 	m.applyCmd(t, m.refreshCmd())
@@ -155,6 +159,7 @@ func TestRefreshPublishesThePaneSize(t *testing.T) {
 // the geometry cache to follow. A later refresh has to notice and pin that
 // pane back to the box.
 func TestRefreshRepinsAnAgentSplitPane(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("psmux resize-pane on a detached window scales against the last client area; the manager does not pin split panes there")
 	}
@@ -168,7 +173,7 @@ func TestRefreshRepinsAnAgentSplitPane(t *testing.T) {
 			id := m.sessionRows()[0].ID
 			m.applyCmd(t, m.refreshCmd())
 
-			if out, err := tmuxCmd("split-window", split.flag, "-t", "am_"+id, "--", "sh", "-c", "sleep 30").CombinedOutput(); err != nil {
+			if out, err := tmuxCmd(t, "split-window", split.flag, "-t", "am_"+id, "--", "sh", "-c", "sleep 30").CombinedOutput(); err != nil {
 				t.Fatalf("split-window: %v: %s", err, out)
 			}
 			if width, height := agentPaneSize(t, id); width == m.previewPaneWidth() && height == m.previewPaneHeight() {
@@ -188,7 +193,7 @@ func TestRefreshRepinsAnAgentSplitPane(t *testing.T) {
 
 func agentPaneSize(t *testing.T, id string) (int, int) {
 	t.Helper()
-	out, err := tmuxCmd("list-panes", "-t", "am_"+id, "-f", "#{==:#{pane_index},0}", "-F", "#{pane_width} #{pane_height}").CombinedOutput()
+	out, err := tmuxCmd(t, "list-panes", "-t", "am_"+id, "-f", "#{==:#{pane_index},0}", "-F", "#{pane_width} #{pane_height}").CombinedOutput()
 	if err != nil {
 		t.Fatalf("list-panes: %v: %s", err, out)
 	}
@@ -205,10 +210,11 @@ func agentPaneSize(t *testing.T, id string) (int, int) {
 }
 
 func TestStartupPreservesExistingPaneHeight(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "tall", t.TempDir(), "")
 	id := m.sessionRows()[0].ID
-	if _, err := tmuxCmd("resize-window", "-t", "am_"+id, "-x", "120", "-y", "80").CombinedOutput(); err != nil {
+	if _, err := tmuxCmd(t, "resize-window", "-t", "am_"+id, "-x", "120", "-y", "80").CombinedOutput(); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := New(m.services.cfg, m.services.store, m.services.tmux, m.services.engine, m.services.hooks, "dev")
@@ -226,6 +232,7 @@ func TestStartupPreservesExistingPaneHeight(t *testing.T) {
 // pane preview fills 1:1, and follow later terminal resizes, rather than
 // staying at tmux's 80×24 default until attach.
 func TestSessionSizesToPreviewPane(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "sized", t.TempDir(), "")
 	id := m.sessionRows()[0].ID

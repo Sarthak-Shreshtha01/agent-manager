@@ -75,7 +75,7 @@ func (m *Model) viewBanner() []string {
 	b.WriteString(strings.Repeat(" ", railGutter))
 	if !m.showBanner() {
 		// Too tight for tracking; the name still leads the rail.
-		b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(colorAccent).Render(bannerWord))
+		b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(colorAccent()).Render(bannerWord))
 		return []string{b.String()}
 	}
 	for i, letter := range bannerWord {
@@ -96,7 +96,7 @@ func bannerRest(column float64) string {
 	if span < 1 {
 		span = 1
 	}
-	return mix(mix(bannerGradientFrom, bannerGradientTo, column/span), current.Text, 0.2)
+	return mix(mix(bannerGradientFrom, bannerGradientTo, column/span), current().Text, 0.2)
 }
 
 // bannerTint colors one column of the wordmark by its distance from the
@@ -107,9 +107,9 @@ func bannerTint(column, head float64) string {
 	distance := head - column
 	switch {
 	case distance < 0:
-		return mix(rest, current.Subtle, 0.5)
+		return mix(rest, current().Subtle, 0.5)
 	case distance < 4:
-		return mix(rest, current.Bright, 1-distance/4)
+		return mix(rest, current().Bright, 1-distance/4)
 	default:
 		return rest
 	}

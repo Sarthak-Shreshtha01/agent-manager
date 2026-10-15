@@ -69,6 +69,7 @@ func applyQuickKeyCmd(t *testing.T, m *Model, msg tea.KeyMsg) {
 }
 
 func TestOpenQuickModeDefersSettingsReadAndGuardsDefaults(t *testing.T) {
+	t.Parallel()
 	t.Run("pristine", func(t *testing.T) {
 		m := buildModel(t)
 		reader := &blockedSettingReader{
@@ -133,6 +134,7 @@ func TestOpenQuickModeDefersSettingsReadAndGuardsDefaults(t *testing.T) {
 }
 
 func TestQuickPromptDeadSessionSetsError(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "gone", t.TempDir(), "")
 
@@ -158,6 +160,7 @@ func TestQuickPromptDeadSessionSetsError(t *testing.T) {
 }
 
 func TestQuickPromptSendClearsAcked(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 
@@ -256,6 +259,7 @@ func TestQuickChipRendersInlineInTheInput(t *testing.T) {
 }
 
 func TestQuickMessageSubstitutesPathsInPlace(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
@@ -274,6 +278,7 @@ func TestQuickMessageSubstitutesPathsInPlace(t *testing.T) {
 }
 
 func TestQuickBackspaceDeletesTheWholeChipAtTheCaret(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
@@ -310,6 +315,7 @@ func TestQuickBackspaceDeletesTheWholeChipAtTheCaret(t *testing.T) {
 }
 
 func TestQuickDeleteRemovesTheChipInFront(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	path := tempImage(t, "forward.png")
@@ -328,6 +334,7 @@ func TestQuickDeleteRemovesTheChipInFront(t *testing.T) {
 }
 
 func TestQuickArrowsStepOverAChip(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.lastImageID = 1
@@ -348,6 +355,7 @@ func TestQuickArrowsStepOverAChip(t *testing.T) {
 }
 
 func TestQuickChipsReflowAcrossWrappedRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.attachments = []imageAttachment{{id: 1, path: "/tmp/a.png"}}
@@ -367,6 +375,7 @@ func TestQuickChipsReflowAcrossWrappedRows(t *testing.T) {
 }
 
 func TestQuickBulkDeleteReleasesTheImage(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	path := tempImage(t, "orphan.png")
@@ -386,6 +395,7 @@ func TestQuickBulkDeleteReleasesTheImage(t *testing.T) {
 }
 
 func TestQuickPasteReservesTheChipUntilTheReadLands(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
@@ -433,6 +443,7 @@ func TestQuickPasteReservesTheChipUntilTheReadLands(t *testing.T) {
 }
 
 func TestQuickChipRemovalKeepsAMultiLinePrompt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.lastImageID = 1
@@ -454,6 +465,7 @@ func TestQuickChipRemovalKeepsAMultiLinePrompt(t *testing.T) {
 }
 
 func TestQuickPasteRefusedWhenThePromptIsFull(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.quick.input.SetValue(strings.Repeat("x", m.quick.input.CharLimit))
@@ -475,6 +487,7 @@ func TestQuickPasteRefusedWhenThePromptIsFull(t *testing.T) {
 }
 
 func TestQuickEscReleasesPastedImages(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	path := tempImage(t, "abandoned.png")
@@ -491,6 +504,7 @@ func TestQuickEscReleasesPastedImages(t *testing.T) {
 }
 
 func TestQuickImageMsgNoImageReachesTextPaste(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
@@ -542,6 +556,7 @@ func TestQuickAttachImageRealErrorSurfaces(t *testing.T) {
 }
 
 func TestQuickSpawnOnGroupCreatesSession(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -582,6 +597,7 @@ func TestQuickSpawnOnGroupCreatesSession(t *testing.T) {
 }
 
 func TestQuickSpawnUsesTabCycledTool(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -619,6 +635,7 @@ func TestQuickSpawnUsesTabCycledTool(t *testing.T) {
 }
 
 func TestQuickShiftTabStepsToolBack(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	names := quickTools(m)
@@ -644,6 +661,7 @@ func closeQuick(m *Model) {
 }
 
 func TestQuickRemembersLastSpawnTool(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -775,6 +793,7 @@ func TestQuickRemembersPickOnlyAfterInstallRetrySucceeds(t *testing.T) {
 }
 
 func TestQuickCancelDoesNotRememberLastPick(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	m.handleQuickKey(tea.KeyMsg{Type: tea.KeyTab})
@@ -787,6 +806,7 @@ func TestQuickCancelDoesNotRememberLastPick(t *testing.T) {
 }
 
 func TestQuickSeedsFromLastFormSpawn(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := t.TempDir()
 	if err := m.services.store.CreateGroup("backend", dir); err != nil {
@@ -806,6 +826,7 @@ func TestQuickSeedsFromLastFormSpawn(t *testing.T) {
 }
 
 func TestQuickCloseAfterSendDefaultsToStayingOpen(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.settings.cache.value(quickCloseSetting) == "close" {
 		t.Fatal("quick bar should stay open by default")
@@ -820,6 +841,7 @@ func TestQuickCloseAfterSendDefaultsToStayingOpen(t *testing.T) {
 }
 
 func TestQuickPromptClosesAfterSendWhenEnabled(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
@@ -840,6 +862,7 @@ func TestQuickPromptClosesAfterSendWhenEnabled(t *testing.T) {
 }
 
 func TestQuickWorktreeToggle(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.openQuickMode()
 	if m.quick.Worktree() {
@@ -856,6 +879,7 @@ func TestQuickWorktreeToggle(t *testing.T) {
 }
 
 func TestQuickWorktreeSeedsFromSetting(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
@@ -979,6 +1003,7 @@ func TestQuickWorktreeToggleOverridesGroupDefault(t *testing.T) {
 // pastes and presses Enter, so on a shell row that sentence would run as a
 // command: the target's tool is checked before anything is delivered.
 func TestQuickPromptRefusesAShell(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	sess := spawnTerminal(t, m)
@@ -999,6 +1024,7 @@ func TestQuickPromptRefusesAShell(t *testing.T) {
 // The same guard from the other end: what the user typed never reaches the
 // shell, so it never runs.
 func TestQuickPromptNeverRunsWhatIsTypedAtAShell(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	m.applyCmd(t, m.refreshCmd())
 	sess := spawnTerminal(t, m)
@@ -1021,6 +1047,7 @@ func TestQuickPromptNeverRunsWhatIsTypedAtAShell(t *testing.T) {
 }
 
 func TestQuickSendRecordsLastPrompt(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
@@ -1055,6 +1082,7 @@ func seedTwoGroups(t *testing.T, m *Model) {
 }
 
 func TestQuickUpDownMoveTheCaretBetweenPromptRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedTwoGroups(t, m)
 	setRailCursor(m, 1)
@@ -1088,6 +1116,7 @@ func TestQuickUpDownMoveTheCaretBetweenPromptRows(t *testing.T) {
 }
 
 func TestQuickUpDownWalkSoftWrappedRows(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedTwoGroups(t, m)
 	setRailCursor(m, 1)
@@ -1118,6 +1147,7 @@ func TestQuickUpDownWalkSoftWrappedRows(t *testing.T) {
 }
 
 func TestQuickOneRowPromptKeepsArrowsOnTheList(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedTwoGroups(t, m)
 	setRailCursor(m, 1)
@@ -1138,6 +1168,7 @@ func TestQuickOneRowPromptKeepsArrowsOnTheList(t *testing.T) {
 // A chip the caret lands inside snaps toward the step's direction, so ↑
 // always leaves the row it started on instead of reading as a dead key.
 func TestQuickUpStepsOffTheRowWhenAChipIsInTheWay(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedTwoGroups(t, m)
 	setRailCursor(m, 1)
@@ -1161,6 +1192,7 @@ func TestQuickUpStepsOffTheRowWhenAChipIsInTheWay(t *testing.T) {
 }
 
 func TestQuickPromptKeepsItsFirstRowAsItWrapsAndShrinks(t *testing.T) {
+	t.Parallel()
 	for _, full := range []bool{false, true} {
 		m := buildModel(t)
 		// Every key renders the whole screen; a narrow one wraps the bar
@@ -1203,6 +1235,7 @@ func TestQuickPromptKeepsItsFirstRowAsItWrapsAndShrinks(t *testing.T) {
 }
 
 func TestQuickPromptModeLeadsTheFooterAndNamesTheOpenBar(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedTwoGroups(t, m)
 	setRailCursor(m, 1)
@@ -1254,6 +1287,7 @@ func TestQuickPromptModeLeadsTheFooterAndNamesTheOpenBar(t *testing.T) {
 }
 
 func TestQuickPromptTypesWordsNamedLikeKeys(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	seedTwoGroups(t, m)
 	setRailCursor(m, 1)

@@ -15,7 +15,7 @@ func (d *formDialog) viewGroupPicker() string {
 		selected := i == d.groupIndex
 		marker := "  "
 		if selected {
-			marker = lipgloss.NewStyle().Foreground(colorAccent).Render("❯ ")
+			marker = lipgloss.NewStyle().Foreground(colorAccent()).Render("❯ ")
 		}
 		label := displayGroup(opt.path)
 		if opt.sessID != "" {
@@ -23,9 +23,9 @@ func (d *formDialog) viewGroupPicker() string {
 		} else if opt.path != "" {
 			label = strings.Repeat("  ", opt.depth) + baseName(opt.path)
 		}
-		style := mutedStyle
+		style := mutedStyle()
 		if selected {
-			style = lipgloss.NewStyle().Foreground(colorAccent2).Bold(true)
+			style = lipgloss.NewStyle().Foreground(colorAccent2()).Bold(true)
 		}
 		b.WriteString("  " + marker + style.Render(escapeControlsInline(label)) + "\n")
 	}
@@ -46,7 +46,7 @@ func (d *groupFormDialog) view(h groupFormHost) (string, [][2]string) {
 	if d.focus == gfPath && paths.active() {
 		b.WriteString(paths.view() + "\n")
 	}
-	worktreeVal := subtleStyle.Render("◂ ") + valueStyle.Render(groupWorktreeOptions[d.worktreeIndex]) + subtleStyle.Render(" ▸")
+	worktreeVal := subtleStyle().Render("◂ ") + valueStyle().Render(groupWorktreeOptions[d.worktreeIndex]) + subtleStyle().Render(" ▸")
 	b.WriteString(formField("worktree", worktreeVal, d.focus == gfWorktree))
 	b.WriteString(formField("base", groupBaseChoice(d.base, h.groupBase(h.selectedGroupPath())), d.focus == gfBase))
 	if d.focus == gfParent {
@@ -68,9 +68,9 @@ func (d *groupFormDialog) view(h groupFormHost) (string, [][2]string) {
 // groupBaseChoice renders a group's base picker: its own ref, or auto and
 // the parent's choice that auto inherits.
 func groupBaseChoice(base, inherited string) string {
-	choice := subtleStyle.Render("◂ ") + valueStyle.Render(cmp.Or(base, "auto")) + subtleStyle.Render(" ▸")
+	choice := subtleStyle().Render("◂ ") + valueStyle().Render(cmp.Or(base, "auto")) + subtleStyle().Render(" ▸")
 	if base == "" && inherited != "" {
-		choice += subtleStyle.Render("  " + inherited + " from parent")
+		choice += subtleStyle().Render("  " + inherited + " from parent")
 	}
 	return choice
 }

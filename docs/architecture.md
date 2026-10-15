@@ -45,8 +45,8 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
 - **Dependency boundaries.** `go run ./tools/architecture/check-ui-boundaries`
   lists each package's transitive production imports and fails on any
   other package of this module. Allowed, besides itself:
-  `ui/help`, `ui/rail` and `ui/notices` import `keybind` and
-  `ui/presentation`; `ui/settings` imports `keybind`, `ui/presentation` and
+  `ui/help` and `ui/notices` import `keybind` and `ui/presentation`;
+  `ui/rail` and `ui/settings` import `keybind`, `ui/presentation` and
   `ui/theme`; `ui/review` imports `diff/model`, `git/value` and
   `ui/presentation`; `ui/spawn` imports `catalog/value` and `ui/presentation`;
   `ui/quick` imports those and `ui/spawn`; `diff/model` imports `git/value`;
@@ -99,6 +99,11 @@ The clipboard (`focus_adapter.go`, `composer.go`) and the IME cursor
 see copied pane facts and hand back typed outcomes. That keeps the child packages
 testable without tmux or a terminal, and keeps one place that closes what it
 opened on quit.
+
+**Theme styles are published whole.** `applyTheme` builds a palette's styles
+and swaps them in with one atomic pointer (`internal/ui/theme_styles.go`), so
+Models on several goroutines never race on them; a `Styles` value on `Model`
+would have to thread through every free render helper for no other gain.
 
 **Platform differences live in `*_unix.go` and `*_windows.go` files.** A
 branch on `runtime.GOOS` in shared code hides the other platform. Instead each

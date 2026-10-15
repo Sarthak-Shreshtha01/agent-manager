@@ -11,6 +11,7 @@ import (
 // Ctrl+C quits from the comment editor and the send-confirm prompt, not just
 // the base review keymap.
 func TestReviewCtrlCQuitsFromSubmodes(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -44,6 +45,7 @@ func TestReviewCtrlCQuitsFromSubmodes(t *testing.T) {
 
 // Ctrl+C quits from review mode like it does from the list.
 func TestReviewCtrlCQuits(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	if m.services.gitDrv == nil {
 		t.Skip("git not installed")
@@ -59,6 +61,7 @@ func TestReviewCtrlCQuits(t *testing.T) {
 }
 
 func TestDiffHelpReturnsToReview(t *testing.T) {
+	t.Parallel()
 	m := buildModel(t)
 	dir := gitTestRepo(t)
 	openReviewOn(t, m, "helper", dir)
