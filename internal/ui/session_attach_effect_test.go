@@ -48,6 +48,7 @@ func TestPreparedAttachDoesNotReplaceNewerHelp(t *testing.T) {
 }
 
 func TestAttachReportsTransportFailureWithoutCallingPaneDead(t *testing.T) {
+	skipPOSIXShell(t)
 	m := buildModel(t)
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "tmux")

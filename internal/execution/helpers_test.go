@@ -26,6 +26,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// goneSessionOutcome is how a send to a killed session ends. tmux keeps its
+// server, so the buffer loads and only the paste fails, which may have
+// landed. psmux runs a server per session, so the load already finds none
+// and nothing can have reached a pane.
+func goneSessionOutcome() store.DeliveryOutcome {
+	if runtime.GOOS == "windows" {
+		return store.DeliveryRefused
+	}
+	return store.DeliveryUncertain
+}
+
 // skipPOSIXShell skips a test whose fixture only a POSIX shell runs: a
 // `#!/bin/sh` stub, an `sh -c` line, POSIX syntax typed into a pane, or the
 // cat the test tools launch, which PowerShell reads as Get-Content.

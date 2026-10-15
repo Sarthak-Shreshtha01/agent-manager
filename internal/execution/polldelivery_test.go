@@ -29,15 +29,16 @@ func TestSendModeSurfacesSendFailureAndDoesNotRetry(t *testing.T) {
 	if err := m.tmux.Kill(sess.ID); err != nil {
 		t.Fatal(err)
 	}
+	want := goneSessionOutcome()
 	sent, err := m.poller.maybeSendPendingInput(sess, "❯ ", true)
-	if err == nil || !strings.Contains(err.Error(), "is uncertain") || sent {
+	if err == nil || !strings.Contains(err.Error(), "is "+string(want)) || sent {
 		t.Fatalf("send result = %v, %v", sent, err)
 	}
 	claimed, err := m.store.Get(sess.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if claimed.PendingInputClaimed || claimed.PendingInputOutcome != store.DeliveryUncertain {
+	if claimed.PendingInputClaimed || claimed.PendingInputOutcome != want {
 		t.Fatalf("failed delivery state = %+v", claimed)
 	}
 	if inputs := sessionPendingInputs(t, m, sess.ID); len(inputs) != 0 {
@@ -641,15 +642,16 @@ func TestInboxRecordsAPostPasteFailureAsUncertain(t *testing.T) {
 		t.Fatalf("kill pane: %v", err)
 	}
 
+	want := goneSessionOutcome()
 	_, err := m.poller.maybeDeliverInbox(sess, "❯ ", status.Idle, true)
-	if err == nil || !strings.Contains(err.Error(), "is uncertain") {
+	if err == nil || !strings.Contains(err.Error(), "is "+string(want)) {
 		t.Fatalf("a failed send reported %v", err)
 	}
 	state, err := m.store.Message(id, "sender01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Outcome != store.DeliveryUncertain || state.DeliveredAt.IsZero() || !state.DroppedAt.IsZero() {
+	if state.Outcome != want || state.DeliveredAt.IsZero() || state.DroppedAt.IsZero() != (want == store.DeliveryUncertain) {
 		t.Fatalf("the uncertain receipt was not recorded: %+v", state)
 	}
 	if queued, _ := m.store.QueuedCount(sess.ID); queued != 0 {

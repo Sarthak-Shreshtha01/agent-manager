@@ -238,6 +238,7 @@ func TestOwnerlessClaimIsMarkedUncertainNotRedelivered(t *testing.T) {
 }
 
 func TestDeliveryGuardKeepsPeerFromRetiringAnInFlightSend(t *testing.T) {
+	skipPOSIXShell(t)
 	p := pair(t, true)
 	sess := p.spawnReady(t)
 	deadline := time.Now().Add(5 * time.Second)
