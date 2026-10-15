@@ -24,12 +24,15 @@ var (
 	railBoundary     = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation"}}
 	settingsBoundary = boundary{"Settings", "/internal/ui/settings", []string{"/internal/ui/settings", "/internal/keybind", "/internal/ui/presentation", "/internal/ui/theme"}}
 	themeBoundary    = boundary{"Theme", "/internal/ui/theme", []string{"/internal/ui/theme"}}
+	spawnBoundary    = boundary{"Spawn", "/internal/ui/spawn", []string{"/internal/ui/spawn", "/internal/catalog/value", "/internal/ui/presentation"}}
+	quickBoundary    = boundary{"Quick", "/internal/ui/quick", []string{"/internal/ui/quick", "/internal/ui/spawn", "/internal/catalog/value", "/internal/ui/presentation"}}
 	valueBoundary    = boundary{"Git values", "/internal/git/value", []string{"/internal/git/value"}}
+	catalogBoundary  = boundary{"Catalog values", "/internal/catalog/value", []string{"/internal/catalog/value"}}
 	presentBoundary  = boundary{"Presentation", "/internal/ui/presentation", []string{"/internal/ui/presentation"}}
 )
 
 func main() {
-	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, watchBoundary, railBoundary, settingsBoundary, themeBoundary, diffBoundary, valueBoundary, presentBoundary} {
+	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, watchBoundary, railBoundary, settingsBoundary, themeBoundary, spawnBoundary, quickBoundary, diffBoundary, valueBoundary, catalogBoundary, presentBoundary} {
 		if err := checkBoundary(feature); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

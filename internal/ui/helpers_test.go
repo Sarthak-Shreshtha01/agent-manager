@@ -402,9 +402,9 @@ func pickGroup(t *testing.T, m *Model, path string) {
 func createSession(t *testing.T, m *Model, name, dir, group string) {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(dir)
-	m.form.toolIndex = 0
+	m.form.SetName(name)
+	m.form.SetDir(dir)
+	setFormTool(m, 0)
 	pickGroup(t, m, group)
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
@@ -447,10 +447,10 @@ func seedRepo(t *testing.T) string {
 func createWorktreeSession(t *testing.T, m *Model, name, repo string) store.Session {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(repo)
-	m.form.toolIndex = 0
-	m.form.worktree = true
+	m.form.SetName(name)
+	m.form.SetDir(repo)
+	setFormTool(m, 0)
+	m.form.SeedWorktree(true)
 	pickGroup(t, m, "")
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
@@ -526,12 +526,13 @@ func waitForAgent(t *testing.T, m *Model, sessID string, want bool) {
 func createSessionOn(t *testing.T, m *Model, name, tool, dir string) {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(dir)
+	m.form.SetName(name)
+	m.form.SetDir(dir)
 	picked := false
 	for i, candidate := range m.services.cfg.AgentToolNames() {
 		if candidate == tool {
-			m.form.toolIndex, picked = i, true
+			setFormTool(m, i)
+			picked = true
 		}
 	}
 	if !picked {

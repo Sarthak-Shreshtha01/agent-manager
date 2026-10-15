@@ -359,7 +359,7 @@ func TestSettingsCLIPickerHidesFromNewSessions(t *testing.T) {
 	if m.mode != modeForm {
 		t.Fatalf("form should open with remaining CLIs, mode=%v err=%q", m.mode, m.errBar.text)
 	}
-	for _, name := range m.form.toolNames {
+	for _, name := range formTools(m) {
 		if name == "codex" {
 			t.Fatal("new-session form must not list a hidden CLI")
 		}

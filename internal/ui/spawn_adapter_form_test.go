@@ -17,6 +17,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
+	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -29,7 +30,7 @@ func TestNewSessionFormUsesSettingsDefaultTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	if got := m.form.toolNames[m.form.toolIndex]; got != "ready-tool" {
+	if got := m.form.Tool(); got != "ready-tool" {
 		t.Fatalf("new session tool = %q, want settings default", got)
 	}
 }
@@ -55,15 +56,15 @@ func TestOpenFormDefersSettingsReadAndAcceptsPristineDefaults(t *testing.T) {
 	completed := make(chan tea.Msg, 1)
 	go func() { completed <- cmd() }()
 	<-reader.started
-	if got := m.form.toolNames[m.form.toolIndex]; got != "claude" {
+	if got := m.form.Tool(); got != "claude" {
 		t.Fatalf("cached tool = %q, want claude before refresh", got)
 	}
 	close(reader.release)
 	m.applyTestMsg(t, <-completed)
-	if got := m.form.toolNames[m.form.toolIndex]; got != "ready-tool" {
+	if got := m.form.Tool(); got != "ready-tool" {
 		t.Fatalf("refreshed tool = %q, want ready-tool", got)
 	}
-	if !m.form.worktree {
+	if !m.form.Worktree() {
 		t.Fatal("pristine form did not accept the refreshed worktree default")
 	}
 }
@@ -72,13 +73,14 @@ func TestFormSettingsLoadRefusesLocalChoiceAndReopenedForm(t *testing.T) {
 	t.Run("local choice", func(t *testing.T) {
 		m := buildModel(t)
 		cmd := m.openForm()
-		m.runFormRequest(m.form.cycleTool(m, 1), nil)
-		chosen := m.form.toolNames[m.form.toolIndex]
+		m.form.FocusField(m.spawnHost(), spawn.FieldTool)
+		m.handleFormKey(tea.KeyMsg{Type: tea.KeyRight})
+		chosen := m.form.Tool()
 		if err := m.services.store.SetSetting("default_tool", "ready-tool"); err != nil {
 			t.Fatal(err)
 		}
 		m.applyTestMsg(t, cmd())
-		if got := m.form.toolNames[m.form.toolIndex]; got != chosen {
+		if got := m.form.Tool(); got != chosen {
 			t.Fatalf("async defaults replaced local tool choice: got %q want %q", got, chosen)
 		}
 	})
@@ -96,7 +98,7 @@ func TestFormSettingsLoadRefusesLocalChoiceAndReopenedForm(t *testing.T) {
 			t.Fatal("reopened form reused its generation")
 		}
 		m.applyTestMsg(t, loaded)
-		if got := m.form.toolNames[m.form.toolIndex]; got == "ready-tool" {
+		if got := m.form.Tool(); got == "ready-tool" {
 			t.Fatal("old defaults replaced the reopened form")
 		}
 	})
@@ -113,8 +115,8 @@ func TestFormSettingsLoadAppliesSuccessfulReadsOnPartialFailure(t *testing.T) {
 	}
 	cmd := m.openFormWithReader(reader)
 	m.applyTestMsg(t, cmd())
-	if got := m.form.toolNames[m.form.toolIndex]; got != "ready-tool" || !m.form.worktree {
-		t.Fatalf("successful reads were lost: tool=%q worktree=%t", got, m.form.worktree)
+	if got := m.form.Tool(); got != "ready-tool" || !m.form.Worktree() {
+		t.Fatalf("successful reads were lost: tool=%q worktree=%t", got, m.form.Worktree())
 	}
 	if !strings.Contains(m.errBar.text, "settings load: 1 reads failed") {
 		t.Fatalf("partial failure not surfaced: %q", m.errBar.text)
@@ -123,19 +125,19 @@ func TestFormSettingsLoadAppliesSuccessfulReadsOnPartialFailure(t *testing.T) {
 
 func pickFormTool(t *testing.T, m *Model, name string) {
 	t.Helper()
-	for i, candidate := range m.form.toolNames {
+	for i, candidate := range formTools(m) {
 		if candidate == name {
-			m.form.toolIndex = i
+			setFormTool(m, i)
 			return
 		}
 	}
-	t.Fatalf("form missing tool %q: %v", name, m.form.toolNames)
+	t.Fatalf("form missing tool %q: %v", name, formTools(m))
 }
 
 func submitFormSession(t *testing.T, m *Model, name string) {
 	t.Helper()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName(name)
+	m.form.SetDir(t.TempDir())
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
 	if m.mode != modeList {
@@ -150,7 +152,7 @@ func TestFormRemembersLastSpawnTool(t *testing.T) {
 	submitFormSession(t, m, "first")
 
 	m.openForm()
-	if got := m.form.toolNames[m.form.toolIndex]; got != "ready-tool" {
+	if got := m.form.Tool(); got != "ready-tool" {
 		t.Fatalf("next form tool = %q, want last spawn", got)
 	}
 }
@@ -159,14 +161,14 @@ func TestFormCancelDoesNotRememberLastPick(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	pickFormTool(t, m, "ready-tool")
-	m.form.worktree = true
+	m.form.SeedWorktree(true)
 	m.handleFormKey(tea.KeyMsg{Type: tea.KeyEsc})
 
 	m.applyTestMsg(t, m.openForm()())
-	if got := m.form.toolNames[m.form.toolIndex]; got != "claude" {
+	if got := m.form.Tool(); got != "claude" {
 		t.Fatalf("cancelled pick must not seed the next form, got %q", got)
 	}
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("cancelled worktree pick must not seed the next form")
 	}
 }
@@ -185,8 +187,8 @@ func TestFormRemembersPickOnlyAfterInstallRetrySucceeds(t *testing.T) {
 	initGitRepo(t, dir)
 	m.openForm()
 	pickFormTool(t, m, "claude")
-	m.form.name.SetValue("after-install")
-	m.form.dir.SetValue(dir)
+	m.form.SetName("after-install")
+	m.form.SetDir(dir)
 	if probe := m.toggleFormWorktree(); probe != nil {
 		m.applyTestMsg(t, probe())
 	}
@@ -207,7 +209,7 @@ func TestFormRemembersPickOnlyAfterInstallRetrySucceeds(t *testing.T) {
 		t.Fatalf("successful retry did not remember the pick: %q, %v; err=%q", m.ledger.lastSpawnTool, m.ledger.lastSpawnWorktree, m.errBar.text)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	if m.form.toolNames[m.form.toolIndex] != "claude" || !m.form.worktree {
+	if m.form.Tool() != "claude" || !m.form.Worktree() {
 		t.Fatal("next form should use the successful retry's tool and worktree")
 	}
 }
@@ -215,11 +217,11 @@ func TestFormRemembersPickOnlyAfterInstallRetrySucceeds(t *testing.T) {
 func TestFormRemembersLastSpawnWorktree(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.worktree = true
+	m.form.SeedWorktree(true)
 	submitFormSession(t, m, "first")
 
 	m.applyTestMsg(t, m.openForm()())
-	if !m.form.worktree {
+	if !m.form.Worktree() {
 		t.Fatal("next form should seed worktree from the last spawn")
 	}
 }
@@ -227,7 +229,7 @@ func TestFormRemembersLastSpawnWorktree(t *testing.T) {
 func TestFormLastWorktreeYieldsToGroupDefault(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.worktree = true
+	m.form.SeedWorktree(true)
 	submitFormSession(t, m, "first")
 
 	if err := m.services.store.CreateGroup("grp", t.TempDir()); err != nil {
@@ -239,7 +241,7 @@ func TestFormLastWorktreeYieldsToGroupDefault(t *testing.T) {
 	m.applyCmd(t, m.refreshCmd())
 	m.selectGroupRow(t, "grp")
 	m.openForm()
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("a group's explicit worktree default must not follow the last pick")
 	}
 
@@ -249,14 +251,14 @@ func TestFormLastWorktreeYieldsToGroupDefault(t *testing.T) {
 	m.applyCmd(t, m.refreshCmd())
 	m.selectGroupRow(t, "grp/child")
 	m.openForm()
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("a child of an explicit-off group must not follow the last pick")
 	}
 
 	m.mode = modeList
 	m.selectSessionRow(t, "first")
 	m.openForm()
-	if !m.form.worktree {
+	if !m.form.Worktree() {
 		t.Fatal("an inheriting group should still follow the last pick")
 	}
 }
@@ -265,17 +267,17 @@ func TestFormHiddenLastToolFallsBackToSettings(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	pickFormTool(t, m, "ready-tool")
-	m.form.worktree = true
+	m.form.SeedWorktree(true)
 	submitFormSession(t, m, "first")
 	if err := m.services.store.SetHiddenTools(map[string]bool{"ready-tool": true}); err != nil {
 		t.Fatal(err)
 	}
 
 	m.applyTestMsg(t, m.openForm()())
-	if got := m.form.toolNames[m.form.toolIndex]; got != "claude" {
+	if got := m.form.Tool(); got != "claude" {
 		t.Fatalf("hidden last tool should fall back to settings, got %q", got)
 	}
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("hidden last tool should fall back to the settings worktree default")
 	}
 }
@@ -485,7 +487,7 @@ func TestGroupDefaultPathFillsSessionDir(t *testing.T) {
 	m.openForm()
 	pickGroup(t, m, "workspace")
 	m.moveGroupCursor(0) // re-resolve dir for the selected group
-	if got := m.form.dir.Value(); got != groupDir {
+	if got := m.form.Dir(); got != groupDir {
 		t.Fatalf("session dir should default to the group path %q, got %q", groupDir, got)
 	}
 }
@@ -513,9 +515,8 @@ func TestFormPromptComposesWithSettings(t *testing.T) {
 func TestFormLongDirKeepsCursorEndVisible(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.focusStep(m, 2) // name -> tool -> dir
-	m.form.dir.SetValue("/very/long/" + strings.Repeat("a", 80) + "/tail-end")
-	m.form.dir.CursorEnd()
+	m.form.FocusStep(m.spawnHost(), 2) // name -> tool -> dir
+	m.form.TakePath("/very/long/" + strings.Repeat("a", 80) + "/tail-end")
 	view := ansi.Strip(m.viewForm())
 	if !strings.Contains(view, "tail-end") {
 		t.Fatal("dir field should scroll so the end of a long value stays visible")
@@ -526,9 +527,9 @@ func TestFormLongDirKeepsCursorEndVisible(t *testing.T) {
 // image keys apply.
 func focusFormPrompt(t *testing.T, m *Model) {
 	t.Helper()
-	m.form.focusStep(m, -2) // name -> group -> prompt
-	if m.form.focus != fieldPrompt {
-		t.Fatalf("focus = %v, want fieldPrompt", m.form.focus)
+	m.form.FocusStep(m.spawnHost(), -2) // name -> group -> prompt
+	if m.form.Focused() != spawn.FieldPrompt {
+		t.Fatalf("focus = %v, want spawn.FieldPrompt", m.form.Focused())
 	}
 }
 
@@ -621,8 +622,8 @@ func TestFormSubmitKeepsThePastedImage(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	focusFormPrompt(t, m)
-	m.form.name.SetValue("with-a-picture")
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName("with-a-picture")
+	m.form.SetDir(t.TempDir())
 
 	path := tempImage(t, "mock.png")
 	pasteFormImage(t, m, path)
@@ -678,8 +679,8 @@ func TestFormSubmitWaitsForAPasteStillReading(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	focusFormPrompt(t, m)
-	m.form.name.SetValue("half-pasted")
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName("half-pasted")
+	m.form.SetDir(t.TempDir())
 	// The chip a paste reserves before its clipboard read lands.
 	m.form.prompt.attachments = []imageAttachment{{id: 1}}
 	m.form.prompt.input.SetValue(imageToken(1))
@@ -698,7 +699,7 @@ func TestFormSubmitWaitsForAPasteStillReading(t *testing.T) {
 func TestFormLongPromptWrapsAcrossRows(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.focusStep(m, -2) // name -> group -> prompt
+	m.form.FocusStep(m.spawnHost(), -2) // name -> group -> prompt
 	m.form.prompt.input.SetValue(strings.Repeat("word ", 25) + "finale")
 	view := ansi.Strip(m.viewForm())
 	if !strings.Contains(view, "finale") {
@@ -715,8 +716,8 @@ func TestFormTypesWordsNamedLikeKeys(t *testing.T) {
 		}
 		m = applyMsg(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(word)})
 	}
-	if m.mode != modeForm || m.form.name.Value() != "enter-tab-esc" {
-		t.Fatalf("mode %v, name %q; want the form open with the words typed", m.mode, m.form.name.Value())
+	if m.mode != modeForm || m.form.Name() != "enter-tab-esc" {
+		t.Fatalf("mode %v, name %q; want the form open with the words typed", m.mode, m.form.Name())
 	}
 }
 
@@ -737,9 +738,9 @@ func TestFormGroupArrowsMoveFocusNotSelection(t *testing.T) {
 	}
 	m.applyCmd(t, m.refreshCmd())
 	m.openForm()
-	m.form.focusStep(m, -1) // wrap from name to group
-	if m.form.focus != fieldGroup {
-		t.Fatalf("focus = %v, want fieldGroup", m.form.focus)
+	m.form.FocusStep(m.spawnHost(), -1) // wrap from name to group
+	if m.form.Focused() != spawn.FieldGroup {
+		t.Fatalf("focus = %v, want spawn.FieldGroup", m.form.Focused())
 	}
 
 	initial := m.form.groupIndex
@@ -747,11 +748,11 @@ func TestFormGroupArrowsMoveFocusNotSelection(t *testing.T) {
 	if m.form.groupIndex != initial {
 		t.Fatalf("down must not change the group selection, index = %d, want %d", m.form.groupIndex, initial)
 	}
-	if m.form.focus == fieldGroup {
+	if m.form.Focused() == spawn.FieldGroup {
 		t.Fatal("down should move focus off the group field")
 	}
 
-	m.form.focus = fieldGroup
+	m.form.FocusField(m.spawnHost(), spawn.FieldGroup)
 	m.form.groupIndex = 0
 	m.handleFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	if m.form.groupIndex != 1 {
@@ -800,9 +801,9 @@ func TestGroupFormParentArrowsMoveFocusNotSelection(t *testing.T) {
 func TestFormRejectsDashLeadingPrompt(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.name.SetValue("flagged")
-	m.form.dir.SetValue(t.TempDir())
-	m.form.toolIndex = 0
+	m.form.SetName("flagged")
+	m.form.SetDir(t.TempDir())
+	setFormTool(m, 0)
 	m.form.prompt.input.SetValue("--version")
 
 	if _, _ = m.submitForm(); m.errBar.text == "" {
@@ -1023,7 +1024,7 @@ func initGitRepo(t *testing.T, dir string) {
 func TestFormWorktreeToggleSeedsFromSetting(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("worktree should default off with no setting")
 	}
 	m.mode = modeList
@@ -1031,7 +1032,7 @@ func TestFormWorktreeToggleSeedsFromSetting(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	if !m.form.worktree {
+	if !m.form.Worktree() {
 		t.Fatal("worktree should seed on from setting")
 	}
 }
@@ -1043,14 +1044,14 @@ func TestFormWorktreeGatedInNonRepoDir(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.openForm()
-	m.form.dir.SetValue(plain)
+	m.form.SetDir(plain)
 	if m.formWorktreeOn() {
 		t.Fatal("a non-repo dir cannot host a worktree, even with the setting on")
 	}
 	if view := m.viewForm(); !strings.Contains(view, worktreeUnavailable) {
 		t.Fatalf("form should mark worktree unavailable, got %q", view)
 	}
-	m.form.focus = fieldWorktree
+	m.form.FocusField(m.spawnHost(), spawn.FieldWorktree)
 	_, probe := m.handleFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	if probe != nil {
 		m.applyTestMsg(t, probe())
@@ -1082,7 +1083,7 @@ func TestWorktreeCapabilityExpiresSoAFreshRepoIsSeen(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.openForm()
-	m.form.dir.SetValue(dir)
+	m.form.SetDir(dir)
 	m.applyTestMsg(t, m.formWorktreeProbeCmd(false)())
 	if capable, known := m.cachedWorktreeCapability(dir); !known || capable {
 		t.Fatalf("plain directory cache = capable %t known %t", capable, known)
@@ -1122,14 +1123,14 @@ func TestWorktreeProbeDefersGitAndRejectsReopenedForm(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	dir := t.TempDir()
-	m.form.dir.SetValue(dir)
+	m.form.SetDir(dir)
 	reader := &blockedRepoPreflight{
 		started: make(chan struct{}), release: make(chan struct{}), capable: true,
 	}
 	m.gens.worktreeProbe++
 	request := worktreeProbeRequest{
 		target: worktreeProbeForm, generation: m.form.prompt.gen,
-		sequence: m.gens.worktreeProbe, dir: m.formSpawnDir(), toggle: true, from: m.form.worktree,
+		sequence: m.gens.worktreeProbe, dir: m.formSpawnDir(), toggle: true, from: m.form.Worktree(),
 	}
 	cmd := worktreeProbeCmd(request, reader)
 	select {
@@ -1143,7 +1144,7 @@ func TestWorktreeProbeDefersGitAndRejectsReopenedForm(t *testing.T) {
 	m.openForm()
 	close(reader.release)
 	m.handleWorktreeProbe(<-completed)
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("old repo probe toggled the reopened form")
 	}
 	if _, known := m.cachedWorktreeCapability(dir); known {
@@ -1172,12 +1173,12 @@ func TestFormWorktreeStaysOnInRepoDir(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	m.form.dir.SetValue(repo)
+	m.form.SetDir(repo)
 	m.applyTestMsg(t, m.formWorktreeProbeCmd(false)())
 	if !m.formWorktreeOn() {
 		t.Fatal("a repo dir should keep the worktree default on")
 	}
-	m.form.focus = fieldWorktree
+	m.form.FocusField(m.spawnHost(), spawn.FieldWorktree)
 	m.handleFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	if m.formWorktreeOn() {
 		t.Fatal("toggle should turn worktree off in a repo dir")
@@ -1268,12 +1269,12 @@ func TestFormWorktreeSeedsFromGroupDefault(t *testing.T) {
 	m.applyCmd(t, m.refreshCmd())
 	m.selectGroupRow(t, "grp")
 	m.openForm()
-	if !m.form.worktree {
+	if !m.form.Worktree() {
 		t.Fatal("form should seed worktree on from the group default")
 	}
 	pickGroup(t, m, "")
 	m.moveGroupCursor(0)
-	if m.form.worktree {
+	if m.form.Worktree() {
 		t.Fatal("moving to root should follow its default off")
 	}
 }
@@ -1405,7 +1406,7 @@ func TestFormShowsAndFetchesTheWorktreeBase(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	m.form.dir.SetValue(clone)
+	m.form.SetDir(clone)
 	// Routed past Update, whose own refresh would take the fetch this test
 	// steps by hand.
 	m.handleMsg(m.formWorktreeProbeCmd(false)())
@@ -1456,7 +1457,7 @@ func TestSettingsFetchOnSpawnTurnsTheFetchOff(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	m.form.dir.SetValue(clone)
+	m.form.SetDir(clone)
 	// Routed past Update, whose own refresh would take the fetch this test
 	// steps by hand.
 	m.handleMsg(m.formWorktreeProbeCmd(false)())
@@ -1481,7 +1482,7 @@ func TestFormMarksAFailedBaseFetch(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	m.form.dir.SetValue(clone)
+	m.form.SetDir(clone)
 	// Routed past Update, whose own refresh would take the fetch this test
 	// steps by hand.
 	m.handleMsg(m.formWorktreeProbeCmd(false)())
@@ -1536,93 +1537,27 @@ func TestFormUpDownMoveTheCaretBetweenPromptRows(t *testing.T) {
 	m.form.prompt.input.SetValue("first\nsecond\nthird")
 
 	_, _ = m.handleFormKey(tea.KeyMsg{Type: tea.KeyUp})
-	if m.form.focus != fieldPrompt || m.form.prompt.input.Line() != 1 {
-		t.Fatalf("up from the last row: focus %v, caret line %d; want the prompt, line 1", m.form.focus, m.form.prompt.input.Line())
+	if m.form.Focused() != spawn.FieldPrompt || m.form.prompt.input.Line() != 1 {
+		t.Fatalf("up from the last row: focus %v, caret line %d; want the prompt, line 1", m.form.Focused(), m.form.prompt.input.Line())
 	}
 	_, _ = m.handleFormKey(tea.KeyMsg{Type: tea.KeyUp})
 	_, _ = m.handleFormKey(tea.KeyMsg{Type: tea.KeyUp})
-	if m.form.focus == fieldPrompt {
+	if m.form.Focused() == spawn.FieldPrompt {
 		t.Fatal("up from the first row should leave the prompt field")
 	}
 
-	m.form.focusStep(m, 1)
-	if m.form.focus != fieldPrompt {
-		t.Fatalf("focus = %v, want fieldPrompt", m.form.focus)
+	m.form.FocusStep(m.spawnHost(), 1)
+	if m.form.Focused() != spawn.FieldPrompt {
+		t.Fatalf("focus = %v, want spawn.FieldPrompt", m.form.Focused())
 	}
 	m.form.prompt.input.SetCursor(0)
 	_, _ = m.handleFormKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.form.focus != fieldPrompt || m.form.prompt.input.Line() != 1 {
-		t.Fatalf("down from the first row: focus %v, caret line %d; want the prompt, line 1", m.form.focus, m.form.prompt.input.Line())
+	if m.form.Focused() != spawn.FieldPrompt || m.form.prompt.input.Line() != 1 {
+		t.Fatalf("down from the first row: focus %v, caret line %d; want the prompt, line 1", m.form.Focused(), m.form.prompt.input.Line())
 	}
 	_, _ = m.handleFormKey(tea.KeyMsg{Type: tea.KeyDown})
 	_, _ = m.handleFormKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.form.focus == fieldPrompt {
+	if m.form.Focused() == spawn.FieldPrompt {
 		t.Fatal("down from the last row should leave the prompt field")
-	}
-}
-
-// fakeFormHost drives the New Session form without a root model.
-type fakeFormHost struct {
-	*fakeChoiceHost
-	defaults spawnDefaults
-}
-
-func (h *fakeFormHost) spawnDefaults(string) spawnDefaults { return h.defaults }
-
-func fakeHostForm(h *fakeFormHost) *formDialog {
-	name := textField("my-session", 60)
-	name.Focus()
-	return &formDialog{form{
-		name:      name,
-		dir:       textField("", 400),
-		prompt:    promptField(),
-		dirAuto:   true,
-		toolNames: []string{"claude", "plain"},
-		groups:    []groupOption{{path: ""}, {path: "backend", depth: 1}},
-		focus:     fieldName,
-		choice:    newChoice(h, "claude"),
-	}}
-}
-
-// The form's keys update its own fields and hand the root a request for
-// the rest: a new CLI's catalog, a worktree probe, closing, or the spawn.
-func TestFormDialogThroughAFakeHost(t *testing.T) {
-	h := &fakeFormHost{
-		fakeChoiceHost: newFakeChoiceHost(),
-		defaults:       spawnDefaults{base: "develop", fallbacks: []string{"/work/backend"}},
-	}
-	d := fakeHostForm(h)
-	for _, r := range "fix" {
-		d.handleKey(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
-	}
-	d.focusField(h, fieldTool)
-	if _, request := d.handleKey(h, tea.KeyMsg{Type: tea.KeyRight}); request.catalog != "plain" || d.tool() != "plain" {
-		t.Fatalf("right on the tool row asked for %+v on %q", request, d.tool())
-	}
-	d.focusField(h, fieldGroup)
-	if _, request := d.handleKey(h, tea.KeyMsg{Type: tea.KeyRight}); request.group != 1 {
-		t.Fatalf("right on the group row asked for %+v", request)
-	}
-	d.groupIndex = 1
-	d.focusField(h, fieldDir)
-	cmd, request := d.handleKey(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	if !request.probe || cmd == nil || d.dirAuto || d.paths.generation == 0 {
-		t.Fatalf("typing a path should read suggestions and probe: %+v", request)
-	}
-	_, request = d.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if request.spawn == nil {
-		t.Fatalf("enter built no spawn: %v", h.errs)
-	}
-	spawn := request.spawn
-	if spawn.kind != spawnForm || spawn.name != "fix" || spawn.group != "backend" || spawn.toolName != "plain" ||
-		spawn.base != "develop" || spawn.rawDir != "/" || !reflect.DeepEqual(spawn.dirFallbacks, []string{"/work/backend"}) {
-		t.Fatalf("spawn = %+v", spawn)
-	}
-	d.prompt.input.SetValue("-rf")
-	if request = d.submit(h); request.spawn != nil || len(h.errs) == 0 {
-		t.Fatal("a prompt that reads as a flag spawned")
-	}
-	if _, request = d.handleKey(h, tea.KeyMsg{Type: tea.KeyEsc}); !request.close {
-		t.Fatalf("esc asked for %+v", request)
 	}
 }

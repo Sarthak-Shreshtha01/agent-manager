@@ -8,7 +8,7 @@ func TestDefaultToolFallsBackWhenSettingStale(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
-	if got := m.form.toolNames[m.form.toolIndex]; got != "claude" {
+	if got := m.form.Tool(); got != "claude" {
 		t.Fatalf("form default tool = %q want claude (alphabetical fallback)", got)
 	}
 }

@@ -136,9 +136,9 @@ func readWhenWritten(t *testing.T, path string) string {
 func TestNewSessionShowsStartingImmediately(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.name.SetValue("boot")
-	m.form.dir.SetValue(t.TempDir())
-	m.form.toolIndex = 0
+	m.form.SetName("boot")
+	m.form.SetDir(t.TempDir())
+	setFormTool(m, 0)
 	pickGroup(t, m, "")
 	// submitForm dispatches the spawn; run the effect to completion and drop
 	// the refresh it returns, so the row is read from the inserted record

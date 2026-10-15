@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -334,15 +335,15 @@ func TestComposerNoImageFallsThroughToABlurredFormPrompt(t *testing.T) {
 
 	m := buildModel(t)
 	m.openForm()
-	m.form.focus = fieldPrompt
-	m.form.focusStep(m, 0)
+	m.form.FocusField(m.spawnHost(), spawn.FieldPrompt)
+	m.form.FocusStep(m.spawnHost(), 0)
 	m.form.prompt.input.SetValue("see ")
 	m.form.prompt.input.CursorEnd()
 	m.form.prompt.attachments = []imageAttachment{{id: 1}}
 	m.form.prompt.input.InsertString(imageToken(1))
 
 	gen := m.form.prompt.gen
-	m.form.focusStep(m, 1)
+	m.form.FocusStep(m.spawnHost(), 1)
 	if m.form.prompt.input.Focused() {
 		t.Fatal("tabbing on to the next field blurs the prompt")
 	}

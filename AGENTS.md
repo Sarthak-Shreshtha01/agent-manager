@@ -215,10 +215,12 @@ with `gh release edit <tag> --notes-file notes.md`.
 - `main.go` dispatches subcommands (`rename`, `review-repo`, `sessions`,
   `spawn`, `mcp`, and the rest of the workspace CLI) and boots the TUI.
 - `internal/ui` is the Bubble Tea program: one `Model` that routes messages
-  and composes the frame. Help, Review, Focus, the Rail and Settings live in
-  child packages (`internal/ui/{help,review,focus,rail,settings}`);
-  `presentation` holds shared text helpers and `theme` the palettes. Features that stay in `ui` each own their state, keys
-  and view through a type with a narrow host interface: `formDialog`, `groupFormDialog`, `quickBar`, `choice`, `pathComplete`,
+  and composes the frame. Help, Review, Focus, the Rail, Settings, the New
+  Session form and the quick bar live in child packages
+  (`internal/ui/{help,review,focus,rail,settings,spawn,quick}`);
+  `presentation` holds shared text helpers and `theme` the palettes. Features
+  that stay in `ui` each own their state, keys and view through a type with a
+  narrow host interface: `groupFormDialog`, `pathComplete`,
   `composer`, `renameDialog`, `moveDialog`, `forkDialog`, `confirmDialog`,
   `launchHintDialog` and `noticesPanel`. Store, tmux and Git
   work runs on the ordered effect lane (`effects.go`) through each feature's
