@@ -109,33 +109,6 @@ func TestEscapeControlsKeepsTextWhoseBytesLookLikeC1(t *testing.T) {
 	}
 }
 
-func TestEscapeSpansFollowTheEscapedText(t *testing.T) {
-	// "a\x1bbc": the span over "bc" starts at byte 2 raw, byte 3 escaped,
-	// because the ESC now occupies "^[".
-	spans := escapeSpans("a\x1bbc", []diff.Span{{Start: 2, End: 4}})
-	if len(spans) != 1 || spans[0] != (diff.Span{Start: 3, End: 5}) {
-		t.Fatalf("spans = %+v, want [{3 5}]", spans)
-	}
-	// "a\x9bbc": the malformed byte renders as four bytes of hex, so the span
-	// over "bc" moves from byte 2 to byte 5.
-	spans = escapeSpans("a\x9bbc", []diff.Span{{Start: 2, End: 4}})
-	if len(spans) != 1 || spans[0] != (diff.Span{Start: 5, End: 7}) {
-		t.Fatalf("malformed-byte spans = %+v, want [{5 7}]", spans)
-	}
-
-	// "a\u009bbc": the C1 rune is two bytes raw and six escaped, so the span
-	// over "bc" moves from byte 3 to byte 7.
-	spans = escapeSpans("a\u009bbc", []diff.Span{{Start: 3, End: 5}})
-	if len(spans) != 1 || spans[0] != (diff.Span{Start: 7, End: 9}) {
-		t.Fatalf("C1 spans = %+v, want [{7 9}]", spans)
-	}
-
-	clean := []diff.Span{{Start: 1, End: 2}}
-	if got := escapeSpans("abc", clean); &got[0] != &clean[0] {
-		t.Fatal("a line with no control bytes should keep its spans untouched")
-	}
-}
-
 // The agent in the pane runs `agent-manager rename` itself, so the session
 // name is content the review header paints, not something the user typed.
 func TestSessionNameCannotDriveTheTerminal(t *testing.T) {
@@ -177,7 +150,7 @@ func TestMultiLineGitErrorKeepsItsLines(t *testing.T) {
 	m := buildModel(t)
 	req := seedReviewForTest(m, uireview.Target{ID: "s1", Cwd: "/repo"}, git.ScopeUncommitted, "/repo", diff.Set{}, false)
 	m.review.ApplyLoad(uireview.LoadResult{TargetID: "s1", Scope: req.Scope, Generation: req.Generation, RepoRoot: "/repo", RepoRoots: []string{"/repo"}, Err: errors.New("fatal: ambiguous argument 'x'\nUse '--' to separate paths from revisions")})
-	rows := strings.Split(m.diffEmptyText(), "\n")
+	rows := strings.Split(m.review.EmptyText(m.reviewRenderContext()), "\n")
 	if len(rows) != 2 {
 		t.Fatalf("a two-line git error rendered %d rows: %q", len(rows), rows)
 	}

@@ -1,6 +1,25 @@
 package review
 
-import "maps"
+import (
+	"maps"
+
+	git "github.com/YoanWai/agent-manager/internal/git/value"
+)
+
+// StoredScope reads a scope saved as a review preference; anything unknown
+// opens on uncommitted changes.
+func StoredScope(stored string) git.Scope {
+	switch stored {
+	case "branch":
+		return git.ScopeBranch
+	case "last_commit":
+		return git.ScopeLastCommit
+	case "staged":
+		return git.ScopeStaged
+	default:
+		return git.ScopeUncommitted
+	}
+}
 
 func (m *Model) CycleScope() (LoadRequest, bool) {
 	if !m.active || m.target.ID == "" {

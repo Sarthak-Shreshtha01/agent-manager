@@ -221,7 +221,7 @@ with `gh release edit <tag> --notes-file notes.md`.
   and view through a type with a narrow host interface: `settingsFeature`,
   `formDialog`, `groupFormDialog`, `quickBar`, `choice`, `pathComplete`,
   `composer`, `renameDialog`, `moveDialog`, `forkDialog`, `confirmDialog`,
-  `launchHintDialog`, `noticesPanel` and `repoPicker`. Store, tmux and Git
+  `launchHintDialog` and `noticesPanel`. Store, tmux and Git
   work runs on the ordered effect lane (`effects.go`) through each feature's
   `<feature>_effect.go`. Root files are named `<feature>_<concern>.go`, so
   `ls internal/ui/settings_*` is the whole Settings feature; only `keys.go`,

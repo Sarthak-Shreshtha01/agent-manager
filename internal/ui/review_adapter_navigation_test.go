@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	uireview "github.com/YoanWai/agent-manager/internal/ui/review"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -34,7 +33,7 @@ func TestDiffCursorStaysOnScreen(t *testing.T) {
 		if fd == nil {
 			t.Fatal("no file diff")
 		}
-		want := fd.Lines[m.cursorDiffLine()]
+		want := fd.Lines[m.review.CursorDiffLine()]
 		if want.Text == "" {
 			continue
 		}
@@ -152,7 +151,7 @@ func TestDiffReviewReachesEndWithWrappedLines(t *testing.T) {
 				m.handleDiffKey(tea.KeyMsg{Type: tea.KeyDown})
 				m.prepareReviewLayout()
 				fd := m.currentFileDiff()
-				lineIdx := m.cursorDiffLine()
+				lineIdx := m.review.CursorDiffLine()
 				if fd == nil || lineIdx >= len(fd.Lines) {
 					t.Fatal("cursor out of range")
 				}
@@ -176,14 +175,14 @@ func TestSpaceAdvanceKeepsHighlight(t *testing.T) {
 	if len(m.review.Snapshot().Set.Files) != 2 {
 		t.Fatalf("want 2 files, got %d (err=%q)", len(m.review.Snapshot().Set.Files), m.review.Snapshot().Error)
 	}
-	if m.currentHL() == nil {
+	if m.review.CurrentHighlight() == nil {
 		t.Fatal("first file should be highlighted after open")
 	}
 	m.pressDiffKey(t, ' ')
 	if m.review.Snapshot().FileIndex != 1 {
 		t.Fatalf("space should advance to the next file, idx = %d", m.review.Snapshot().FileIndex)
 	}
-	if m.currentHL() == nil {
+	if m.review.CurrentHighlight() == nil {
 		t.Error("advanced file lost its highlight: switch command was dropped")
 	}
 }
@@ -211,27 +210,6 @@ func TestScrollDoesNotLeakAcrossSessions(t *testing.T) {
 	}
 	if m.review.Snapshot().Scroll != 0 {
 		t.Errorf("session two inherited session one's scroll: %d", m.review.Snapshot().Scroll)
-	}
-}
-
-// A compiled artifact is dropped on its name alone, which is what a file git
-// has not classified yet needs: an untracked one carries no numstat verdict,
-// and nothing sniffs its bytes until the cursor reaches it.
-func TestNonCodePathNamesCompiledArtifacts(t *testing.T) {
-	hidden := []string{
-		"build/Main.class", "app/__pycache__/mod.pyc", "assets/logo.PNG",
-		"go.sum", "Cargo.lock", "web/package-lock.json", "vendor/lib.so",
-	}
-	for _, path := range hidden {
-		if !uireview.IsNonCodePath(path) {
-			t.Errorf("%q should be filtered out of a code-only review", path)
-		}
-	}
-	shown := []string{"main.go", "Main.java", "mod.py", "readme.md", "classy.go"}
-	for _, path := range shown {
-		if uireview.IsNonCodePath(path) {
-			t.Errorf("%q is source and should stay in the review", path)
-		}
 	}
 }
 

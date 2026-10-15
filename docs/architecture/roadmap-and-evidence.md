@@ -242,7 +242,7 @@ Every feature that stays in package `ui` is now a type embedding its state
 with a host interface declared beside it: `settingsFeature`, `formDialog`,
 `groupFormDialog`, `quickBar`, `choice`, `pathComplete`, `composer`,
 `renameDialog`, `moveDialog`, `forkDialog`, `confirmDialog`,
-`launchHintDialog`, `noticesPanel` and `repoPicker`. Hosts stay at eight
+`launchHintDialog` and `noticesPanel`. Hosts stay at eight
 methods or fewer; features that need the store, tmux or Git return typed
 requests that root adapters run on the effect lane. Each type has a test
 that drives it through a fake host. `handleMsg` is a 55-line router

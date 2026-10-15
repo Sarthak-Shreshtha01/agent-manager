@@ -78,8 +78,8 @@ func TestReviewPickerReadsRunOnlyInsideCommands(t *testing.T) {
 			t.Fatalf("worker calls = %v, want %v", reader.calls, wantCalls)
 		}
 		m.handleReviewPickerLoaded(msg)
-		if m.mode != modeRepoPick || m.reviewNav.picker.cursor != 1 {
-			t.Fatalf("branch result did not open on the canonical current worktree: mode=%v cursor=%d", m.mode, m.reviewNav.picker.cursor)
+		if m.mode != modeRepoPick || m.reviewNav.picker.Cursor() != 1 {
+			t.Fatalf("branch result did not open on the canonical current worktree: mode=%v cursor=%d", m.mode, m.reviewNav.picker.Cursor())
 		}
 	})
 
@@ -105,8 +105,8 @@ func TestReviewPickerReadsRunOnlyInsideCommands(t *testing.T) {
 			t.Fatalf("worker calls = %v, want %v", reader.calls, wantCalls)
 		}
 		m.handleReviewPickerLoaded(msg)
-		if m.mode != modeRepoPick || m.reviewNav.picker.cursor != 2 || m.reviewNav.picker.storeRoot != "/actual/repo" {
-			t.Fatalf("base result = mode %v cursor %d store root %q", m.mode, m.reviewNav.picker.cursor, m.reviewNav.picker.storeRoot)
+		if m.mode != modeRepoPick || m.reviewNav.picker.Cursor() != 2 || m.reviewNav.picker.StoreRoot() != "/actual/repo" {
+			t.Fatalf("base result = mode %v cursor %d store root %q", m.mode, m.reviewNav.picker.Cursor(), m.reviewNav.picker.StoreRoot())
 		}
 	})
 }
@@ -143,16 +143,19 @@ func TestReviewPickerEnterRejectsStaleSource(t *testing.T) {
 			m := &Model{}
 			seedReviewPickerModel(t, m, "s1", "/repo")
 			m.openRepoPick()
+			picker := &m.reviewNav.picker
+			source := picker.Source()
 			switch field {
 			case "generation":
-				m.reviewNav.picker.source.generation++
+				source.Generation++
 			case "target":
-				m.reviewNav.picker.source.targetID = "other"
+				source.TargetID = "other"
 			case "repo":
-				m.reviewNav.picker.source.repoRoot = "/other"
+				source.RepoRoot = "/other"
 			}
+			picker.Open(picker.Rows(), picker.Title(), uireview.PickRepo, "", source, "")
 			generation := m.review.Generation()
-			cmd := m.reviewNav.picker.handleKey(m, tea.KeyMsg{Type: tea.KeyEnter})
+			cmd := m.handleRepoPickKey(tea.KeyMsg{Type: tea.KeyEnter})
 			if cmd != nil || m.review.Generation() != generation {
 				t.Fatal("stale picker selection started a review load")
 			}
@@ -177,12 +180,9 @@ func TestReviewBaseSavePersistsButDoesNotReloadStaleOrQuittingReview(t *testing.
 			sess := reviewSessionByName(t, m, "base-save-"+tc.name)
 			seedReviewPickerModel(t, m, sess.ID, "/raw/repo")
 			state := m.review.Snapshot()
-			m.reviewNav.picker.repoPickState = repoPickState{
-				kind: pickBase, source: reviewPickerSource{
-					generation: state.Generation, targetID: state.SessionID, repoRoot: state.RepoSelected,
-				},
-				storeRoot: "/canonical/repo",
-			}
+			m.reviewNav.picker.Open(nil, "", uireview.PickBase, "", uireview.PickerSource{
+				Generation: state.Generation, TargetID: state.SessionID, RepoRoot: state.RepoSelected,
+			}, "/canonical/repo")
 
 			cmd := m.selectBase("feature")
 			if cmd == nil || m.effects.main.active == nil {
@@ -213,12 +213,9 @@ func TestReviewBaseSaveAllowsOnlyOnePendingRequest(t *testing.T) {
 	sess := reviewSessionByName(t, m, "base-one")
 	seedReviewPickerModel(t, m, sess.ID, "/raw/repo")
 	state := m.review.Snapshot()
-	m.reviewNav.picker.repoPickState = repoPickState{
-		kind: pickBase, source: reviewPickerSource{
-			generation: state.Generation, targetID: state.SessionID, repoRoot: state.RepoSelected,
-		},
-		storeRoot: "/canonical/repo",
-	}
+	m.reviewNav.picker.Open(nil, "", uireview.PickBase, "", uireview.PickerSource{
+		Generation: state.Generation, TargetID: state.SessionID, RepoRoot: state.RepoSelected,
+	}, "/canonical/repo")
 
 	cmd := m.selectBase("feature")
 	if cmd == nil {
@@ -294,7 +291,7 @@ func TestReviewBaseSaveCompletesBehindReviewHelp(t *testing.T) {
 	if m.review.Snapshot().Scope != git.ScopeBranch {
 		t.Fatalf("base completion did not continue behind help: scope=%v", m.review.Snapshot().Scope)
 	}
-	stored, err := m.services.store.ReviewBase(session.ID, m.reviewNav.picker.storeRoot)
+	stored, err := m.services.store.ReviewBase(session.ID, m.reviewNav.picker.StoreRoot())
 	if err != nil || stored != "feature" {
 		t.Fatalf("stored base=%q err=%v", stored, err)
 	}
@@ -329,7 +326,7 @@ func TestReviewBaseSaveCompletesBehindBranchPicker(t *testing.T) {
 	if m.mode != modeRepoPick {
 		t.Fatalf("branch picker did not open: mode=%v", m.mode)
 	}
-	oldGeneration := m.reviewNav.picker.source.generation
+	oldGeneration := m.reviewNav.picker.Source().Generation
 
 	m.drainCmds(t, saveCmd)
 	if m.mode != modeRepoPick || m.review.Snapshot().Scope != git.ScopeBranch {

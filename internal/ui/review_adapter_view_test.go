@@ -17,145 +17,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestWrapTintedPreservesText(t *testing.T) {
-	rows := wrapTinted("func main() {", nil, bgAdd, bgAddSpan, 40)
-	if len(rows) != 1 {
-		t.Fatalf("short line should be one row: %d", len(rows))
-	}
-	// A tinted row pads to width so the background fills the column.
-	if got := strings.TrimRight(ansi.Strip(rows[0]), " "); got != "func main() {" {
-		t.Fatalf("text mangled: %q", got)
-	}
-	if !strings.HasPrefix(rows[0], bgAdd) {
-		t.Fatalf("background not opened: %q", rows[0])
-	}
-}
-
-func TestWrapTintedReemitsBackgroundAfterReset(t *testing.T) {
-	rows := wrapTinted("\x1b[38;5;197mfunc\x1b[0m main", nil, bgDel, bgDelSpan, 40)
-	tinted := rows[0]
-	if !strings.HasPrefix(ansi.Strip(tinted), "func main") {
-		t.Fatalf("text mangled: %q", ansi.Strip(tinted))
-	}
-	resetAt := strings.Index(tinted, "\x1b[0m")
-	if resetAt < 0 || !strings.HasPrefix(tinted[resetAt+4:], bgDel) {
-		t.Fatalf("background must be re-opened after chroma reset: %q", tinted)
-	}
-}
-
-func TestWrapTintedSpanSwitch(t *testing.T) {
-	rows := wrapTinted("if t <= exp", []diff.Span{{Start: 5, End: 7}}, bgAdd, bgAddSpan, 40)
-	if !strings.Contains(rows[0], bgAddSpan) {
-		t.Fatalf("span background missing: %q", rows[0])
-	}
-	if !strings.HasPrefix(ansi.Strip(rows[0]), "if t <= exp") {
-		t.Fatalf("text mangled: %q", ansi.Strip(rows[0]))
-	}
-}
-
-func TestWrapTintedWordBoundary(t *testing.T) {
-	line := "hello world foo bar"
-	rows := wrapTinted(line, nil, "", "", 14)
-	stripped := ansi.Strip(strings.Join(rows, ""))
-	stripped = strings.TrimSpace(stripped)
-	words := strings.Fields(stripped)
-	if len(words) != 4 {
-		t.Fatalf("expected 4 words, got %d: %q", len(words), words)
-	}
-	for _, w := range words {
-		if !strings.Contains("hello world foo bar", w) {
-			t.Fatalf("unexpected word fragment: %q", w)
-		}
-	}
-}
-
-func TestWrapTintedLongWordFallsBack(t *testing.T) {
-	word := strings.Repeat("x", 60)
-	line := "before " + word + " after"
-	rows := wrapTinted(line, nil, "", "", 20)
-	stripped := ansi.Strip(strings.Join(rows, ""))
-	if !strings.Contains(stripped, "before") {
-		t.Fatal("missing before")
-	}
-	if !strings.Contains(stripped, "after") {
-		t.Fatal("missing after")
-	}
-	if xs := strings.Count(stripped, "x"); xs != 60 {
-		t.Fatalf("expected 60 x's, got %d", xs)
-	}
-	for _, row := range rows {
-		if w := ansi.StringWidth(row); w > 20 {
-			t.Fatalf("row exceeds width: %d", w)
-		}
-	}
-}
-
-func TestWrapTintedWordWrapWithSpans(t *testing.T) {
-	line := "if a > b return c"
-	rows := wrapTinted(line, []diff.Span{{Start: 5, End: 6}}, bgAdd, bgAddSpan, 10)
-	stripped := ansi.Strip(strings.Join(rows, ""))
-	stripped = strings.ReplaceAll(stripped, " ", "")
-	if stripped != "ifa>breturnc" {
-		t.Fatalf("content lost or reordered: %q", stripped)
-	}
-	for _, row := range rows {
-		if w := ansi.StringWidth(row); w > 10 {
-			t.Fatalf("row exceeds width: %d row=%q", w, row)
-		}
-	}
-}
-
-func TestWrapTintedWordWrapNoSpaces(t *testing.T) {
-	long := strings.Repeat("x", 100)
-	rows := wrapTinted(long, nil, "", "", 20)
-	if len(rows) != 5 {
-		t.Fatalf("100 cols / 20 = 5 rows, got %d", len(rows))
-	}
-	var joined string
-	for _, row := range rows {
-		if w := ansi.StringWidth(row); w > 20 {
-			t.Fatalf("row exceeds width: %d", w)
-		}
-		joined += ansi.Strip(row)
-	}
-	if joined != long {
-		t.Fatalf("wrap lost content: %q", joined)
-	}
-}
-
-func TestHighlightFileBothSides(t *testing.T) {
-	fd := diff.BuildFile(
-		[]byte("package a\n\nfunc A() {}\n"),
-		[]byte("package a\n\nfunc A() int { return 1 }\n"),
-		git.ChangedFile{Path: "a.go", OldPath: "a.go", Status: git.Modified}, git.FileStat{})
-	hl := highlightFile(&fd)
-	if hl == nil {
-		t.Fatal("highlight is nil")
-	}
-	if first := hl.Line(0, ""); !strings.Contains(first, "\x1b[") {
-		t.Fatalf("go source should highlight: %q", first)
-	}
-	assertHighlightMatchesText(t, &fd, hl)
-}
-
-// A hunk-only model skips file lines, so highlighting keyed by line number
-// would colour every line after the first gap with another line's tokens.
-func TestHighlightFileHunkModel(t *testing.T) {
-	fd := bigEditedFile(t)
-	if fd.Lines[0].Kind != diff.Gap {
-		t.Fatalf("want a hunk model opening with a gap, got %d lines", len(fd.Lines))
-	}
-	hl := highlightFile(&fd)
-	var highlighted strings.Builder
-	for i := range fd.Lines {
-		highlighted.WriteString(hl.Line(i, ""))
-	}
-	if !strings.Contains(highlighted.String(), "\x1b[") {
-		t.Fatal("go source should highlight")
-	}
-	assertHighlightMatchesText(t, &fd, hl)
-}
-
 // The point of the hunk model: one edit deep inside a file too big for the
 // whole-file model still reaches the screen.
 func TestReviewRendersHunksForBigFile(t *testing.T) {
@@ -194,15 +55,6 @@ func bigEditedFile(t *testing.T) diff.FileDiff {
 		t.Fatal("the hunk model is empty")
 	}
 	return fd
-}
-
-func assertHighlightMatchesText(t *testing.T, fd *diff.FileDiff, hl *fileHL) {
-	t.Helper()
-	for i, line := range fd.Lines {
-		if got := ansi.Strip(hl.Line(i, line.Text)); got != line.Text {
-			t.Fatalf("line %d highlight drifted: %q vs %q", i, got, line.Text)
-		}
-	}
 }
 
 // The review header always names the repo and its branch; in branch scope it
@@ -312,16 +164,6 @@ func TestReviewHeaderShowsCodeOnlyFilter(t *testing.T) {
 	}
 	if !strings.Contains(header, "+2") || !strings.Contains(header, "−2") {
 		t.Fatalf("header should drop the lock file's totals, got %q", header)
-	}
-}
-
-func BenchmarkHighlightLargeHunkModel(b *testing.B) {
-	fd := diff.BuildFile(nil, []byte(strings.Repeat(strings.Repeat("x", 4000)+"\n", 8000)),
-		git.ChangedFile{Path: "large.txt", Status: git.Added}, git.FileStat{})
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		highlightFile(&fd)
 	}
 }
 

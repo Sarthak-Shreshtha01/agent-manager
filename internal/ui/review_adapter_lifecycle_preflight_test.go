@@ -8,6 +8,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/git"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uireview "github.com/YoanWai/agent-manager/internal/ui/review"
 )
 
 type reviewReadProbe struct {
@@ -116,12 +117,12 @@ func TestReviewPreferencesFinishBehindPickerWithoutLeavingLoadingStuck(t *testin
 	m.ledger.pickedRepos = map[string]string{s.ID: s.Cwd}
 	cmd := m.openDiffWithReader(&reviewReadProbe{})
 	state := m.review.Snapshot()
-	m.reviewNav.picker.open(m, []pickRow{{label: "branch", root: s.Cwd}}, "branches", pickRepo, s.Cwd, reviewPickerSource{generation: state.Generation, targetID: s.ID, repoRoot: s.Cwd}, "")
+	m.openReviewPicker([]uireview.PickerRow{{Label: "branch", Root: s.Cwd}}, "branches", uireview.PickRepo, s.Cwd, uireview.PickerSource{Generation: state.Generation, TargetID: s.ID, RepoRoot: s.Cwd}, "")
 	_, load := m.handleReviewPreferences(cmd().(reviewPreferencesMsg))
 	if m.mode != modeRepoPick || load == nil {
 		t.Fatal("picker stranded the sole review load")
 	}
-	if m.reviewPickerSourceCurrent(m.reviewNav.picker.source) {
+	if m.review.PickerSourceCurrent(m.reviewNav.picker.Source()) {
 		t.Fatal("old picker survived review preparation")
 	}
 }

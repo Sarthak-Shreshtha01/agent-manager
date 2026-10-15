@@ -55,7 +55,7 @@ func (m *Model) renderFrame() string {
 	case modeMove:
 		frame = m.move.view(m)
 	case modeRepoPick:
-		frame = m.reviewNav.picker.view(m)
+		frame = m.viewRepoPick()
 	case modeGroupForm:
 		frame = m.viewGroupForm()
 	case modeDiff:

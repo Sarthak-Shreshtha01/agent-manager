@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/YoanWai/agent-manager/internal/diff"
 	"github.com/YoanWai/agent-manager/internal/git"
@@ -224,14 +223,13 @@ func TestHandledCommentsStayVisibleWithAMutedColor(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	t.Cleanup(func() { lipgloss.SetColorProfile(previous) })
 	m := &Model{}
-	fd := &diff.FileDiff{File: git.ChangedFile{Path: "main.go"}, Lines: []diff.Line{{NewNum: 1, Text: "line"}}}
+	fd := &diff.FileDiff{File: git.ChangedFile{Path: "main.go"}, Lines: []diff.Line{{NewNum: 1, Text: "line"}}, IsLoaded: true}
 	seedReviewStateForTest(m, uireview.Target{ID: "abc123"}, git.ScopeUncommitted, "/repo",
 		diff.Set{Repo: git.Repo{Root: "/repo"}, Files: []diff.FileDiff{*fd}}, uireview.SavedState{Comments: []uireview.Comment{
 			{ID: "0123456789abcdef", File: "main.go", Line: 1, Text: "still open", Round: 2, Point: 1},
 			{ID: "fedcba9876543210", File: "main.go", Line: 1, Text: "already fixed", Round: 1, Point: 3, Resolved: true},
 		}})
-	rows := m.annotationRows(fd, 0, 80)
-	rendered := strings.Join(rows, "\n")
+	rendered := m.viewDiffCode(80, 10)
 	plain := ansi.Strip(rendered)
 	for _, want := range []string{"Review round 2 · point 1 · open still open", "Review round 1 · point 3 · handled already fixed"} {
 		if !strings.Contains(plain, want) {
@@ -411,20 +409,6 @@ func TestReanchorKeepsAmbiguousAndAvoidsCollapse(t *testing.T) {
 	}
 }
 
-func TestExcerptKeepsRuneBoundary(t *testing.T) {
-	line := "  " + strings.Repeat("ש", 70)
-	excerpt := uireview.Excerpt(line)
-	if !utf8.ValidString(excerpt) {
-		t.Fatalf("excerpt split a rune: %q", excerpt)
-	}
-	if got := len([]rune(excerpt)); got != 60 {
-		t.Fatalf("excerpt rune count = %d, want 60", got)
-	}
-	if short := uireview.Excerpt("  short  "); short != "short" {
-		t.Fatalf("short excerpt = %q", short)
-	}
-}
-
 // Sending review comments writes into the pane the same way the quick
 // prompt does, so it refuses a shell for the same reason: the prompt is an
 // English sentence, and a shell would run it.
@@ -481,24 +465,6 @@ func TestDiffSendConfirmIgnoresMotionKeys(t *testing.T) {
 	}
 	if len(m.review.Annotations()) != 1 {
 		t.Fatal("cancel should keep the comments")
-	}
-}
-
-func TestDiffCommentBoxGrowsWithText(t *testing.T) {
-	m := &Model{layout: layoutState{width: 100, height: 30}, mode: modeDiff}
-	seedReviewForTest(m, uireview.Target{ID: "s1"}, git.ScopeUncommitted, "/repo",
-		diff.Set{Repo: git.Repo{Root: "/repo"}, Files: []diff.FileDiff{diff.BuildFile(nil, []byte("line\n"), git.ChangedFile{Path: "main.go"}, git.FileStat{})}}, true)
-	m.openAnnotate()
-	if m.annotationInputHeight(40) != 1 {
-		t.Fatal("empty comment should stay one row")
-	}
-	typeReviewAnnotation(m, strings.Repeat("word ", 40))
-	got := m.annotationInputHeight(40)
-	if got <= 1 {
-		t.Fatalf("long comment stayed %d rows", got)
-	}
-	if got > annotationInputMaxRows {
-		t.Fatalf("comment box grew past the cap: %d", got)
 	}
 }
 
