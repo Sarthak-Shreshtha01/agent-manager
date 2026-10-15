@@ -101,7 +101,7 @@ func (c *Client) sshArgv(destination string, tty bool, command string) []string 
 	if tty {
 		ttyFlag = "-t"
 	}
-	return []string{
+	argv := []string{
 		"ssh",
 		"-o", "BatchMode=yes",
 		"-o", "ForwardAgent=no",
@@ -109,13 +109,9 @@ func (c *Client) sshArgv(destination string, tty bool, command string) []string 
 		"-o", "ConnectTimeout=5",
 		"-o", "ServerAliveInterval=15",
 		"-o", "ServerAliveCountMax=2",
-		"-o", "ControlMaster=auto",
-		"-o", "ControlPersist=60",
-		"-o", "ControlPath=" + filepath.Join(c.controlDir, "%C"),
-		ttyFlag,
-		destination,
-		command,
 	}
+	argv = append(argv, sharing(c.controlDir)...)
+	return append(argv, ttyFlag, destination, command)
 }
 
 // outputMarker is printed once the login profile has run, right before
@@ -174,7 +170,7 @@ func quote(word string) string {
 }
 
 // AttachCommand opens the row's tmux session in the user's terminal over
-// the same control socket the polls use.
+// the same control socket the polls use, where ssh shares connections.
 func (c *Client) AttachCommand(ref Ref) (*exec.Cmd, error) {
 	conn, err := c.connection(ref.Host)
 	if err != nil {
@@ -183,7 +179,7 @@ func (c *Client) AttachCommand(ref Ref) (*exec.Cmd, error) {
 	if err := validID(ref.ID); err != nil {
 		return nil, &Error{Host: ref.Host, Err: err}
 	}
-	if err := ensureControlDir(c.controlDir); err != nil {
+	if err := prepareSharing(c.controlDir); err != nil {
 		return nil, &Error{Host: ref.Host, Err: err}
 	}
 	words := []string{"tmux", "-u", "-L", "agentmgr", "attach-session", "-t", "am_" + ref.ID}

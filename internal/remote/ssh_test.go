@@ -123,27 +123,44 @@ func TestQuoteKeepsBackslashesOutsideQuotes(t *testing.T) {
 	}
 }
 
-func TestSSHArgv(t *testing.T) {
-	c := New("/profile")
-	got := c.sshArgv("me@gpu", false, remoteCommand([]string{"agent-manager", "snapshot", "--json"}))
-	want := []string{
-		"ssh",
-		"-o", "BatchMode=yes",
-		"-o", "ForwardAgent=no",
-		"-o", "ClearAllForwardings=yes",
-		"-o", "ConnectTimeout=5",
-		"-o", "ServerAliveInterval=15",
-		"-o", "ServerAliveCountMax=2",
-		"-o", "ControlMaster=auto",
-		"-o", "ControlPersist=60",
-		"-o", "ControlPath=" + filepath.Join(c.controlDir, "%C"),
-		"-T",
-		"me@gpu",
-		`exec "$SHELL" -lc 'printf %s '\''` + "\x1eagent-manager\x1e" +
-			`'\''; exec '\''agent-manager'\'' '\''snapshot'\'' '\''--json'\'''`,
+// sshDestinationEnv names a host the real ssh reaches without a prompt,
+// with agent-manager on its login PATH. CI points it at an sshd in WSL to
+// drive the Windows client.
+const sshDestinationEnv = "AM_REMOTE_TEST_SSH_DESTINATION"
+
+// The same remote command and argv a call runs, through the real ssh and
+// sshd: the awkward arguments come back whole, and so does a snapshot.
+func TestRealSSHRoundTrip(t *testing.T) {
+	destination := os.Getenv(sshDestinationEnv)
+	if destination == "" {
+		t.Skip(sshDestinationEnv + " names no host")
 	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("argv:\n got %q\nwant %q", got, want)
+	c := New(t.TempDir())
+	t.Cleanup(func() { os.RemoveAll(c.controlDir) })
+	c.SetConnections([]Connection{{Name: "real", Destination: destination}})
+	if err := prepareSharing(c.controlDir); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
+	defer cancel()
+	words := append([]string{"printf", `%s\0`}, awkwardArgs...)
+	stdout, stderr, err := runSSH(ctx, c.sshArgv(destination, false, remoteCommand(words)))
+	if err != nil {
+		t.Fatalf("ssh: %v\nstderr: %s", err, stderr)
+	}
+	out, marked := answer(stdout)
+	if !marked {
+		t.Fatalf("login shell printed no marker: %q", stdout)
+	}
+	got := strings.Split(string(out), "\x00")
+	if got = got[:len(got)-1]; !slices.Equal(got, awkwardArgs) {
+		t.Fatalf("arguments changed on the way through ssh:\n got %q\nwant %q", got, awkwardArgs)
+	}
+	// Twice, so on Unix the second runs over the master the first left.
+	for range 2 {
+		if _, err := c.Snapshot(context.Background(), "real"); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

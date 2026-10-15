@@ -5,6 +5,8 @@ package remote
 import (
 	"context"
 	"errors"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -60,4 +62,28 @@ func TestRunSSHStopsWaitingForAPipeAfterSSHExits(t *testing.T) {
 		t.Fatalf("a whole answer failed: %v", err)
 	}
 	helperPID(t, stdout)
+}
+
+func TestSSHArgv(t *testing.T) {
+	c := New("/profile")
+	got := c.sshArgv("me@gpu", false, remoteCommand([]string{"agent-manager", "snapshot", "--json"}))
+	want := []string{
+		"ssh",
+		"-o", "BatchMode=yes",
+		"-o", "ForwardAgent=no",
+		"-o", "ClearAllForwardings=yes",
+		"-o", "ConnectTimeout=5",
+		"-o", "ServerAliveInterval=15",
+		"-o", "ServerAliveCountMax=2",
+		"-o", "ControlMaster=auto",
+		"-o", "ControlPersist=60",
+		"-o", "ControlPath=" + filepath.Join(c.controlDir, "%C"),
+		"-T",
+		"me@gpu",
+		`exec "$SHELL" -lc 'printf %s '\''` + "\x1eagent-manager\x1e" +
+			`'\''; exec '\''agent-manager'\'' '\''snapshot'\'' '\''--json'\'''`,
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("argv:\n got %q\nwant %q", got, want)
+	}
 }

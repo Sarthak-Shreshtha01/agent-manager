@@ -77,7 +77,9 @@ Every call runs `ssh` with:
 - `ForwardAgent=no` and `ClearAllForwardings=yes`.
 - `ConnectTimeout=5` and server-alive limits.
 - A per-profile `ControlMaster`/`ControlPersist` socket under a short private
-  directory, so a poll does not open a new connection each time.
+  directory, so a poll does not open a new connection each time. Not on
+  Windows: its `ssh.exe` has no connection sharing, so each call there opens
+  its own connection.
 
 The remote command runs in the user's login shell (`exec "$SHELL" -lc ...`),
 so the `PATH` the user set up there finds the binary, wherever it was
@@ -94,6 +96,11 @@ each host has one call in flight at a time.
 | SSH client | `internal/remote` | Refs, validation, the SSH command, snapshot, routed operations, starting the remote manager |
 | UI | `internal/ui/connection_*.go` | The connection dialog, connection rows, remote rows, routing actions to `internal/remote` on the effect lane |
 | MCP | `internal/mcpserver/remote*.go` | Listing every connection with qualified ids, routing qualified ids |
+
+## Platforms
+
+The local machine can be Linux, macOS or Windows. The remote host must be Linux or macOS, since the remote command runs in a
+POSIX login shell. A Windows remote is not supported.
 
 ## Not in scope
 

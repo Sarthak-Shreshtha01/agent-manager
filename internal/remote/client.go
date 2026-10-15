@@ -159,7 +159,7 @@ func (c *Client) call(ctx context.Context, host string, timeout time.Duration, a
 	case <-ctx.Done():
 		return nil, &Error{Host: host, Err: ctx.Err()}
 	}
-	if err := ensureControlDir(c.controlDir); err != nil {
+	if err := prepareSharing(c.controlDir); err != nil {
 		return nil, &Error{Host: host, Err: err}
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
