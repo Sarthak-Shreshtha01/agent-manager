@@ -13,6 +13,7 @@ Under `internal/`:
 - `execution`: UI-free poller and runner: capture, delivery, mailbox, status, notifications.
 - `ui`: the Bubble Tea program. One `Model` routes messages, runs effects, composes the frame.
 - `ui/help`, `ui/review`, `ui/focus`, `ui/rail`, `ui/settings`: feature packages with private models.
+- `ui/focus/watch`: the focused pane's watcher: control-mode client, polled fallback, pushed frames.
 - `ui/theme`: the built-in palettes and color math, a leaf any UI package may import.
 - `ui/presentation`: pure text helpers shared by `ui`, `ui/help`, `ui/review` and `ui/rail`.
 - `store`: SQLite state: sessions, groups, settings, inbox, tasks, reservations, delivery guard.
@@ -42,7 +43,8 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
   `ui/help` and `ui/rail` import `keybind` and `ui/presentation`; `ui/settings`
   imports `keybind`, `ui/presentation` and `ui/theme`; `ui/review`
   imports `diff/model`, `git/value` and `ui/presentation`; `diff/model`
-  imports `git/value`; `ui/focus`, `ui/theme`, `git/value` and `ui/presentation` import
+  imports `git/value`; `ui/focus/watch` imports `tmux` (with its `deps` and
+  `keybind`); `ui/focus`, `ui/theme`, `git/value` and `ui/presentation` import
   nothing from the module. Test imports are not checked.
 - **File names.** `go run ./tools/architecture/check-file-names`. Every
   non-test file in `internal/ui` starts with a feature name from the
@@ -82,8 +84,9 @@ work. There is no shared event bus or effect interpreter, because it would hide
 who owns what. Line counts and field counts do not prove a boundary; the checks
 above do.
 
-**Runtime resources stay with the root.** The tmux control client (`focus_watch.go`),
-the clipboard (`focus_selection.go`, `composer.go`) and the IME cursor
+**Runtime resources stay with the root.** The tmux control client's mechanics
+live in `ui/focus/watch`; the root holds and closes the instance (`focus_watch.go`).
+The clipboard (`focus_adapter.go`, `composer.go`) and the IME cursor
 (`frame_ime.go`) are held and published by `internal/ui`. Feature packages
 see copied pane facts and hand back typed outcomes. That keeps the child packages
 testable without tmux or a terminal, and keeps one place that closes what it

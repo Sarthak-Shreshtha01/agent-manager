@@ -62,6 +62,19 @@ func TestFeaturePackagesRejectRuntimeTransitively(t *testing.T) {
 	}
 }
 
+// The pane watcher runs tmux and nothing else of the module: not the root,
+// the store, or Focus's own model.
+func TestFocusWatchStaysOnTmux(t *testing.T) {
+	if err := checkBoundary(watchBoundary); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/internal/ui", "/internal/ui/focus", "/internal/store", "/internal/status", "/internal/execution"} {
+		if err := checkBoundaryDependencies(watchBoundary, []string{module + path}); err == nil {
+			t.Fatalf("forbidden dependency %s was accepted", module+path)
+		}
+	}
+}
+
 func TestPresentationDependsOnNothingInTheModule(t *testing.T) {
 	if err := checkBoundary(presentBoundary); err != nil {
 		t.Fatal(err)

@@ -13,21 +13,6 @@ import (
 	"github.com/YoanWai/agent-manager/internal/tmux"
 )
 
-func TestGuardedMouseCommandWrapsTheSend(t *testing.T) {
-	command, args := guardedMouseCommand("abc", "\x1b[<64;3;2M")
-	if !strings.HasPrefix(command, "if-shell -F -t "+tmux.PaneTarget("abc")+" '#{mouse_any_flag}' 'send-keys") {
-		t.Fatalf("control-pipe command = %q", command)
-	}
-	if len(args) != 7 || args[0] != "if-shell" || args[4] != "#{mouse_any_flag}" {
-		t.Fatalf("fallback args = %q", args)
-	}
-	// The nested send has to stay one argument, which is why it cannot ride
-	// the whitespace-splitting SendRaw.
-	if !strings.HasPrefix(args[5], "send-keys -t ") || !strings.Contains(args[5], " -H ") {
-		t.Fatalf("nested command = %q", args[5])
-	}
-}
-
 // The guard has to be transparent while the application really is tracking
 // the mouse, and silent once it has stopped.
 func TestGuardedMouseCommandFollowsTheLiveFlag(t *testing.T) {
@@ -55,7 +40,7 @@ func TestGuardedMouseCommandFollowsTheLiveFlag(t *testing.T) {
 		testfixture.WaitForReady(t, ready)
 	}
 
-	_, args := guardedMouseCommand(sessID, "\x1b[<64;7;3M")
+	_, args := tmux.GuardedMouseReport(tmux.PaneTarget(sessID), "\x1b[<64;7;3M")
 	if err := driver.SendCommand(args...); err != nil {
 		t.Fatalf("guarded send while tracking: %v", err)
 	}
@@ -65,7 +50,7 @@ func TestGuardedMouseCommandFollowsTheLiveFlag(t *testing.T) {
 
 	stopMouseTracking(t, driver, sessID)
 
-	_, args = guardedMouseCommand(sessID, "\x1b[<64;9;4M")
+	_, args = tmux.GuardedMouseReport(tmux.PaneTarget(sessID), "\x1b[<64;9;4M")
 	if err := driver.SendCommand(args...); err != nil {
 		t.Fatalf("guarded send after tracking stopped: %v", err)
 	}
@@ -101,8 +86,8 @@ func TestGuardedMouseCommandKeepsControlRepliesAligned(t *testing.T) {
 
 	expectAligned := func(state string) {
 		t.Helper()
-		command, _ := guardedMouseCommand(sessID, "\x1b[<64;7;3M")
-		if err := control.SendBlocks(command, guardedMouseReplies); err != nil {
+		command, _ := tmux.GuardedMouseReport(tmux.PaneTarget(sessID), "\x1b[<64;7;3M")
+		if err := control.SendBlocks(command, tmux.GuardedMouseReplies); err != nil {
 			t.Fatalf("guarded send while %s: %v", state, err)
 		}
 		for _, marker := range []string{"first", "second"} {

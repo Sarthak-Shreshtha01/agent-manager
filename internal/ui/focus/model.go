@@ -69,7 +69,7 @@ type PaneState struct {
 	History   int
 	Cursor    Cursor
 	// Writes is how many counted writes had landed when the frame was
-	// captured; see the root watcher's caughtUp.
+	// captured; see the pane watcher's CaughtUp.
 	Writes uint64
 }
 
@@ -95,7 +95,7 @@ type PaneUpdate struct {
 	History   int
 	Cursor    Cursor
 	// Writes is how many counted writes had landed when the frame was
-	// captured; see the root watcher's caughtUp.
+	// captured; see the pane watcher's CaughtUp.
 	Writes uint64
 }
 

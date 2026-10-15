@@ -70,12 +70,12 @@ func (m *Model) enterFocus(sess store.Session) tea.Cmd {
 		m.pinFullFocusPane(sess.ID)
 	}
 	if m.focus.runtime.watch != nil {
-		m.focus.runtime.watch.retryNow()
+		m.focus.runtime.watch.RetryNow()
 	}
 	m.watchSelection()
 	pane := m.focus.pane.Pane()
 	keepPaneFacts := m.focus.runtime.watch != nil &&
-		m.focus.runtime.watch.serving(sess.ID) && pane.SessionID == sess.ID
+		m.focus.runtime.watch.Serving(sess.ID) && pane.SessionID == sess.ID
 	m.focus.pane.Enter(uifocus.EnterContext{SessionID: sess.ID, KeepPaneFacts: keepPaneFacts})
 	return tea.Batch(tea.EnableMouseCellMotion, m.cursorBlink())
 }

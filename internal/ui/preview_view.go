@@ -44,9 +44,6 @@ func (m *Model) contentLines(width, height int) []contentLine {
 	return body[:max(height, 0)]
 }
 
-// focusTopRule is the hairline that caps the focused pane in the split,
-// where the detail head above it already names the session, so the rule
-// spends its title on the keys instead.
 func (m *Model) listHint(action, label string) string {
 	glyph := m.listGlyph(action)
 	if glyph == "" {

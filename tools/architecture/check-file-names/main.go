@@ -28,7 +28,7 @@ var features = map[string]string{
 	"composer":     "prompt composers, chips and pasted images",
 	"confirm":      "the confirm dialog",
 	"effects":      "the ordered effect lane and its executor",
-	"focus":        "the Focus adapter and pane watch",
+	"focus":        "the Focus adapter, its frame view and the pane watcher it holds",
 	"fork":         "the fork dialog",
 	"frame":        "frame composition: dialog chrome, header, legend, IME, text layout and control escaping",
 	"geometry":     "pane sizing, layout widths and the split ratio",

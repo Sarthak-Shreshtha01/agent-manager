@@ -1,6 +1,6 @@
 //go:build darwin || linux
 
-package ui
+package watch
 
 import (
 	"context"
@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/tmux"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestFocusWatchCloseCancelsAndReapsAnUngreetedControl(t *testing.T) {
@@ -42,8 +41,8 @@ exit 0
 	if err != nil {
 		t.Fatal(err)
 	}
-	watch := newFocusWatch(driver, func(tea.Msg) {})
-	watch.setFocus("fixture")
+	watch := newTestWatcher(driver, func(any) {})
+	watch.SetFocus("fixture")
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		if _, statErr := os.Stat(pidPath); statErr == nil {
@@ -111,8 +110,8 @@ exit 0
 	releaseCallback := make(chan struct{})
 	var startOnce, releaseOnce sync.Once
 	release := func() { releaseOnce.Do(func() { close(releaseCallback) }) }
-	watch := newFocusWatch(driver, func(msg tea.Msg) {
-		if _, ok := msg.(focusPreviewMsg); !ok {
+	watch := newTestWatcher(driver, func(msg any) {
+		if _, ok := msg.(Frame); !ok {
 			return
 		}
 		startOnce.Do(func() { close(callbackStarted) })
@@ -122,7 +121,7 @@ exit 0
 		release()
 		watch.Close()
 	})
-	watch.setFocus("fixture")
+	watch.SetFocus("fixture")
 	select {
 	case <-callbackStarted:
 	case <-time.After(2 * time.Second):
@@ -177,7 +176,7 @@ exit 0
 	if err != nil {
 		t.Fatal(err)
 	}
-	watch := newFocusWatch(driver, func(tea.Msg) {})
+	watch := newTestWatcher(driver, func(any) {})
 	ctx, cancel := context.WithCancel(context.Background())
 	time.AfterFunc(50*time.Millisecond, cancel)
 	defer cancel()

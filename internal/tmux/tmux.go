@@ -145,12 +145,14 @@ func (d *Driver) commandContext(ctx context.Context, args ...string) *exec.Cmd {
 }
 
 func (d *Driver) run(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), CommandTimeout)
 	defer cancel()
 	return d.runContext(ctx, args...)
 }
 
-const driverCommandTimeout = 5 * time.Second
+// CommandTimeout bounds every Driver call that takes no context. A caller
+// with no context of its own bounds a Context call by it the same way.
+const CommandTimeout = 5 * time.Second
 
 func (d *Driver) runContext(ctx context.Context, args ...string) (string, error) {
 	return d.runContextStarted(ctx, nil, args...)
@@ -271,7 +273,7 @@ func (d *Driver) Exists(id string) bool {
 // transport failure. Callers making destructive cleanup decisions must use
 // this typed result instead of treating every command error as absence.
 func (d *Driver) SessionExists(id string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), driverCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), CommandTimeout)
 	defer cancel()
 	return d.SessionExistsContext(ctx, id)
 }

@@ -70,7 +70,7 @@ func (s effectServices) runAfterTurn(request afterTurnRequest) (effectResult, er
 		// Stop watching first, so the watcher does not report a kill it asked for as a lost client.
 		if s.watch != nil {
 			for _, id := range ids {
-				s.watch.unwatch(id)
+				s.watch.Unwatch(id)
 			}
 		}
 		ended, endErr = s.lifecycle.EndAfterTurn(request.id)
