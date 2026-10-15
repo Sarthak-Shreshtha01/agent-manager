@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+const quickModeTitle = "Quick prompt mode"
+
 func (m *Model) quickFooter() string {
 	edge := keyStyle.Render(quickEdge)
 	gutter := strings.Repeat(" ", quickGutter-1)
