@@ -110,6 +110,21 @@
 				Write-Host "agent-manager $($dep.Reason), which is missing; install it with: $($dep.Install)" -ForegroundColor Yellow
 			}
 		}
+		if (Get-Command psmux -ErrorAction SilentlyContinue) {
+			$version = $null
+			foreach ($line in (& psmux -V 2>$null)) {
+				if ($line -like 'psmux *') {
+					$version = ($line -split '\s+')[1]
+					break
+				}
+			}
+			$minimum = [version]'3.4.0'
+			$parsed = $null
+			if ($version -and -not [version]::TryParse($version, [ref]$parsed)) { $parsed = $null }
+			if (-not $parsed -or $parsed -lt $minimum) {
+				Write-Host "agent-manager needs psmux $minimum or newer; upgrade it with: winget upgrade psmux" -ForegroundColor Yellow
+			}
+		}
 	}
 
 	$tmp = Join-Path ([IO.Path]::GetTempPath()) ('agent-manager-install-' + [guid]::NewGuid())

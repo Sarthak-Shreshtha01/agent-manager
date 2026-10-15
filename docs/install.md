@@ -53,7 +53,7 @@ Download from [Releases](https://github.com/YoanWai/agent-manager/releases) (mac
 
 ## Windows
 
-agent-manager runs natively on Windows on [psmux](https://github.com/psmux/psmux), a tmux-compatible multiplexer, with PowerShell as the pane shell. In PowerShell:
+agent-manager runs natively on Windows on [psmux](https://github.com/psmux/psmux) 3.4.0 or newer, a tmux-compatible multiplexer, with PowerShell as the pane shell. In PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/YoanWai/agent-manager/main/install.ps1 | iex
@@ -63,7 +63,7 @@ The script installs `agent-manager.exe` to `%LOCALAPPDATA%\Programs\agent-manage
 
 | Tool | Install |
 | --- | --- |
-| psmux | `winget install psmux` (or `cargo install psmux`) |
+| psmux | `winget install psmux` (or `cargo install psmux`) — 3.4.0 or newer; older builds misbehave and the manager refuses them |
 | git | `winget install --id Git.Git -e` |
 | PowerShell 7 | `winget install Microsoft.PowerShell` (Windows PowerShell 5.1 works, but can mangle quotes in arguments to agent CLIs) |
 
