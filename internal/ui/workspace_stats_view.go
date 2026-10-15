@@ -90,3 +90,46 @@ func tempReadings(snap sysstat.Snapshot) string {
 	}
 	return strings.Join(parts, subtleStyle.Render("  "))
 }
+
+func (m *Model) railFootLines(width int) []string {
+	if m.prefs.hideStats {
+		return nil
+	}
+	if m.prefs.fullLayout {
+		return m.fullFootLine(width)
+	}
+	return m.computerLines(width)
+}
+
+func (m *Model) fullFootLine(width int) []string {
+	reading := func(label, value string, ok bool) string {
+		if !ok {
+			return labelStyle.Render(label+" ") + subtleStyle.Render("n/a")
+		}
+		return labelStyle.Render(label+" ") + valueStyle.Render(value)
+	}
+	snap := m.workspace.snap
+	parts := []string{
+		reading("cpu", fmt.Sprintf("%.0f%%", snap.CPUPercent), snap.CPUOK),
+		reading("mem", fmt.Sprintf("%.0f%% %s/%s", snap.MemPercent, humanBytes(snap.MemUsed), humanBytes(snap.MemTotal)), snap.MemOK),
+	}
+	if snap.SwapOK && snap.SwapTotal > 0 {
+		parts = append(parts, reading("swap", fmt.Sprintf("%.0f%% %s/%s", snap.SwapPercent, humanBytes(snap.SwapUsed), humanBytes(snap.SwapTotal)), true))
+	}
+	parts = append(parts, reading("disk", fmt.Sprintf("%.0f%% %s available", snap.DiskPercent, diskBytes(snap.DiskAvailable)), snap.DiskOK))
+	if snap.BatteryOK {
+		value := fmt.Sprintf("%.0f%%", snap.BatteryPercent)
+		if snap.BatteryCharging {
+			value += " charging"
+		}
+		parts = append(parts, reading("batt", value, true))
+	}
+	if temps := tempReadings(snap); temps != "" {
+		parts = append(parts, labelStyle.Render("temp ")+temps)
+	}
+	if m.workspace.net.rates {
+		parts = append(parts, reading("net", "↓ "+humanBytes(m.workspace.net.down)+"/s ↑ "+humanBytes(m.workspace.net.up)+"/s", true))
+	}
+	line := strings.Repeat(" ", railInset) + strings.Join(parts, "  ")
+	return []string{ansi.Truncate(line, max(width-railInset, 0), "…")}
+}

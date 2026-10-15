@@ -4,19 +4,20 @@ import (
 	"strings"
 	"testing"
 
+	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestDismissNoticeDeduplicatesPendingEffect(t *testing.T) {
 	m := noticeModel(noticeStore(t), "v0.2.0")
-	m.dismissNotice(noticeWelcome)
-	m.dismissNotice(noticeWelcome)
+	m.dismissNotice(uinotices.Welcome)
+	m.dismissNotice(uinotices.Welcome)
 
 	if len(m.effects.main.pending) != 1 {
 		t.Fatalf("duplicate dismissal queued %d effects, want 1", len(m.effects.main.pending))
 	}
 	request, ok := m.effects.main.pending[0].request.(noticeDismissRequest)
-	if !ok || request.id != noticeWelcome {
+	if !ok || request.id != uinotices.Welcome {
 		t.Fatalf("queued request = %#v", m.effects.main.pending[0].request)
 	}
 	m.drainEffects(t)
@@ -28,10 +29,10 @@ func TestDismissNoticeFailureRestoresNotice(t *testing.T) {
 		t.Fatalf("seed malformed setting: %v", err)
 	}
 	m := noticeModel(st, "v0.2.0")
-	m.notices.open(m, noticeWelcome)
+	m.openNotices(uinotices.Welcome)
 
-	_ = m.notices.handleKey(m, key("x"))
-	if contains(noticeIDs(m.notices.active(m)), noticeWelcome) {
+	_, _ = m.handleNoticesKey(key("x"))
+	if contains(noticeIDs(m.activeNotices()), uinotices.Welcome) {
 		t.Fatal("accepted dismissal stayed visible while its write was pending")
 	}
 	cmd := m.nextEffectCmd()
@@ -40,11 +41,11 @@ func TestDismissNoticeFailureRestoresNotice(t *testing.T) {
 	}
 	m.applyCmd(t, cmd)
 
-	if !contains(noticeIDs(m.notices.active(m)), noticeWelcome) {
+	if !contains(noticeIDs(m.activeNotices()), uinotices.Welcome) {
 		t.Fatal("failed persistence did not restore the notice")
 	}
-	if m.mode != modeNotices || m.notices.active(m)[m.notices.noticeCursor].id != noticeWelcome {
-		t.Fatalf("failed dismissal did not restore its modal selection: mode=%v cursor=%d", m.mode, m.notices.noticeCursor)
+	if m.mode != modeNotices || m.activeNotices()[m.notices.Cursor()].ID != uinotices.Welcome {
+		t.Fatalf("failed dismissal did not restore its modal selection: mode=%v cursor=%d", m.mode, m.notices.Cursor())
 	}
 	if !strings.Contains(m.errBar.text, "decode setting") {
 		t.Fatalf("failure reason = %q", m.errBar.text)
@@ -57,8 +58,8 @@ func TestDismissNoticeFailureDoesNotReopenAfterNewerInput(t *testing.T) {
 		t.Fatalf("seed malformed setting: %v", err)
 	}
 	m := noticeModel(st, "v0.2.0")
-	m.notices.open(m, noticeWelcome)
-	_ = m.notices.handleKey(m, key("x"))
+	m.openNotices(uinotices.Welcome)
+	_, _ = m.handleNoticesKey(key("x"))
 	cmd := m.nextEffectCmd()
 
 	updated, _ := m.handleKey(key("esc"))
@@ -68,7 +69,7 @@ func TestDismissNoticeFailureDoesNotReopenAfterNewerInput(t *testing.T) {
 	if m.mode != modeList {
 		t.Fatalf("failed old dismissal stole focus from newer input: mode=%v", m.mode)
 	}
-	if !contains(noticeIDs(m.notices.active(m)), noticeWelcome) {
+	if !contains(noticeIDs(m.activeNotices()), uinotices.Welcome) {
 		t.Fatal("failed old dismissal did not restore the notice card")
 	}
 }
@@ -80,10 +81,10 @@ func TestDismissNoticeFailureDuringQuitRestoresWithoutReopening(t *testing.T) {
 	}
 	m := noticeModel(st, "v0.2.0")
 	// Leave one visible card so accepting its dismissal closes the modal.
-	m.notices.dismissed[noticeArrowStep] = true
-	m.notices.open(m, noticeWelcome)
+	m.notices.Dismiss(uinotices.ArrowStep)
+	m.openNotices(uinotices.Welcome)
 
-	_ = m.notices.handleKey(m, key("x"))
+	_, _ = m.handleNoticesKey(key("x"))
 	cmd := m.nextEffectCmd()
 	if cmd == nil || m.mode != modeList {
 		t.Fatalf("last dismissal was not accepted: cmd=%v mode=%v", cmd != nil, m.mode)
@@ -98,7 +99,7 @@ func TestDismissNoticeFailureDuringQuitRestoresWithoutReopening(t *testing.T) {
 	if m.mode != modeList {
 		t.Fatalf("failed dismissal reopened over quit: mode=%v", m.mode)
 	}
-	if !contains(noticeIDs(m.notices.active(m)), noticeWelcome) {
+	if !contains(noticeIDs(m.activeNotices()), uinotices.Welcome) {
 		t.Fatal("failed dismissal did not restore the notice data")
 	}
 	if !strings.Contains(m.errBar.text, "decode setting") {

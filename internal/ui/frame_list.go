@@ -58,7 +58,7 @@ func (m *Model) viewListFrame() string {
 	}
 	frame = append(frame, bottom)
 	glyph, label := m.messagesAlert()
-	m.notices.placeHit(m, glyph, label, footer, len(frame))
+	m.placeNoticeHit(glyph, label, footer, len(frame))
 	m.quick.originY = len(frame)
 	for _, line := range splitLines(footer) {
 		frame = append(frame, paint(line, m.layout.width, backdropHex()))
@@ -91,7 +91,7 @@ func (m *Model) viewFullListFrame() string {
 	frame = append(frame, joinColumns(edge, paintContent(railRows, railWidth, bodyHeight, panelHex()))...)
 	frame = append(frame, m.boundedRuleRow(railWidth, m.layout.width, "▄"))
 	glyph, label := m.messagesAlert()
-	m.notices.placeHit(m, glyph, label, footer, len(frame))
+	m.placeNoticeHit(glyph, label, footer, len(frame))
 	m.quick.originY = len(frame)
 	for _, line := range splitLines(footer) {
 		frame = append(frame, paint(line, m.layout.width, backdropHex()))

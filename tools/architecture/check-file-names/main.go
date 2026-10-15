@@ -36,7 +36,7 @@ var features = map[string]string{
 	"input":        "raw input forwarded to panes",
 	"launchhint":   "the launch fix dialog and CLI install",
 	"model":        "the root Model, its services and shared host methods",
-	"notices":      "the notices panel and release feed",
+	"notices":      "the notices adapter, release and feed checks, self-update and link opening",
 	"pathcomplete": "directory completion for path fields",
 	"preview":      "the session preview",
 	"quick":        "the quick bar",

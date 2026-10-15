@@ -481,7 +481,7 @@ func (m *Model) runRailIntent(intent uirail.Intent) (tea.Model, tea.Cmd) {
 	case uirail.MoveToGroup:
 		m.openMove()
 	case uirail.OpenMessages:
-		m.notices.open(m, "")
+		m.openNotices("")
 	case uirail.OpenHelp:
 		m.openHelp()
 	case uirail.OpenReview:

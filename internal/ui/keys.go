@@ -68,7 +68,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case modeFocus:
 		return m.handleFocusKey(msg)
 	case modeNotices:
-		return m, m.notices.handleKey(m, msg)
+		return m.handleNoticesKey(msg)
 	case modeHelp:
 		return m.handleHelpKey(msg)
 	}

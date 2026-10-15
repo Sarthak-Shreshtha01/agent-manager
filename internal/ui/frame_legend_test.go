@@ -7,6 +7,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -92,7 +93,7 @@ func TestViewLegendPaintsWaitingMessagesWarm(t *testing.T) {
 	idle := &Model{
 		services: services{store: st, keys: keybind.DefaultSession(), listKeys: keybind.DefaultList()},
 		update:   updateInfo{version: "0.40.0"},
-		notices:  noticesPanel{noticesState{dismissed: map[string]bool{noticeWelcome: true, noticeArrowStep: true}}},
+		notices:  noticesPanel{Panel: uinotices.NewPanel(map[string]bool{uinotices.Welcome: true, uinotices.ArrowStep: true})},
 	}
 	idleBar := ansi.Strip(legendBar([]legendSection{idle.viewLegend()}, 160))
 	if strings.Contains(idleBar, "unread") {

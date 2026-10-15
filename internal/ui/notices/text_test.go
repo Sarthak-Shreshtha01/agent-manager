@@ -1,4 +1,4 @@
-package ui
+package notices
 
 import (
 	"slices"
@@ -126,11 +126,12 @@ func TestWrapRunsOfNothingIsNoRows(t *testing.T) {
 func TestRenderRunsStylesTheAccent(t *testing.T) {
 	useTrueColor(t)
 	line := []textRun{{text: "press "}, {text: "ctrl+x", accent: true}}
-	rendered := renderRuns(line, valueStyle)
-	if !strings.Contains(rendered, keyStyle.Render("ctrl+x")) {
+	theme := testTheme()
+	rendered := renderRuns(line, theme.Value, theme.Key)
+	if !strings.Contains(rendered, theme.Key.Render("ctrl+x")) {
 		t.Fatalf("accent run is not in the accent style: %q", rendered)
 	}
-	if !strings.Contains(rendered, valueStyle.Render("press ")) {
+	if !strings.Contains(rendered, theme.Value.Render("press ")) {
 		t.Fatalf("plain run is not in the base style: %q", rendered)
 	}
 	if ansi.Strip(rendered) != "press ctrl+x" {

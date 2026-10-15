@@ -61,7 +61,7 @@ func (m *Model) renderFrame() string {
 	case modeDiff:
 		frame = m.viewDiffFull()
 	case modeNotices:
-		frame = m.centerOnBackdrop(m.notices.view(m))
+		frame = m.centerOnBackdrop(m.viewNotices())
 	default:
 		frame = m.overlayRowMenu(m.titleTopRowWithUpdate(m.viewListFrame()))
 	}

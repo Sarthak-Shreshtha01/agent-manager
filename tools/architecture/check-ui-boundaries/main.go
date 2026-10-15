@@ -22,12 +22,13 @@ var (
 	focusBoundary   = boundary{"Focus", "/internal/ui/focus", []string{"/internal/ui/focus"}}
 	railBoundary    = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation"}}
 	dialogsBoundary = boundary{"Dialogs", "/internal/ui/dialogs", []string{"/internal/ui/dialogs"}}
+	noticesBoundary = boundary{"Notices", "/internal/ui/notices", []string{"/internal/ui/notices", "/internal/keybind", "/internal/ui/presentation"}}
 	valueBoundary   = boundary{"Git values", "/internal/git/value", []string{"/internal/git/value"}}
 	presentBoundary = boundary{"Presentation", "/internal/ui/presentation", []string{"/internal/ui/presentation"}}
 )
 
 func main() {
-	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, railBoundary, dialogsBoundary, diffBoundary, valueBoundary, presentBoundary} {
+	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, railBoundary, dialogsBoundary, noticesBoundary, diffBoundary, valueBoundary, presentBoundary} {
 		if err := checkBoundary(feature); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

@@ -14,7 +14,8 @@ Under `internal/`:
 - `ui`: the Bubble Tea program. One `Model` routes messages, runs effects, composes the frame.
 - `ui/help`, `ui/review`, `ui/focus`, `ui/rail`: feature packages with private models.
 - `ui/dialogs`: the confirm, rename, move, fork and launch fix dialogs.
-- `ui/presentation`: pure text helpers shared by `ui`, `ui/help`, `ui/review` and `ui/rail`.
+- `ui/notices`: the messages panel, its notice list and release-note rendering.
+- `ui/presentation`: pure text helpers shared by `ui` and its feature packages.
 - `store`: SQLite state: sessions, groups, settings, inbox, tasks, reservations, delivery guard.
 - `tmux`: the `Driver` on the dedicated socket, the control-mode client, bindings, attach.
 - `status`: classifies pane output into agent states.
@@ -39,8 +40,9 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
 - **Dependency boundaries.** `go run ./tools/architecture/check-ui-boundaries`
   lists each package's transitive production imports and fails on any
   other package of this module. Allowed, besides itself:
-  `ui/help` and `ui/rail` import `keybind` and `ui/presentation`; `ui/review`
-  imports `diff/model`, `git/value` and `ui/presentation`; `diff/model`
+  `ui/help`, `ui/rail` and `ui/notices` import `keybind` and
+  `ui/presentation`; `ui/review` imports `diff/model`, `git/value` and
+  `ui/presentation`; `diff/model`
   imports `git/value`; `ui/focus`, `ui/dialogs`, `git/value` and
   `ui/presentation` import nothing from the module. Test imports are not checked.
 - **File names.** `go run ./tools/architecture/check-file-names`. Every
@@ -76,7 +78,7 @@ A feature is a type with its state, keys and view, and it reaches the root
 only through a small host interface it declares (`settingsFeature`,
 `quickBar`, and the rest in `internal/ui`). A feature moves to a
 child package when its inputs and outcomes are narrow enough to enforce with
-`check-ui-boundaries`: Help, Review, Focus, Rail and Dialogs. The child gets copied
+`check-ui-boundaries`: Help, Review, Focus, Rail, Dialogs and Notices. The child gets copied
 values and returns typed requests; root adapters run the store, tmux and git
 work. There is no shared event bus or effect interpreter, because it would hide
 who owns what. Line counts and field counts do not prove a boundary; the checks

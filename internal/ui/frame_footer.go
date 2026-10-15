@@ -96,7 +96,7 @@ func (m *Model) listGlyph(actions ...string) string {
 }
 
 func (m *Model) messagesAlert() (glyph, label string) {
-	if len(m.notices.active(m)) == 0 {
+	if len(m.activeNotices()) == 0 {
 		return "", ""
 	}
 	glyph = m.listGlyph(keybind.Messages)

@@ -12,6 +12,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
 	uihelp "github.com/YoanWai/agent-manager/internal/ui/help"
+	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uireview "github.com/YoanWai/agent-manager/internal/ui/review"
 	"github.com/YoanWai/agent-manager/internal/update"
@@ -245,12 +246,12 @@ func newView(deps Dependencies, version string) (*Model, error) {
 		startup: startupState{
 			booting: true,
 		},
-		notices: noticesPanel{noticesState{
-			dismissed:           loadDismissed(st),
+		notices: noticesPanel{
+			Panel:               uinotices.NewPanel(loadDismissed(st)),
 			whatsNewVersion:     loadWhatsNewVersion(st),
 			whatsNewFromVersion: loadWhatsNewFromVersion(st),
 			configImportError:   configImportError,
-		}},
+		},
 	}
 	if deps.ProfileDir != "" {
 		cached := update.Cached(deps.ProfileDir, version)
