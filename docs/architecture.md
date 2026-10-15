@@ -67,6 +67,11 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
   `git.Driver`. A feature that needs more returns a typed request that a root
   adapter runs.
 
+Not in CI: `go run ./tools/architecture/check-ui-moves BASE TARGET` (TARGET may
+be `WORKTREE`) confirms a move or split within a package kept every declaration
+and comment, so a pure-move commit can be reviewed as one. Imports and file
+locations may change; anything else fails it.
+
 ## Decisions
 
 **Effects run off `Update` on ordered lanes.** `Update` never blocks. A
@@ -118,3 +123,25 @@ the worktree back if the launch fails. Two paths would drift on exactly those
 failure cases. `Lifecycle` likewise owns the ordered durable and pane effects
 of the other session commands, and each frontend keeps its own policy: a human
 archive reconciles selection, a session archive refuses to archive itself.
+
+**Quit drains accepted work.** A quit refuses new work and drains the jobs
+already accepted, plus the Rail follow-ups they cause, before `tea.Quit`; a
+running or unsettled installer refuses a clean quit instead. Git and filesystem
+work share no deadline, so the drain has no fixed bound: a second quit stops
+waiting, drops the jobs that never started, and the manager exits non-zero
+naming each as "never started" or "was still running". Shutdown then waits at
+most five seconds (`effectStopWait`) for begun effects and reports the same way.
+
+**Automatic delivery has one owner per profile.** The poller's inbox and
+pending-input delivery runs inside `Store.WithDeliveryGuard`, an exclusive
+non-blocking lock on `<state.db>.delivery.lock`; a competing manager skips the
+tick. A claim is committed with a random attempt token before the paste, and the
+receipt must carry the same token. A claim with no live owner becomes
+`uncertain` and is never typed again. SQLite triggers refuse a claim or receipt
+without a token, so a binary older than the guard cannot deliver on a profile a
+newer one has opened. Moving a profile across is therefore offline:
+
+1. Stop every older manager, CLI and MCP process on the profile, and check they exited.
+2. Back up `state.db` with its `-wal` and `-shm` files.
+3. Open the profile once with the new binary, which installs the columns and triggers.
+4. Start only new binaries from then on. Going back means restoring the backup.
