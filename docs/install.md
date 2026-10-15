@@ -65,8 +65,7 @@ The script installs `agent-manager.exe` to `%LOCALAPPDATA%\Programs\agent-manage
 | --- | --- |
 | psmux | `winget install psmux` (or `cargo install psmux`) — 3.4.0 or newer; older builds misbehave and the manager refuses them |
 | git | `winget install --id Git.Git -e` |
-| PowerShell 7.3+ | `winget install Microsoft.PowerShell` |
-Note: Windows PowerShell 5.1 is not supported; it splits arguments containing double quotes, which can lead to argument injection.
+| PowerShell 7.3 or newer | `winget install Microsoft.PowerShell` (Windows PowerShell 5.1 and PowerShell before 7.3 still run, and the manager warns at startup: they split a prompt containing `"` into several arguments to the agent CLI) |
 
 Differences from macOS and Linux:
 

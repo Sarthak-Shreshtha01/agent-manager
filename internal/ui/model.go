@@ -1044,7 +1044,17 @@ func (m *Model) requestRefresh() {
 
 func (m *Model) Init() tea.Cmd {
 	m.syncPollInput()
-	return tea.Batch(m.syncPaneTheme(), m.refreshExistingSessionUX, m.checkForUpdate, m.checkFeed, m.updateTick(), m.bannerTick(), m.previewTick(), m.startStartupTick(), m.sweepPastes, m.pasteSweepTick())
+	return tea.Batch(m.syncPaneTheme(), m.refreshExistingSessionUX, m.checkForUpdate, m.checkFeed, m.updateTick(), m.bannerTick(), m.previewTick(), m.startStartupTick(), m.sweepPastes, m.pasteSweepTick(), checkPaneShell)
+}
+
+// paneShellMsg carries a warning about the pane shell, empty when it has
+// none.
+type paneShellMsg struct{ warning string }
+
+// checkPaneShell runs the pane shell's version probe off the update path:
+// it starts a PowerShell.
+func checkPaneShell() tea.Msg {
+	return paneShellMsg{warning: paneShellWarning()}
 }
 
 // updateMsg carries the result of a GitHub release check. A failed check may
@@ -1771,6 +1781,12 @@ func (m *Model) handleMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pasteSweepTickMsg:
 		return m, tea.Batch(m.sweepPastes, m.pasteSweepTick())
+
+	case paneShellMsg:
+		if msg.warning != "" {
+			m.reportWarn(msg.warning)
+		}
+		return m, nil
 
 	case replyCopiedMsg:
 		if msg.unreadable {

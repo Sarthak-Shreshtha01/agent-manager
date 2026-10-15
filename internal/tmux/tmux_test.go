@@ -23,6 +23,10 @@ import (
 // live. TestMain tears it down before and after the run.
 const testSocket = "amtmuxtest"
 
+// argsFileEnv makes a rerun of this test binary write the arguments it was
+// given to the named file, one per line, and exit: a stand-in agent CLI.
+const argsFileEnv = "AM_TMUX_TEST_ARGS_FILE"
+
 // TestMain kills any leftover test server so each run starts and ends clean.
 // The anchor session then holds the server up for the whole run: tests kill
 // their sessions in cleanup, and a server whose last session dies begins an
@@ -33,6 +37,13 @@ func TestMain(m *testing.M) {
 	// process, with the tmux binary and the session as its arguments.
 	if action := os.Getenv(otherProcessEnv); action != "" {
 		os.Exit(repeatUntilStdinCloses(&Driver{bin: os.Args[1], socket: testSocket}, action, os.Args[2]))
+	}
+	if file := os.Getenv(argsFileEnv); file != "" {
+		if err := os.WriteFile(file, []byte(strings.Join(os.Args[1:], "\n")), 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 	os.Exit(runTests(m))
 }
