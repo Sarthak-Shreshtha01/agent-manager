@@ -2,12 +2,18 @@ package ui
 
 import (
 	"errors"
-	"github.com/YoanWai/agent-manager/internal/config"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/config"
+	"github.com/YoanWai/agent-manager/internal/git"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -112,8 +118,8 @@ func (m *Model) dispatchSpawn(request spawnRequest) {
 	switch request.kind {
 	case spawnForm:
 		request.draft = m.form.prompt.input.Value()
-		request.draftName = m.form.name.Value()
-		request.draftDir = m.form.dir.Value()
+		request.draftName = m.form.Name()
+		request.draftDir = m.form.Dir()
 		m.form.prompt.attachments = nil
 	case spawnQuick:
 		request.draft = m.quick.input.Value()
@@ -251,7 +257,7 @@ func (m *Model) applySpawnEffect(request spawnRequest, result spawnEffectResult,
 		}
 		if request.kind != spawnShell {
 			m.rememberSpawnPick(request.toolName, request.pickWorktree)
-			rememberModel(m, request.toolName, request.choice)
+			spawn.RememberModel(m.spawnHost(), request.toolName, spawn.Pick(request.choice))
 		}
 		// New sessions start as starting, which attention excludes; clear so
 		// the row the spawn just created is on screen.
@@ -260,7 +266,7 @@ func (m *Model) applySpawnEffect(request spawnRequest, result spawnEffectResult,
 		case spawnForm:
 			// A form opened later is a newer dialog the completion must not
 			// close; only the one that dispatched this spawn is closed.
-			if m.mode == modeForm && m.form.prompt.gen == request.composerGen && m.form.prompt.input.Value() == request.draft && m.form.name.Value() == request.draftName && m.form.dir.Value() == request.draftDir && len(m.form.prompt.attachments) == 0 {
+			if m.mode == modeForm && m.form.prompt.gen == request.composerGen && m.form.prompt.input.Value() == request.draft && m.form.Name() == request.draftName && m.form.Dir() == request.draftDir && len(m.form.prompt.attachments) == 0 {
 				m.mode = modeList
 			}
 		case spawnQuick:
@@ -365,4 +371,113 @@ func (m *Model) applyGroupEffect(request groupRequest, result groupEffectResult,
 		m.applyRailStateDecision(m.rail.RevealGroup(result.path))
 	}
 	return m.refreshCmd()
+}
+
+// choiceSaveRequest persists a CLI's kept choice or recent models. The
+// settings cache already holds the value, so the next form reads it
+// without waiting for the write.
+type choiceSaveRequest struct {
+	key   string
+	value string
+}
+
+func (choiceSaveRequest) effectRequest() {}
+
+type choiceSaveResult struct{}
+
+func (choiceSaveResult) effectResult() {}
+
+func (s effectServices) runChoiceSave(request choiceSaveRequest) (effectResult, error) {
+	if err := s.store.SetSetting(request.key, request.value); err != nil {
+		return choiceSaveResult{}, fmt.Errorf("saving %s: %w", request.key, err)
+	}
+	return choiceSaveResult{}, nil
+}
+
+// directoryPreflight is the read-only filesystem/repository seam captured by
+// spawn and group effects. Its calls run inside the accepted FIFO worker.
+type directoryPreflight interface {
+	resolve(raw string, fallbacks []string) (string, bool)
+	repoCapable(dir string) bool
+}
+
+type systemDirectoryPreflight struct{ git *git.Driver }
+
+func (p systemDirectoryPreflight) resolve(raw string, fallbacks []string) (string, bool) {
+	if raw != "" {
+		return resolveExistingDir(raw, "")
+	}
+	var resolved string
+	for _, fallback := range fallbacks {
+		candidate, ok := resolveExistingDir("", fallback)
+		resolved = candidate
+		if ok {
+			return candidate, true
+		}
+	}
+	return resolved, false
+}
+
+func (p systemDirectoryPreflight) repoCapable(dir string) bool {
+	if p.git == nil || dir == "" {
+		return false
+	}
+	_, err := p.git.RepoRoot(dir)
+	return err == nil
+}
+
+func initialWorkingDir() string {
+	dir, _ := os.Getwd()
+	return dir
+}
+
+func initialHomeDir() string {
+	dir, _ := os.UserHomeDir()
+	return dir
+}
+
+// resolveExistingDir turns raw field input into a usable directory:
+// expand ~, fall back when empty, absolutize, and require it to exist.
+// The resolved value returns either way so error messages can show it.
+func resolveExistingDir(raw, fallback string) (string, bool) {
+	dir := expandHome(strings.TrimSpace(raw))
+	if dir == "" {
+		dir = fallback
+	}
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
+	}
+	return dir, isDir(dir)
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+type worktreeProbeTarget uint8
+
+const (
+	worktreeProbeForm worktreeProbeTarget = iota
+	worktreeProbeQuick
+)
+
+type worktreeProbeRequest struct {
+	target     worktreeProbeTarget
+	generation int
+	sequence   uint64
+	dir        string
+	toggle     bool
+	from       bool
+}
+
+type worktreeProbeMsg struct {
+	request worktreeProbeRequest
+	capable bool
+}
+
+func worktreeProbeCmd(request worktreeProbeRequest, reader directoryPreflight) tea.Cmd {
+	return func() tea.Msg {
+		return worktreeProbeMsg{request: request, capable: reader.repoCapable(request.dir)}
+	}
 }

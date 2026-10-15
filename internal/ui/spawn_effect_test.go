@@ -31,8 +31,8 @@ func (r *blockedDirectoryPreflight) repoCapable(string) bool { return r.repoOK }
 func TestSpawnWorkerDefersFilesystemReadAndCapturesDraft(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.name.SetValue("captured")
-	m.form.dir.SetValue("/captured/raw")
+	m.form.SetName("captured")
+	m.form.SetDir("/captured/raw")
 	reader := &blockedDirectoryPreflight{
 		started: make(chan struct{}), release: make(chan struct{}),
 		resolved: t.TempDir(), dirOK: true,
@@ -70,7 +70,7 @@ func TestSpawnWorkerDefersFilesystemReadAndCapturesDraft(t *testing.T) {
 func TestAcceptedSpawnSurvivesChangedDraftWithoutClosingIt(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
-	m.form.name.SetValue("first")
+	m.form.SetName("first")
 	reader := &blockedDirectoryPreflight{
 		started: make(chan struct{}), release: make(chan struct{}),
 		resolved: t.TempDir(), dirOK: true,
@@ -79,13 +79,13 @@ func TestAcceptedSpawnSurvivesChangedDraftWithoutClosingIt(t *testing.T) {
 	completed := make(chan effectCompletedMsg, 1)
 	go func() { completed <- cmd().(effectCompletedMsg) }()
 	<-reader.started
-	m.form.name.SetValue("newer")
+	m.form.SetName("newer")
 	close(reader.release)
 	m.applyTestMsg(t, <-completed)
 	if len(m.workspace.sessions) != 1 || m.workspace.sessions[0].Name != "first" {
 		t.Fatalf("accepted spawn was cancelled or retargeted: %+v", m.workspace.sessions)
 	}
-	if m.mode != modeForm || m.form.name.Value() != "newer" {
+	if m.mode != modeForm || m.form.Name() != "newer" {
 		t.Fatal("completion replaced the edited form")
 	}
 }
@@ -170,9 +170,9 @@ func TestAcceptedGroupDrainsBlockedValidationOnQuit(t *testing.T) {
 func submitFormSpawn(t *testing.T, m *Model, name, dir string) tea.Cmd {
 	t.Helper()
 	m.openForm()
-	m.form.name.SetValue(name)
-	m.form.dir.SetValue(dir)
-	m.form.toolIndex = 0
+	m.form.SetName(name)
+	m.form.SetDir(dir)
+	setFormTool(m, 0)
 	_, command := m.submitForm()
 	if m.effects.main.active == nil {
 		t.Fatal("submit did not queue the spawn worker")
@@ -428,9 +428,9 @@ func TestSpawnDrainsAcceptedOnQuitAndRefusesLate(t *testing.T) {
 	}
 	// quitting is still set; a new dispatch is refused, not run.
 	m.openForm()
-	m.form.name.SetValue("late")
-	m.form.dir.SetValue(t.TempDir())
-	m.form.toolIndex = 0
+	m.form.SetName("late")
+	m.form.SetDir(t.TempDir())
+	setFormTool(m, 0)
 	_, late := m.submitForm()
 	m.applyTestMsg(t, late())
 	if len(m.effects.main.pending) != 0 {
@@ -449,9 +449,9 @@ func TestSpawnFailureDoesNotReplaceNewerDialog(t *testing.T) {
 	m.form.prompt.release()
 	m.mode = modeList
 	m.openForm()
-	m.form.name.SetValue("second")
-	m.form.dir.SetValue(t.TempDir())
-	m.form.toolIndex = 0
+	m.form.SetName("second")
+	m.form.SetDir(t.TempDir())
+	setFormTool(m, 0)
 	newGen := m.form.prompt.gen
 	m.services.store.Close()
 	m.applyCmd(t, cmd)
@@ -510,8 +510,8 @@ func TestSpawnSuccessKeepsImagesForTheAgent(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	focusFormPrompt(t, m)
-	m.form.name.SetValue("with-pic")
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName("with-pic")
+	m.form.SetDir(t.TempDir())
 	path := tempImage(t, "pic.png")
 	pasteFormImage(t, m, path)
 	_, cmd := m.submitForm()
@@ -533,8 +533,8 @@ func TestSpawnGenericErrorReturnsImagesToForm(t *testing.T) {
 	m := buildModel(t)
 	m.openForm()
 	focusFormPrompt(t, m)
-	m.form.name.SetValue("agent")
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName("agent")
+	m.form.SetDir(t.TempDir())
 	path := tempImage(t, "pic.png")
 	id := pasteFormImage(t, m, path)
 	_, cmd := m.submitForm()

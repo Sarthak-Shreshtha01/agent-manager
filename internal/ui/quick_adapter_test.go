@@ -11,8 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
-	"github.com/YoanWai/agent-manager/internal/store"
-	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -96,8 +94,8 @@ func TestOpenQuickModeDefersSettingsReadAndGuardsDefaults(t *testing.T) {
 		if got := m.quickTool(); got != "ready-tool" {
 			t.Fatalf("refreshed quick tool = %q, want ready-tool", got)
 		}
-		if !m.quick.closeAfterSend || !m.quick.worktree {
-			t.Fatalf("quick defaults were not refreshed: close=%t worktree=%t", m.quick.closeAfterSend, m.quick.worktree)
+		if !m.quick.closeAfterSend || !m.quick.Worktree() {
+			t.Fatalf("quick defaults were not refreshed: close=%t worktree=%t", m.quick.closeAfterSend, m.quick.Worktree())
 		}
 	})
 
@@ -623,18 +621,18 @@ func TestQuickSpawnUsesTabCycledTool(t *testing.T) {
 func TestQuickShiftTabStepsToolBack(t *testing.T) {
 	m := buildModel(t)
 	m.openQuickMode()
-	names := m.quick.toolNames
+	names := quickTools(m)
 	if len(names) < 2 {
 		t.Fatalf("need at least two tools, got %v", names)
 	}
-	m.quick.toolIndex = 1
+	setQuickTool(m, 1)
 	if m.handleQuickKey(tea.KeyMsg{Type: tea.KeyShiftTab}); m.quickTool() != names[0] {
 		t.Fatalf("shift+tab from the second tool = %q want %q", m.quickTool(), names[0])
 	}
 	if m.handleQuickKey(tea.KeyMsg{Type: tea.KeyShiftTab}); m.quickTool() != names[len(names)-1] {
 		t.Fatalf("shift+tab from the first tool = %q want the last, %q", m.quickTool(), names[len(names)-1])
 	}
-	if m.quick.worktreeTouched {
+	if m.quick.WorktreeTouched() {
 		t.Fatal("shift+tab must not touch the worktree toggle")
 	}
 }
@@ -745,9 +743,9 @@ func TestQuickRemembersPickOnlyAfterInstallRetrySucceeds(t *testing.T) {
 	m.services.cfg.Tools["claude"] = tool
 	m.selectGroupRow(t, "grp")
 	m.openQuickMode()
-	for i, name := range m.quick.toolNames {
+	for i, name := range quickTools(m) {
 		if name == "claude" {
-			m.quick.toolIndex = i
+			setQuickTool(m, i)
 		}
 	}
 	applyQuickKeyCmd(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
@@ -844,15 +842,15 @@ func TestQuickPromptClosesAfterSendWhenEnabled(t *testing.T) {
 func TestQuickWorktreeToggle(t *testing.T) {
 	m := buildModel(t)
 	m.openQuickMode()
-	if m.quick.worktree {
+	if m.quick.Worktree() {
 		t.Fatal("worktree should default off")
 	}
 	applyQuickKeyCmd(t, m, tea.KeyMsg{Type: tea.KeyCtrlT})
-	if !m.quick.worktree {
+	if !m.quick.Worktree() {
 		t.Fatal("ctrl+t should toggle worktree on")
 	}
 	applyQuickKeyCmd(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}, Alt: true})
-	if m.quick.worktree {
+	if m.quick.Worktree() {
 		t.Fatal("alt+w should toggle worktree back off")
 	}
 }
@@ -863,7 +861,7 @@ func TestQuickWorktreeSeedsFromSetting(t *testing.T) {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openQuickMode()())
-	if !m.quick.worktree {
+	if !m.quick.Worktree() {
 		t.Fatal("quick bar should seed worktree on from setting")
 	}
 }
@@ -1233,7 +1231,7 @@ func TestQuickPromptModeLeadsTheFooterAndNamesTheOpenBar(t *testing.T) {
 			t.Fatalf("full layout %v: the prompt should sit in the footer:\n%s", full, ansi.Strip(frame))
 		}
 		rows := strings.Split(footer, "\n")
-		keysHeight := lipgloss.Height(legendBar([]legendSection{{title: quickModeTitle, pairs: m.quick.legend(m)}}, m.layout.width-1))
+		keysHeight := lipgloss.Height(legendBar([]legendSection{{title: quickModeTitle, pairs: m.quick.Legend(m.quickBarHost())}}, m.layout.width-1))
 		for i, line := range rows {
 			tone := quickModeHex()
 			if i > 0 && i < len(rows)-keysHeight {
@@ -1261,61 +1259,5 @@ func TestQuickPromptTypesWordsNamedLikeKeys(t *testing.T) {
 	}
 	if want := strings.Join(words, " "); m.quick.input.Value() != want || !m.quick.active || m.rail.Cursor() != 1 {
 		t.Fatalf("prompt %q, open %v, selection %d; want %q typed in an open bar on row 1", m.quick.input.Value(), m.quick.active, m.rail.Cursor(), want)
-	}
-}
-
-// fakeQuickHost drives the quick bar without a root model.
-type fakeQuickHost struct {
-	*fakeChoiceHost
-	row      treeRow
-	selected bool
-	defaults spawnDefaults
-}
-
-func (h *fakeQuickHost) selectedRow() (treeRow, bool) { return h.row, h.selected }
-
-func (h *fakeQuickHost) spawnDefaults(string) spawnDefaults { return h.defaults }
-
-// The bar types into its own prompt and hands the root a request for the
-// rest: a cursor step, a worktree toggle, an answer, or a spawn.
-func TestQuickBarThroughAFakeHost(t *testing.T) {
-	h := &fakeQuickHost{
-		fakeChoiceHost: newFakeChoiceHost(),
-		defaults:       spawnDefaults{groupDir: "/work/backend", worktree: true},
-	}
-	input := textarea.New()
-	input.Focus()
-	q := &quickBar{quickState{
-		active:    true,
-		composer:  composer{input: input, maxRows: quickBarMaxRows, gen: 9},
-		toolNames: []string{"claude"},
-		choice:    newChoice(h, "claude"),
-	}}
-	if _, request := q.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter}); request != (quickRequest{}) || len(h.errs) != 1 {
-		t.Fatalf("enter with nothing selected asked for %+v: %v", request, h.errs)
-	}
-	q.handleKey(h, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ship it"), Paste: true})
-	if _, request := q.handleKey(h, tea.KeyMsg{Type: tea.KeyUp}); request.move != -1 {
-		t.Fatalf("up on a one-row prompt asked for %+v", request)
-	}
-	if _, request := q.handleKey(h, tea.KeyMsg{Type: tea.KeyCtrlT}); !request.toggle {
-		t.Fatalf("ctrl+t asked for %+v", request)
-	}
-	h.row, h.selected = treeRow{isGroup: true, group: "backend"}, true
-	_, request := q.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if spawn := request.spawn; spawn == nil || spawn.kind != spawnQuick || spawn.group != "backend" ||
-		spawn.prompt != "ship it" || spawn.rawDir != "/work/backend" || !spawn.wantWorktree || spawn.composerGen != 9 {
-		t.Fatalf("spawn = %+v", request.spawn)
-	}
-	if q.legend(h)[0] != [2]string{"↵", "send"} {
-		t.Fatalf("legend = %v", q.legend(h))
-	}
-	h.row = treeRow{group: "backend", sess: store.Session{ID: "s1", Name: "api"}}
-	_, request = q.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
-	if send := request.send; send == nil || send.session.ID != "s1" || send.text != "ship it" || send.draft != "ship it" {
-		t.Fatalf("send = %+v", request.send)
-	}
-	if _, request = q.handleKey(h, tea.KeyMsg{Type: tea.KeyEsc}); request != (quickRequest{}) || q.active {
-		t.Fatal("esc should close the bar on its own")
 	}
 }

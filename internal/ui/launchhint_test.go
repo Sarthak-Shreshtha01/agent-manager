@@ -177,18 +177,18 @@ func TestSpawnMissingCLIPromptsInstall(t *testing.T) {
 	m.services.cfg.Tools["claude"] = config.Tool{Command: "am-missing-cli-xyz", DefaultStatus: status.Idle}
 
 	m.openForm()
-	m.form.name.SetValue("agent")
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName("agent")
+	m.form.SetDir(t.TempDir())
 	claudeIndex := -1
-	for i, name := range m.form.toolNames {
+	for i, name := range formTools(m) {
 		if name == "claude" {
 			claudeIndex = i
 		}
 	}
 	if claudeIndex < 0 {
-		t.Fatalf("claude not offered by the form: %v", m.form.toolNames)
+		t.Fatalf("claude not offered by the form: %v", formTools(m))
 	}
-	m.form.toolIndex = claudeIndex
+	setFormTool(m, claudeIndex)
 	pickGroup(t, m, "")
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
@@ -299,7 +299,7 @@ func TestQuickSpawnHermesWithoutMCPSupportClosesTheBar(t *testing.T) {
 	m.applyCmd(t, m.refreshCmd())
 	m.selectGroupRow(t, "backend")
 	m.openQuickMode()
-	m.quick.toolNames = []string{"hermes"}
+	m.quick.SetTools([]string{"hermes"}, 0)
 
 	updated, cmd := m.quickSpawn("backend", "fix the tests")
 	m = updated.(*Model)
@@ -324,10 +324,9 @@ func TestFormSpawnRefusedByTheHintReleasesItsImages(t *testing.T) {
 	installSDKlessHermes(t)
 
 	m.openForm()
-	m.form.name.SetValue("agent")
-	m.form.dir.SetValue(t.TempDir())
-	m.form.toolNames = []string{"hermes"}
-	m.form.toolIndex = 0
+	m.form.SetName("agent")
+	m.form.SetDir(t.TempDir())
+	m.form.SetTools([]string{"hermes"}, 0)
 	path := tempImage(t, "mock.png")
 	m.form.prompt.attachments = []imageAttachment{{id: 1, path: path}}
 	m.form.prompt.input.SetValue("match " + imageToken(1))
@@ -367,10 +366,9 @@ func TestFormSpawnErrorInTheBarKeepsItsImages(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 	m.openForm()
-	m.form.name.SetValue("agent")
-	m.form.dir.SetValue(dir)
-	m.form.worktree = true
-	m.form.worktreeAuto = false
+	m.form.SetName("agent")
+	m.form.SetDir(dir)
+	m.form.SetWorktree(true)
 	m.applyTestMsg(t, m.formWorktreeProbeCmd(false)())
 	if !m.formWorktreeOn() {
 		t.Fatal("the worktree toggle should be on for this spawn")
@@ -425,18 +423,18 @@ func TestSpawnHermesWithoutMCPSupportPromptsInstall(t *testing.T) {
 	installSDKlessHermes(t)
 
 	m.openForm()
-	m.form.name.SetValue("agent")
-	m.form.dir.SetValue(t.TempDir())
+	m.form.SetName("agent")
+	m.form.SetDir(t.TempDir())
 	hermesIndex := -1
-	for i, name := range m.form.toolNames {
+	for i, name := range formTools(m) {
 		if name == "hermes" {
 			hermesIndex = i
 		}
 	}
 	if hermesIndex < 0 {
-		t.Fatalf("hermes not offered by the form: %v", m.form.toolNames)
+		t.Fatalf("hermes not offered by the form: %v", formTools(m))
 	}
-	m.form.toolIndex = hermesIndex
+	setFormTool(m, hermesIndex)
 	pickGroup(t, m, "")
 	_, cmd := m.submitForm()
 	m.applyCmd(t, cmd)
