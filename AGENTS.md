@@ -227,8 +227,8 @@ with `gh release edit <tag> --notes-file notes.md`.
   `ls internal/ui/settings_*` is the whole Settings feature; only `keys.go`,
   `mouse.go`, `updates.go` and `ids.go` route instead of owning a feature. A
   new feature adds its name to `tools/architecture/check-file-names`. The
-  contracts are in `docs/architecture/ui-feature-packages.md`;
-  `ui-file-map.md` lists each feature's files.
+  package map, the CI checks and the reasons are in
+  [docs/architecture.md](docs/architecture.md).
 - `internal/tmux` owns the dedicated tmux socket and control-mode client;
   `internal/store` is the SQLite state, Settings included; `internal/status`
   classifies pane output into agent states; `internal/config` holds the

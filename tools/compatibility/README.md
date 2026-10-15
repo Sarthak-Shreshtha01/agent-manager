@@ -36,11 +36,8 @@ instead of claiming a released archive checksum. Copy the executable first if
 its installed path could be replaced during the run; all profile state remains
 inside the artifact directory.
 
-The [in-flight delivery probe](../../docs/architecture/in-flight-delivery.md)
-reproduces a paused sender past claim retirement. Its passing terminal-state
-test is not an exclusive-authority gate.
-
-Automatic delivery now uses the [profile guard and token receipts](../../docs/architecture/delivery-ownership.md).
+Automatic delivery uses the profile guard and token receipts
+(`Store.WithDeliveryGuard` in `internal/store/delivery.go`).
 The task matrix does not authorize old delivery writers/readers to coexist after
 migration. Offline cutover must stop their already-admitted transport first;
 legacy automatic claim SQL is refused after the new schema fences install.
