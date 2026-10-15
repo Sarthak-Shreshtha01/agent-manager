@@ -114,20 +114,7 @@ func shortHome(path, home string) string {
 	return path
 }
 
-// truncateTail keeps the end of the string (best for paths).
-func truncateTail(s string, max int) string {
-	runes := []rune(s)
-	if max <= 0 {
-		return ""
-	}
-	if len(runes) <= max {
-		return s
-	}
-	if max == 1 {
-		return "…"
-	}
-	return "…" + string(runes[len(runes)-max+1:])
-}
+func truncateTail(s string, max int) string { return presentation.TruncateTail(s, max) }
 
 func truncatePath(path string, limit int) string {
 	runes := []rune(path)

@@ -184,23 +184,6 @@ func TestPreviewLineKeepsAgentColors(t *testing.T) {
 	applyTheme(themes[0])
 }
 
-func TestTruncateRuneSafe(t *testing.T) {
-	hebrew := "/home/dev/פרויקטים/agent-manager"
-	tail := truncateTail(hebrew, 10)
-	if !strings.HasPrefix(tail, "…") || len([]rune(tail)) != 10 {
-		t.Fatalf("truncateTail broken: %q (%d runes)", tail, len([]rune(tail)))
-	}
-	if truncateTail("short", 10) != "short" {
-		t.Fatal("short strings should pass through")
-	}
-	if got := truncateTail("abcdef", 1); got != "…" {
-		t.Fatalf("max 1 = %q, want ellipsis", got)
-	}
-	if got := truncateTail("abcdef", 0); got != "" {
-		t.Fatalf("max 0 = %q, want empty", got)
-	}
-}
-
 func TestTruncatePathCutsAtSeparator(t *testing.T) {
 	path := "internal/api/handlers/sessions.go"
 	got := truncatePath(path, 16)

@@ -58,3 +58,18 @@ func Window(lines []string, rows, offset int, overflow lipgloss.Style) []string 
 	}
 	return window
 }
+
+// TruncateTail keeps the end of the string, best for paths and URLs.
+func TruncateTail(s string, max int) string {
+	runes := []rune(s)
+	if max <= 0 {
+		return ""
+	}
+	if len(runes) <= max {
+		return s
+	}
+	if max == 1 {
+		return "…"
+	}
+	return "…" + string(runes[len(runes)-max+1:])
+}
