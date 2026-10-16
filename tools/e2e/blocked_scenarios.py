@@ -195,6 +195,10 @@ def focus_blocked(sandbox, binary):
     select_row(sandbox, name, 'focus-select')
     key(sandbox, 's')
     frame(sandbox, 'focus-settings-open', 'Settings')
+    for _ in range(4):
+        key(sandbox, 'Down')
+    key(sandbox, 'Right')
+    frame(sandbox, 'focus-settings-edited', 'comfortable')
     with store_lock(sandbox):
         key(sandbox, 'Enter')
         frame(sandbox, 'focus-save-blocked', 'A G E N T', 'Settings')
