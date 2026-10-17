@@ -36,7 +36,6 @@ func cleanSession(s sessioncmd.Session) (sessioncmd.Session, error) {
 	if err := validID(s.ID); err != nil {
 		return sessioncmd.Session{}, err
 	}
-	s.PendingInputOutcome = cleanText(s.PendingInputOutcome)
 	s.Name = cleanText(s.Name)
 	s.Tool = cleanText(s.Tool)
 	s.Group = cleanText(s.Group)

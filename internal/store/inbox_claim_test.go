@@ -1,8 +1,6 @@
 package store
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -86,15 +84,18 @@ func TestStaleInflightClaimIsRetiredNotRedelivered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claim := claimMessageForTest(t, st, id, now)
+	claimed, err := st.ClaimMessage(id, now)
+	if err != nil || !claimed {
+		t.Fatalf("first claim = %v, %v", claimed, err)
+	}
 	if _, err := st.db.Exec(`UPDATE session_inbox SET claimed_at = ? WHERE id = ?`,
 		encodeTime(now.Add(-31*time.Second)), id); err != nil {
 		t.Fatal(err)
 	}
 	dropAt := now.Add(31 * time.Second)
-	withDeliveryGuard(t, st, func(guard *DeliveryGuard) error {
-		return guard.FinishMessage(id, claim, DeliveryRefused, dropAt)
-	})
+	if err := st.MarkDropped(id, dropAt); err != nil {
+		t.Fatal(err)
+	}
 
 	msg, err := st.Message(id, "cafebeef")
 	if err != nil {
@@ -106,21 +107,13 @@ func TestStaleInflightClaimIsRetiredNotRedelivered(t *testing.T) {
 	if msg.DroppedAt.IsZero() {
 		t.Fatal("retired message carries no drop mark, so the sender reads it as delivered")
 	}
-	withDeliveryGuard(t, st, func(guard *DeliveryGuard) error {
-		_, again, err := guard.ClaimMessage(id, now.Add(32*time.Second))
-		if err != nil || again {
-			t.Fatalf("claim after drop = %v, %v; want refused", again, err)
-		}
-		return nil
-	})
+	if again, err := st.ClaimMessage(id, now.Add(32*time.Second)); err != nil || again {
+		t.Fatalf("claim after drop = %v, %v; want refused", again, err)
+	}
 	before := msg
-	withDeliveryGuard(t, st, func(guard *DeliveryGuard) error {
-		err := guard.FinishMessage(id, claim, DeliveryConfirmed, now.Add(33*time.Second))
-		if !errors.Is(err, ErrDeliveryReceiptRejected) {
-			t.Fatalf("late receipt = %v, want ErrDeliveryReceiptRejected", err)
-		}
-		return nil
-	})
+	if err := st.MarkDelivered(id, now.Add(33*time.Second)); err != nil {
+		t.Fatal(err)
+	}
 	msg, err = st.Message(id, "cafebeef")
 	if err != nil {
 		t.Fatal(err)
@@ -160,14 +153,7 @@ func TestClaimMessageIsSingleWinnerUnderConcurrentClaims(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			var claimed bool
-			acquired, err := claimers[i%len(claimers)].WithDeliveryGuard(context.Background(), func(guard *DeliveryGuard) error {
-				_, claimed, err = guard.ClaimMessage(id, now)
-				return err
-			})
-			if err == nil && !acquired {
-				claimed = false
-			}
+			claimed, err := claimers[i%len(claimers)].ClaimMessage(id, now)
 			mu.Lock()
 			wins[i] = claimed
 			errors[i] = err

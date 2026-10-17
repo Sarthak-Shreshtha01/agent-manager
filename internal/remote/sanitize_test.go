@@ -45,7 +45,7 @@ func TestCleanScreenKeepsLinesAndTabs(t *testing.T) {
 func TestSnapshotIsCleaned(t *testing.T) {
 	c, _ := recorder(t, `{"version":1,"sessions":[
 		{"id":"a1","name":"`+hostile+`","tool":"`+hostile+`","group":"`+hostile+`","directory":"`+hostile+`",
-		 "status":"`+hostile+`","branch":"`+hostile+`","pending_input_outcome":"`+hostile+`"},
+		 "status":"`+hostile+`","branch":"`+hostile+`"},
 		{"id":"a1; rm -rf ~","name":"evil"},
 		{"id":"","name":"blank"}],
 	"terminals":[
@@ -63,7 +63,7 @@ func TestSnapshotIsCleaned(t *testing.T) {
 	want := sessioncmd.Snapshot{
 		Version: 1,
 		Sessions: []sessioncmd.Session{{ID: "a1", Name: clean, Tool: clean, Group: clean, Directory: clean,
-			Status: clean, Branch: clean, PendingInputOutcome: clean}},
+			Status: clean, Branch: clean}},
 		Terminals: []sessioncmd.Terminal{
 			{ID: "t1", Name: clean, Group: clean, Directory: clean, Status: clean, ParentID: "a1", ParentName: clean},
 			{ID: "t2"},

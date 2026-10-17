@@ -25,7 +25,6 @@ type InboxMessage struct {
 	DeliveredAt time.Time
 	DroppedAt   time.Time
 	ReadAt      time.Time
-	Outcome     DeliveryOutcome
 }
 
 // InboxLimits stop two agents talking each other into an infinite loop.
@@ -223,11 +222,11 @@ func (s *Store) HeadMessage(sessionID string) (InboxMessage, bool, error) {
 	msg := InboxMessage{SessionID: sessionID}
 	var sentAt, claimedAt int64
 	err := s.db.QueryRow(`
-SELECT id, sender_id, sender_name, body, fingerprint, sent_at, claimed_at, delivery_outcome
+SELECT id, sender_id, sender_name, body, fingerprint, sent_at, claimed_at
   FROM session_inbox
  WHERE session_id = ? AND delivered_at = 0
  ORDER BY id LIMIT 1`, sessionID).
-		Scan(&msg.ID, &msg.SenderID, &msg.SenderName, &msg.Body, &msg.Fingerprint, &sentAt, &claimedAt, &msg.Outcome)
+		Scan(&msg.ID, &msg.SenderID, &msg.SenderName, &msg.Body, &msg.Fingerprint, &sentAt, &claimedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return InboxMessage{}, false, nil
 	}
@@ -239,20 +238,37 @@ SELECT id, sender_id, sender_name, body, fingerprint, sent_at, claimed_at, deliv
 	return msg, true, nil
 }
 
-// ClaimMessage remains as an explicit compatibility failure for callers not
-// yet migrated to DeliveryGuard. It cannot admit automatic transport.
+// ClaimMessage takes ownership of one message before it is typed. A
+// concurrent append cannot invalidate this compare-and-set the way it can
+// invalidate the pending-input one, because the guard is a single row.
 func (s *Store) ClaimMessage(id int64, at time.Time) (bool, error) {
-	return false, ErrDeliveryGuardRequired
+	res, err := s.db.Exec(
+		`UPDATE session_inbox SET claimed_at = ? WHERE id = ? AND claimed_at = 0 AND delivered_at = 0`,
+		encodeTime(at), id)
+	if err != nil {
+		return false, err
+	}
+	affected, err := res.RowsAffected()
+	return affected == 1, err
 }
 
 func (s *Store) MarkDelivered(id int64, at time.Time) error {
-	return ErrDeliveryGuardRequired
+	_, err := s.db.Exec(
+		`UPDATE session_inbox SET delivered_at = ? WHERE id = ? AND delivered_at = 0`,
+		encodeTime(at), id)
+	return err
 }
 
-// MarkDropped remains as an explicit compatibility failure for callers not
-// yet migrated to a token-matched DeliveryGuard receipt.
+// MarkDropped retires a message that never reached the pane. It leaves the
+// queue exactly as a delivered one does, since delivery is at most once and
+// nothing may retype it, and dropped_at is what tells its sender the
+// difference.
 func (s *Store) MarkDropped(id int64, at time.Time) error {
-	return ErrDeliveryGuardRequired
+	stamp := encodeTime(at)
+	_, err := s.db.Exec(
+		`UPDATE session_inbox SET delivered_at = ?, dropped_at = ? WHERE id = ? AND delivered_at = 0`,
+		stamp, stamp, id)
+	return err
 }
 
 // MarkRead acks every message a session received from one sender. A reply
@@ -261,8 +277,7 @@ func (s *Store) MarkDropped(id int64, at time.Time) error {
 func (s *Store) MarkRead(sessionID, senderID string, at time.Time) error {
 	_, err := s.db.Exec(`
 UPDATE session_inbox SET read_at = ?
- WHERE session_id = ? AND sender_id = ? AND delivered_at != 0
-   AND delivery_outcome = 'confirmed' AND read_at = 0`,
+ WHERE session_id = ? AND sender_id = ? AND delivered_at != 0 AND dropped_at = 0 AND read_at = 0`,
 		encodeTime(at), sessionID, senderID)
 	return err
 }
@@ -273,10 +288,9 @@ func (s *Store) Message(id int64, senderID string) (InboxMessage, error) {
 	msg := InboxMessage{ID: id, SenderID: senderID}
 	var sentAt, claimedAt, deliveredAt, droppedAt, readAt int64
 	err := s.db.QueryRow(`
-SELECT session_id, sender_name, body, fingerprint, sent_at, claimed_at, delivered_at, dropped_at, read_at,
-       delivery_outcome
+SELECT session_id, sender_name, body, fingerprint, sent_at, claimed_at, delivered_at, dropped_at, read_at
   FROM session_inbox WHERE id = ? AND sender_id = ?`, id, senderID).
-		Scan(&msg.SessionID, &msg.SenderName, &msg.Body, &msg.Fingerprint, &sentAt, &claimedAt, &deliveredAt, &droppedAt, &readAt, &msg.Outcome)
+		Scan(&msg.SessionID, &msg.SenderName, &msg.Body, &msg.Fingerprint, &sentAt, &claimedAt, &deliveredAt, &droppedAt, &readAt)
 	if err != nil {
 		return InboxMessage{}, err
 	}
@@ -303,7 +317,7 @@ func (s *Store) QueuedCount(sessionID string) (int, error) {
 func (s *Store) HandoffFrom(sessionID, senderID string, statusAt time.Time) (queued, typedSince bool, err error) {
 	err = s.db.QueryRow(`
 SELECT EXISTS(SELECT 1 FROM session_inbox WHERE session_id = ? AND sender_id = ? AND delivered_at = 0),
-       EXISTS(SELECT 1 FROM session_inbox WHERE session_id = ? AND sender_id = ? AND delivery_outcome = 'confirmed' AND delivered_at > ?)`,
+       EXISTS(SELECT 1 FROM session_inbox WHERE session_id = ? AND sender_id = ? AND dropped_at = 0 AND delivered_at > ?)`,
 		sessionID, senderID, sessionID, senderID, encodeTime(statusAt)).Scan(&queued, &typedSince)
 	return queued, typedSince, err
 }
