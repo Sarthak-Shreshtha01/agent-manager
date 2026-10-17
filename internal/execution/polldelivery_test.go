@@ -690,7 +690,9 @@ func TestInboxWaitsAPollAfterALaunchInputIsTyped(t *testing.T) {
 	}
 	queueMessage(t, m, sess.ID, "rebase on main")
 
-	deadline := time.Now().Add(3 * time.Second)
+	// The launch input goes out once the tool has drawn its prompt, which
+	// takes as long as the runner needs.
+	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
 		m.applyCmd(t, m.refreshCmd())
 		current, err := m.store.Get(sess.ID)
