@@ -328,6 +328,39 @@ def quit_abandon(sandbox, binary):
         raise AssertionError(f'abandoned spawn not reported: {stderr!r}')
 
 
+def quit_abandon_lifecycle(sandbox, binary):
+    """Forced quit must not join a poller locked behind an abandoned archive."""
+    write_fixture(sandbox)
+    start_manager(sandbox, binary)
+    seed_store(sandbox)
+    name = spawn_form(sandbox, 'stuck-archive')
+    pane = agent_pane(sandbox, 'sleep')
+    sandbox.wait('archive-ready', lambda: pane_text(sandbox, pane),
+                 lambda text: READY_MARKER in text)
+    select_row(sandbox, name, 'archive-select')
+    lock = sqlite3.connect(profile_dir(sandbox) / 'state.db', timeout=1)
+    lock.execute('BEGIN IMMEDIATE')
+    try:
+        key(sandbox, 'a')
+        frame(sandbox, 'archive-confirm', 'frees its RAM')
+        key(sandbox, 'y')
+        key(sandbox, 's')
+        frame(sandbox, 'archive-settings-responsive', 'Settings')
+        key(sandbox, 'C-c')
+        if (sandbox.artifacts / 'manager-exit-code.txt').exists():
+            raise AssertionError('first quit did not wait for the archive')
+        key(sandbox, 'q')
+        exit_file = sandbox.artifacts / 'manager-exit-code.txt'
+        sandbox.wait('archive-abandon-exit', lambda: exit_file.read_text().strip() if exit_file.exists() else '',
+                     lambda value: value == '1', timeout=2)
+    finally:
+        lock.rollback()
+        lock.close()
+    stderr = (sandbox.artifacts / 'manager-stderr.txt').read_text()
+    if 'session lifecycle change was still running' not in stderr:
+        raise AssertionError(f'abandoned archive not reported: {stderr!r}')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, help='existing binary; otherwise build once before isolating HOME')
@@ -350,6 +383,11 @@ def main():
             raise RuntimeError(str(cleanup_errors))
         sandbox = Sandbox(artifacts / 'quit-abandon')
         quit_abandon(sandbox, binary)
+        cleanup_errors = sandbox.close()
+        if cleanup_errors:
+            raise RuntimeError(str(cleanup_errors))
+        sandbox = Sandbox(artifacts / 'quit-abandon-lifecycle')
+        quit_abandon_lifecycle(sandbox, binary)
         result = dict(status='passed', seconds=round(time.monotonic()-started, 2))
     except (Exception, KeyboardInterrupt) as error:
         (sandbox.artifacts / 'scenario-last-frame.txt').write_text(last_frame(sandbox))
