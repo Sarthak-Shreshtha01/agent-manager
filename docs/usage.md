@@ -368,9 +368,9 @@ Groups are paths (`backend/api/auth`) forming a tree of unlimited depth. Session
 
 ## SSH connections
 
-`C` adds an SSH connection: a name and a destination, `user@host` or an alias from `~/.ssh/config`. The other machine needs agent-manager on its login shell's `PATH` and a key this machine's `ssh` can use without a prompt; the manager never asks for a password and never touches your SSH config.
+`C` adds an SSH connection: a name and a destination, `user@host` or an alias from `~/.ssh/config`. The other machine needs agent-manager on its login shell's `PATH` and a key this machine's `ssh` can use without a prompt; the manager never asks for a password and never touches your SSH config. Connect once by hand first (`ssh user@host`) so the host key is already known: the manager's `ssh` runs in batch mode and shows a host it has never seen as offline with "Host key verification failed".
 
-The connection sits in the list after your own groups, in its own color with an `ssh` label, and the other machine's groups, agents and terminals nest under it. It folds like a group. Each poll refreshes every connection in the background, one call per host at a time, and a host that stops answering keeps its last rows with an `offline` note and the error in the detail pane. The first refresh starts a headless manager there (`agent-manager serve --background`) when none is running, so messages sent to its agents get delivered.
+The connection sits in the list after your own groups, in its own color with an `ssh` label, and the other machine's groups, agents and terminals nest under it. It folds like a group. Each poll refreshes every connection in the background, one call per host at a time, and a host that stops answering keeps its last rows with an `offline` note and the error in the detail pane, and is tried again after a pause that grows from two seconds to half a minute while it stays down. The first refresh starts a headless manager there (`agent-manager serve --background`) when none is running, so messages sent to its agents get delivered.
 
 On a connection's rows:
 - `enter` and `A` attach over SSH in this terminal; detaching returns to the manager. A remote pane is never embedded.
@@ -378,7 +378,7 @@ On a connection's rows:
 - `T` opens a terminal there, `x` kills an agent or closes a terminal, `v` revives, `a` and `u` archive and restore.
 - On the connection row itself, `r` edits it and `d` removes it. Removing asks first; its sessions keep running on that host.
 
-Rename, move, delete, restart, fork, review, the editor, copying a reply and reordering are refused on a remote row with a message naming the gap. A failed call shows the other machine's error. Nothing from a connection is written to this machine's store. See [SSH connections](ssh-connections.md) for the protocol.
+Rename, move, delete, restart, fork, review, the editor, copying a reply, reordering, marking idle, cancelling an after-turn end, a new group under a connection and kill all or revive all are refused on a remote row with a message naming the gap; an agent creates a remote group through MCP `create_group` with `host`. A failed call shows the other machine's error. Nothing from a connection is written to this machine's store. See [SSH connections](ssh-connections.md) for the protocol.
 
 ## Status
 

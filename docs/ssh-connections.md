@@ -73,7 +73,9 @@ Tasks, file reservations, rename and review still need a calling session.
 ### SSH invocation
 
 Every call runs `ssh` with:
-- `BatchMode=yes`, so it never prompts.
+- `BatchMode=yes`, so it never prompts. A host key ssh has not seen fails
+  with "Host key verification failed", so the user connects once by hand
+  before adding the host.
 - `ForwardAgent=no` and `ClearAllForwardings=yes`.
 - `ConnectTimeout=5` and server-alive limits.
 - A per-profile `ControlMaster`/`ControlPersist` socket under a short private
@@ -84,7 +86,9 @@ Every call runs `ssh` with:
 The remote command runs in the user's login shell (`exec "$SHELL" -lc ...`),
 so the `PATH` the user set up there finds the binary, wherever it was
 installed. Every argument is single-quoted. The command prints a marker once the login profile has run, and the client reads only what follows it, so a profile that prints to stdout does not break the answer. The client strips control characters and escape sequences from every string a host answers with, drops rows whose ids are malformed, caps output at 8 MiB, and kills ssh's whole process group at the deadline. A stored connection is validated again before any call uses it. Each call has a deadline, and
-each host has one call in flight at a time.
+each host has one call in flight at a time. A host whose refresh failed is
+tried again after a wait that doubles from two seconds to thirty while it
+stays down.
 
 ## Pieces
 
@@ -108,6 +112,9 @@ These are refused on a remote row with a message naming the gap:
 - Rename, move, delete, restart and fork.
 - Diff review.
 - The editor.
+- Copying a reply, marking idle, cancelling an after-turn end, reordering.
+- A new group from the list (MCP `create_group` with `host` makes one),
+  kill all and revive all.
 - File reservations and tasks, which stay per host.
 
 Focus and attach on a remote row open an SSH attach in the terminal, not the
