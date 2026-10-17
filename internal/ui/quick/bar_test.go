@@ -36,6 +36,7 @@ type fakeHost struct {
 }
 
 func (h *fakeHost) ChoiceCaps(string) spawn.Caps        { return spawn.Caps{} }
+func (h *fakeHost) ChoiceRemoteHost() string            { return "" }
 func (h *fakeHost) ChoiceAnswer(string) *spawn.Answer   { return nil }
 func (h *fakeHost) ChoiceSetting(key string) string     { return h.settings[key] }
 func (h *fakeHost) SaveChoiceSetting(key, value string) { h.settings[key] = value }

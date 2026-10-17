@@ -46,6 +46,9 @@ type ChoiceHost interface {
 	ChoiceSetting(key string) string
 	SaveChoiceSetting(key, value string)
 	ReportErr(text string)
+	// ChoiceRemoteHost names the SSH connection the new session goes to,
+	// or is empty for this machine.
+	ChoiceRemoteHost() string
 }
 
 // Choice is what a new session launches its CLI with. Index 0 of profile

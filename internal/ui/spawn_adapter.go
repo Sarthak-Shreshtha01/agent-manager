@@ -60,6 +60,19 @@ func (h spawnHost) SaveChoiceSetting(key, value string) { h.m.saveChoiceSetting(
 
 func (h spawnHost) ReportErr(text string) { h.m.reportErr(text) }
 
+func (h spawnHost) ChoiceRemoteHost() string {
+	m := h.m
+	if m.mode == modeForm {
+		return m.form.remote.host
+	}
+	if m.quick.active {
+		if target, ok := m.remoteTarget(); ok {
+			return target.host
+		}
+	}
+	return ""
+}
+
 func (h spawnHost) ClearErr() { h.m.clearErr() }
 
 func (h spawnHost) Prompt() spawn.Prompt {
