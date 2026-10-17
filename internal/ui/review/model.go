@@ -1,3 +1,7 @@
+// Package review is review mode: the diff and its navigation, comments and
+// rounds, the repo picker, highlighting and wrapping, and the saved state it
+// hands back. The root loads the diff, probes files and talks to the store
+// and Git on its behalf.
 package review
 
 import (

@@ -1,3 +1,8 @@
+// Package focus is the focused session: the pane frame it shows, the caret,
+// scrollback, text selection, link hits and the keys and mouse it routes to
+// the agent. It works on copied pane facts and returns typed outcomes; the
+// root owns the tmux client, clipboard, URL opener and IME writer that run
+// them.
 package focus
 
 // Model owns the interaction state of the focused pane. Runtime resources

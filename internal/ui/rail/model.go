@@ -1,3 +1,7 @@
+// Package rail is the session list: its rows, cursor, folds, search and
+// filters, the drag reorder, the row menu, the legend and how each row is
+// painted. It works on a copied snapshot of the workspace and returns typed
+// intents and mutations; the root runs the store and tmux work they ask for.
 package rail
 
 import (

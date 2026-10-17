@@ -1,3 +1,6 @@
+// Package presentation holds the pure text helpers every UI package shares:
+// the row marks in both symbol modes, width-aware padding, truncation and
+// centering, and the control glyphs. It imports nothing from the module.
 package presentation
 
 import (
