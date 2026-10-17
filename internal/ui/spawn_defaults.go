@@ -114,7 +114,7 @@ func (m *Model) handleGroupBaseStep(msg groupBaseStepMsg) {
 	var base *string
 	switch msg.target {
 	case groupBaseForm:
-		if m.mode != modeGroupForm || uint64(m.groupForm.gen) != msg.gen || m.groupFormDir() != msg.dir {
+		if m.mode != modeGroupForm || uint64(m.groupForm.Gen()) != msg.gen || m.groupFormDir() != msg.dir {
 			return
 		}
 		base = &m.groupForm.base

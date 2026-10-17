@@ -316,8 +316,8 @@ func (m *Model) moveGroupCursor(delta int) tea.Cmd {
 	if m.mode == modeForm {
 		m.form.DefaultWorktree(m.cachedSpawnWorktreeDefault(m.selectedGroupPath()))
 	}
-	if m.mode == modeGroupForm && m.groupForm.pathAuto {
-		m.groupForm.path.SetValue(m.capturedAncestorGroupDir(m.selectedGroupPath()))
+	if m.mode == modeGroupForm && m.groupForm.DirAuto() {
+		m.groupForm.SetDir(m.capturedAncestorGroupDir(m.selectedGroupPath()))
 	}
 	if m.mode == modeForm {
 		return m.formWorktreeProbeCmd(false)

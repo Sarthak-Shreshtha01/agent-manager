@@ -407,6 +407,18 @@ func pickGroup(t *testing.T, m *Model, path string) {
 	t.Fatalf("group %q not in picker options %v", path, m.form.groups)
 }
 
+// focusGroupField tabs the open group form to field.
+func focusGroupField(t *testing.T, m *Model, field int) {
+	t.Helper()
+	for range 5 {
+		if m.groupForm.Focus() == field {
+			return
+		}
+		m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyTab})
+	}
+	t.Fatalf("group form focus = %d, want %d", m.groupForm.Focus(), field)
+}
+
 func createSession(t *testing.T, m *Model, name, dir, group string) {
 	t.Helper()
 	m.openForm()

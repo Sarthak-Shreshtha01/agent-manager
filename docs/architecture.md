@@ -86,8 +86,8 @@ dispatch; it changes no state.
 
 **Features own state behind narrow hosts, and large ones get child packages.**
 A feature is a type with its state, keys and view, and it reaches the root
-only through a small host interface it declares (`groupFormDialog`,
-`pathComplete`, and the rest in `internal/ui`). A feature moves to a
+only through a small host interface it declares (`pathComplete`,
+`composer`, and the rest in `internal/ui`). A feature moves to a
 child package when its inputs and outcomes are narrow enough to enforce with
 `check-ui-boundaries`: Help, Review, Focus, Rail, Settings, Spawn, Quick, Dialogs and Notices. The child gets copied
 values and returns typed requests; root adapters run the store, tmux and git

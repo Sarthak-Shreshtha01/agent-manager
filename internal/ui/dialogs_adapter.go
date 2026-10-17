@@ -289,13 +289,13 @@ type renameDialog struct {
 	base  string
 }
 
-// renamePaths hands the rename the root's path completion.
-type renamePaths struct{ *pathComplete }
+// dialogPaths hands the rename and the group form the root's path completion.
+type dialogPaths struct{ *pathComplete }
 
-func (p renamePaths) Active() bool        { return p.active() }
-func (p renamePaths) Chosen() bool        { return p.chosen }
-func (p renamePaths) Move(delta int) bool { return p.move(delta) }
-func (p renamePaths) Reset()              { p.reset() }
+func (p dialogPaths) Active() bool        { return p.active() }
+func (p dialogPaths) Chosen() bool        { return p.chosen }
+func (p dialogPaths) Move(delta int) bool { return p.move(delta) }
+func (p dialogPaths) Reset()              { p.reset() }
 
 // stepRenameBase steps the group base choice, probing the default path the
 // open group edit would save.
@@ -345,7 +345,7 @@ func (m *Model) openRename() {
 }
 
 func (m *Model) handleRenameKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	key := m.rename.Key(msg, renamePaths{&m.rename.paths}, len(groupWorktreeOptions))
+	key := m.rename.Key(msg, dialogPaths{&m.rename.paths}, len(groupWorktreeOptions))
 	switch key.Action {
 	case uidialogs.RenameCancel:
 		m.mode = modeList

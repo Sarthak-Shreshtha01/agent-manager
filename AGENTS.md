@@ -226,7 +226,7 @@ with `gh release edit <tag> --notes-file notes.md`.
   (`internal/ui/{help,review,focus,rail,settings,spawn,quick,dialogs,notices}`);
   `presentation` holds shared text helpers and `theme` the palettes. Features
   that stay in `ui` each own their state, keys and view through a type with a
-  narrow host interface: `groupFormDialog`, `pathComplete`, `composer` and
+  narrow host interface: `pathComplete`, `composer` and
   `launchHintDialog`. Store, tmux and Git
   work runs on the ordered effect lane (`effects.go`) through each feature's
   `<feature>_effect.go`. Root files are named `<feature>_<concern>.go`, so

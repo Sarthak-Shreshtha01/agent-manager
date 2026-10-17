@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/config"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -39,9 +40,9 @@ func TestGroupFormStepsBaseThroughTheRepoBranches(t *testing.T) {
 	m := buildModel(t)
 	repo := repoWithDevelop(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("based")
-	m.groupForm.path.SetValue(repo)
-	m.groupForm.focus = gfBase
+	m.groupForm.SetName("based")
+	m.groupForm.SetDir(repo)
+	focusGroupField(t, m, uidialogs.GroupFormBaseField)
 	_, step := m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.applyTestMsg(t, step())
 	if m.groupForm.base != "develop" {
@@ -87,8 +88,8 @@ func TestGroupFormBaseNeedsARepository(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.path.SetValue(t.TempDir())
-	m.groupForm.focus = gfBase
+	m.groupForm.SetDir(t.TempDir())
+	focusGroupField(t, m, uidialogs.GroupFormBaseField)
 	_, step := m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.applyTestMsg(t, step())
 	if m.groupForm.base != "" {

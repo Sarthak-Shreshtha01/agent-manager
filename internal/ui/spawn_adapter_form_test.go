@@ -15,6 +15,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/hooks"
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -187,8 +188,8 @@ func TestGroupFormCreatesUnderParent(t *testing.T) {
 
 	m.openGroupForm()
 	pickGroup(t, m, "projects")
-	m.groupForm.name.SetValue("sub/one")
-	m.groupForm.path.SetValue(t.TempDir())
+	m.groupForm.SetName("sub/one")
+	m.groupForm.SetDir(t.TempDir())
 	_, cmd := m.submitGroupForm()
 	m.applyCmd(t, cmd)
 	if m.mode != modeList {
@@ -215,9 +216,10 @@ func TestGroupFormShowsNewEmptyGroupWithWorktreeOff(t *testing.T) {
 	m.rail.SetArchived(true)
 	m.rail.SetFilteringAttention(true)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("manual")
-	m.groupForm.path.SetValue(t.TempDir())
-	m.groupForm.worktreeIndex = groupWorktreeIndex("off")
+	m.groupForm.SetName("manual")
+	m.groupForm.SetDir(t.TempDir())
+	focusGroupField(t, m, uidialogs.GroupFormWorktreeField)
+	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyLeft})
 
 	_, cmd := m.submitGroupForm()
 	m.applyCmd(t, cmd)
@@ -249,7 +251,7 @@ func TestGroupFormExpandsParentToShowNewChild(t *testing.T) {
 	m.selectGroupRow(t, "projects")
 	m.rail.SetCollapsed("projects", true)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("api")
+	m.groupForm.SetName("api")
 
 	_, cmd := m.submitGroupForm()
 	m.applyCmd(t, cmd)
@@ -276,9 +278,10 @@ func TestGroupFormRejectsDuplicateWithoutChangingIt(t *testing.T) {
 
 	m.openGroupForm()
 	pickGroup(t, m, "")
-	m.groupForm.name.SetValue("backend")
-	m.groupForm.path.SetValue(second)
-	m.groupForm.worktreeIndex = groupWorktreeIndex("off")
+	m.groupForm.SetName("backend")
+	m.groupForm.SetDir(second)
+	focusGroupField(t, m, uidialogs.GroupFormWorktreeField)
+	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyLeft})
 	_, cmd := m.submitGroupForm()
 	m.applyCmd(t, cmd)
 	if m.mode != modeGroupForm || !strings.Contains(m.errBar.text, "already exists") {
@@ -325,14 +328,14 @@ func TestGroupFormFieldsTrackCardWidth(t *testing.T) {
 	m := buildModel(t)
 	m.openGroupForm()
 	want := m.formValueWidth() - 3
-	if m.groupForm.name.Width != want || m.groupForm.path.Width != want {
-		t.Fatalf("initial widths = name %d path %d, want %d", m.groupForm.name.Width, m.groupForm.path.Width, want)
+	if m.groupForm.Width() != want {
+		t.Fatalf("initial width = %d, want %d", m.groupForm.Width(), want)
 	}
 
 	m.Update(tea.WindowSizeMsg{Width: 72, Height: m.layout.height})
 	want = m.formValueWidth() - 3
-	if m.groupForm.name.Width != want || m.groupForm.path.Width != want {
-		t.Fatalf("resized widths = name %d path %d, want %d", m.groupForm.name.Width, m.groupForm.path.Width, want)
+	if m.groupForm.Width() != want {
+		t.Fatalf("resized width = %d, want %d", m.groupForm.Width(), want)
 	}
 }
 
@@ -647,18 +650,18 @@ func TestGroupFormParentArrowsMoveFocusNotSelection(t *testing.T) {
 	}
 	m.applyCmd(t, m.refreshCmd())
 	m.openGroupForm()
-	m.groupForm.focus = gfParent
+	focusGroupField(t, m, uidialogs.GroupFormParentField)
 
 	initial := m.form.groupIndex
 	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyDown})
 	if m.form.groupIndex != initial {
 		t.Fatalf("down must not change the parent selection, index = %d, want %d", m.form.groupIndex, initial)
 	}
-	if m.groupForm.focus == gfParent {
+	if m.groupForm.Focus() == uidialogs.GroupFormParentField {
 		t.Fatal("down should move focus off the parent field")
 	}
 
-	m.groupForm.focus = gfParent
+	focusGroupField(t, m, uidialogs.GroupFormParentField)
 	m.form.groupIndex = 0
 	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	if m.form.groupIndex != 1 {
@@ -998,9 +1001,9 @@ func TestGroupFormStoresWorktreeChoice(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("wtgrp")
-	m.groupForm.path.SetValue(t.TempDir())
-	m.groupForm.focus = gfWorktree
+	m.groupForm.SetName("wtgrp")
+	m.groupForm.SetDir(t.TempDir())
+	focusGroupField(t, m, uidialogs.GroupFormWorktreeField)
 	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
