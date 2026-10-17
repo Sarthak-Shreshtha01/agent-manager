@@ -26,7 +26,6 @@ var remoteRefusals = map[uirail.ActionKind]string{
 	uirail.CopyReply:    "copy reply",
 	uirail.MarkIdle:     "mark idle",
 	uirail.CancelEnd:    "cancel end",
-	uirail.NewGroup:     "new group",
 	uirail.KillAll:      "kill all",
 	uirail.ReviveAll:    "revive all",
 	uirail.Kill:         "kill",
@@ -65,6 +64,10 @@ func (m *Model) connectionIntent(intent uirail.Intent) (tea.Cmd, bool) {
 			m.confirmRemoveConnection(row.host)
 			return nil, true
 		}
+	}
+	if intent.Kind == uirail.NewGroup {
+		m.openGroupForm()
+		return nil, true
 	}
 	if intent.Kind == uirail.NewTerminal {
 		group := row.group

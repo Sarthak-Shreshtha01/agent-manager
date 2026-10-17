@@ -231,11 +231,11 @@ func (m Model) RemoteLegend(ctx LegendContext, row RemoteRow, collapsed bool) Le
 	switch row.Kind {
 	case ConnectionRow:
 		return Legend{Title: "SSH connection", Leads: leads, Pairs: boundPairs([][2]string{
-			{k(keybind.Open), fold}, {k(keybind.Terminal), "terminal"}, {k(keybind.Rename), "edit"}, {k(keybind.Delete), "remove"},
+			{k(keybind.Open), fold}, {k(keybind.Terminal), "terminal"}, {k(keybind.NewGroup), "group"}, {k(keybind.Rename), "edit"}, {k(keybind.Delete), "remove"},
 		})}
 	case GroupRow:
 		return Legend{Title: "Group", Leads: leads, Pairs: boundPairs([][2]string{
-			{k(keybind.Open), fold}, {k(keybind.Terminal), "terminal"},
+			{k(keybind.Open), fold}, {k(keybind.Terminal), "terminal"}, {k(keybind.NewGroup), "group"},
 		})}
 	}
 	title, kill := "Session", "kill"

@@ -375,10 +375,10 @@ The connection sits in the list after your own groups, in its own color with an 
 On a connection's rows:
 - `enter` and `A` attach over SSH in this terminal; detaching returns to the manager. A remote pane is never embedded.
 - Quick prompt mode sends to a remote agent as `<this machine's short hostname>: you`, or starts a new agent when a connection or remote group is selected. `n` starts one there too; the directory and the worktree default are the other machine's unless you set them.
-- `T` opens a terminal there, `x` kills an agent or closes a terminal, `v` revives, `a` and `u` archive and restore.
+- `T` opens a terminal there and `g` creates a group there, under the selected one; `x` kills an agent or closes a terminal, `v` revives, `a` and `u` archive and restore.
 - On the connection row itself, `r` edits it and `d` removes it. Removing asks first; its sessions keep running on that host.
 
-Rename, move, delete, restart, fork, review, the editor, copying a reply, reordering, marking idle, cancelling an after-turn end, a new group under a connection and kill all or revive all are refused on a remote row with a message naming the gap; an agent creates a remote group through MCP `create_group` with `host`. A failed call shows the other machine's error. Nothing from a connection is written to this machine's store. See [SSH connections](ssh-connections.md) for the protocol.
+Rename, move, delete, restart, fork, review, the editor, copying a reply, reordering, marking idle, cancelling an after-turn end and kill all or revive all are refused on a remote row with a message naming the gap. A failed call shows the other machine's error. Nothing from a connection is written to this machine's store. See [SSH connections](ssh-connections.md) for the protocol.
 
 ## Status
 

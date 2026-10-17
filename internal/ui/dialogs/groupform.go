@@ -19,6 +19,9 @@ type GroupForm struct {
 	pathAuto      bool
 	worktreeIndex int
 	focus         int
+	// remote names the SSH connection the group is created on; its rows
+	// stop at the path, since the host owns the worktree choice.
+	remote string
 	// gen tells this group form from the one that stood in the same place
 	// before it, so a completion cannot close a form the user since reopened.
 	gen int
@@ -42,6 +45,23 @@ func NewGroupForm(dir string, gen int) GroupForm {
 	path := newField("default working directory", 400)
 	path.SetValue(dir)
 	return GroupForm{name: name, path: path, pathAuto: true, gen: gen}
+}
+
+// AimRemote points the form at a connection: the parent is fixed, the
+// directory is the host's to resolve, and the worktree rows are left out.
+func (d *GroupForm) AimRemote(host string) {
+	d.remote = host
+	d.path.Placeholder = "the group's directory on " + host
+}
+
+func (d GroupForm) Remote() string { return d.remote }
+
+// fieldCount is how many rows the focus cycles through.
+func (d GroupForm) fieldCount() int {
+	if d.remote != "" {
+		return GroupFormWorktreeField
+	}
+	return groupFormFieldCount
 }
 
 func (d GroupForm) Gen() int      { return d.gen }
@@ -163,6 +183,9 @@ func (d *GroupForm) Key(msg tea.KeyMsg, paths PathSuggestions, parent string, wo
 		case GroupFormBaseField:
 			return GroupFormKey{Action: GroupFormStepBase, Delta: delta}
 		case GroupFormParentField:
+			if d.remote != "" {
+				return GroupFormKey{}
+			}
 			return GroupFormKey{Action: GroupFormStepParent, Delta: delta}
 		}
 	case "enter":
@@ -186,7 +209,7 @@ func (d *GroupForm) Key(msg tea.KeyMsg, paths PathSuggestions, parent string, wo
 
 func (d *GroupForm) focusStep(paths PathSuggestions, delta int) {
 	paths.Reset()
-	d.focus = (d.focus + delta + groupFormFieldCount) % groupFormFieldCount
+	d.focus = (d.focus + delta + d.fieldCount()) % d.fieldCount()
 	d.name.Blur()
 	d.path.Blur()
 	switch d.focus {
@@ -237,23 +260,30 @@ type GroupFormView struct {
 }
 
 func (d GroupForm) View(view GroupFormView) Card {
+	parent := view.Badge(displayGroup(view.Parent))
+	if d.remote != "" {
+		parent += view.Subtle.Render("  on " + d.remote)
+	}
 	body := view.Field("name", view.Input(d.name), d.focus == GroupFormNameField)
-	body += view.Field("parent", view.Badge(displayGroup(view.Parent)), d.focus == GroupFormParentField)
+	body += view.Field("parent", parent, d.focus == GroupFormParentField)
 	body += view.Field("path", view.Input(d.path), d.focus == GroupFormPathField)
 	suggesting := d.focus == GroupFormPathField && view.Suggestions != nil
 	if suggesting {
 		body += view.Suggestions() + "\n"
 	}
-	worktree := view.Subtle.Render("◂ ") + view.Value.Render(view.Worktrees[d.worktreeIndex]) + view.Subtle.Render(" ▸")
-	body += view.Field("worktree", worktree, d.focus == GroupFormWorktreeField)
-	body += view.Field("base", view.Base, d.focus == GroupFormBaseField)
-	if d.focus == GroupFormParentField {
-		body += "\n" + view.Picker()
+	if d.remote == "" {
+		worktree := view.Subtle.Render("◂ ") + view.Value.Render(view.Worktrees[d.worktreeIndex]) + view.Subtle.Render(" ▸")
+		body += view.Field("worktree", worktree, d.focus == GroupFormWorktreeField)
+		body += view.Field("base", view.Base, d.focus == GroupFormBaseField)
+		if d.focus == GroupFormParentField {
+			body += "\n" + view.Picker()
+		}
 	}
 	hints := [][2]string{{"tab/↑↓", "move"}, {"↵", "create"}, {"esc", "cancel"}}
 	switch {
 	case suggesting:
 		hints = view.SuggestHints
+	case d.remote != "":
 	case d.focus == GroupFormParentField:
 		hints = [][2]string{{"←→", "pick parent"}, {"tab/↑↓", "move"}, {"↵", "create"}, {"esc", "cancel"}}
 	case d.focus == GroupFormWorktreeField || d.focus == GroupFormBaseField:

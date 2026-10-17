@@ -34,6 +34,7 @@ DOWN = 'down'
 REMOTE_AGENT = 'remote-agent'
 REMOTE_GROUP = 'web'
 GROUPED_AGENT = 'api'
+REMOTE_NEW_GROUP = 'ops'
 QUICK_TEXT = 'ssh-quick-input'
 SPAWN_TEXT = 'ssh-spawn-prompt'
 
@@ -257,6 +258,16 @@ def spawn_and_terminal(sandbox, remote):
     if len(terminals) != 1:
         raise AssertionError(f'want one remote terminal opened without a session, got {terminals}')
     frame(sandbox, 'remote-terminal-row', '1 terminal ·')
+
+    select(sandbox, 'connection-row-group', 'ssh to fixture@' + CONNECTION)
+    key(sandbox, 'g')
+    frame(sandbox, 'remote-group-form', 'New Group', 'worktree')
+    sandbox.tmux('send-keys', '-l', '-t', 'scen:0.0', REMOTE_NEW_GROUP)
+    key(sandbox, 'Enter')
+    frame(sandbox, 'remote-group-created', f'created group {REMOTE_NEW_GROUP} on {CONNECTION}')
+    if remote.query(f"SELECT name FROM groups WHERE name = '{REMOTE_NEW_GROUP}'") != [(REMOTE_NEW_GROUP,)]:
+        raise AssertionError(f'group {REMOTE_NEW_GROUP} not on the host: {remote.query("SELECT name FROM groups")}')
+    frame(sandbox, 'remote-group-row', REMOTE_NEW_GROUP)
 
 
 def offline_connection(sandbox):

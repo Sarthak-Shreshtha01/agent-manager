@@ -97,7 +97,7 @@ func TestUnsupportedRemoteActionsAreRefusedWithoutIO(t *testing.T) {
 		uirail.RenameAction: "rename", uirail.MoveToGroup: "move", uirail.Delete: "delete",
 		uirail.Restart: "restart", uirail.Fork: "fork", uirail.OpenReview: "review",
 		uirail.OpenEditor: "the editor", uirail.CopyReply: "copy reply", uirail.MarkIdle: "mark idle",
-		uirail.CancelEnd: "cancel end", uirail.NewGroup: "new group", uirail.KillAll: "kill all",
+		uirail.CancelEnd: "cancel end", uirail.KillAll: "kill all",
 		uirail.ReviveAll: "revive all",
 	}
 	fake := &fakeSSH{}
@@ -244,6 +244,31 @@ func TestNewSessionFormSpawnsOnTheConnection(t *testing.T) {
 	}
 	if m.mode != modeList {
 		t.Fatalf("mode = %v, want the form closed", m.mode)
+	}
+}
+
+func TestNewGroupFormCreatesOnTheConnection(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	m.rail.Focus(boxGroup)
+	if _, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.NewGroup, Target: boxGroup}); cmd != nil {
+		t.Fatal("opening the form queued work")
+	}
+	if m.mode != modeGroupForm || m.groupForm.remote != (formRemote{host: "box", group: "web"}) || m.groupForm.Dir() != "" {
+		t.Fatalf("form = mode %v remote %+v dir %q", m.mode, m.groupForm.remote, m.groupForm.Dir())
+	}
+	m.groupForm.SetName("api")
+	_, cmd := m.submitGroupForm()
+	m.runRemoteCmd(t, cmd)
+	calls := fake.taken()
+	if len(calls) != 1 || !slices.Equal(calls[0], []string{"create-group", "--json", "--", "web/api"}) {
+		t.Fatalf("calls = %q", calls)
+	}
+	if m.mode != modeList || !strings.Contains(m.errBar.text, "created group web/api on box") {
+		t.Fatalf("mode %v status %q, want the form closed and the group reported", m.mode, m.errBar.text)
+	}
+	if groups, err := m.services.store.Groups(); err != nil || len(groups) != 0 {
+		t.Fatalf("local groups = %+v, %v; a remote group was written locally", groups, err)
 	}
 }
 

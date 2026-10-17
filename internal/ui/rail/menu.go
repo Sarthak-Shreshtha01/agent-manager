@@ -89,13 +89,14 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 // remoteMenuItems offers on a connection's rows only what reaches the
 // remote host's CLI.
 func remoteMenuItems(row treeRow, create []menuItem, connection menuItem) []menuItem {
+	group := menuItem{label: "New group", action: NewGroup}
 	switch row.kind {
 	case ConnectionRow:
-		return menuSections(create,
+		return menuSections(append(create, group),
 			[]menuItem{{label: "Edit connection", action: RenameAction}, connection},
 			[]menuItem{{label: "Remove connection", action: Delete, danger: true}})
 	case GroupRow:
-		return create
+		return append(create, group)
 	}
 	if row.sess.Archived {
 		return []menuItem{{label: "Restore", action: Restore}}

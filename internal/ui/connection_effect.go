@@ -88,6 +88,7 @@ const (
 	remoteRevive
 	remoteArchive
 	remoteRestore
+	remoteCreateGroup
 )
 
 // remoteRequest is one call to a connection's CLI. Nothing it does is
@@ -101,6 +102,9 @@ type remoteRequest struct {
 	from     string
 	spawn    sessioncmd.CreateSessionOptions
 	terminal sessioncmd.CreateTerminalOptions
+	// groupDir is the directory a new group on the host defaults to; name
+	// carries its path.
+	groupDir string
 	// draft and composerGen let a send or spawn from the quick bar, or a
 	// spawn from the New Session form, clear what asked for it.
 	draft          string
@@ -139,6 +143,8 @@ func (s effectServices) runRemote(request remoteRequest) (effectResult, error) {
 		result.session, err = s.remote.Revive(ctx, request.ref)
 	case remoteArchive, remoteRestore:
 		result.session, err = s.remote.Archive(ctx, request.ref, request.op == remoteRestore)
+	case remoteCreateGroup:
+		_, err = s.remote.CreateGroup(ctx, request.host, request.name, request.groupDir)
 	}
 	return result, err
 }
@@ -176,6 +182,11 @@ func (m *Model) applyRemoteEffect(request remoteRequest, result remoteEffectResu
 		m.reportDone("archived " + request.name + on)
 	case remoteRestore:
 		m.reportDone("restored " + request.name + on)
+	case remoteCreateGroup:
+		if m.mode == modeGroupForm && uint64(m.groupForm.Gen()) == uint64(request.composerGen) {
+			m.mode = modeList
+		}
+		m.reportDone("created group " + request.name + on)
 	}
 	return m.pollConnection(request.host)
 }

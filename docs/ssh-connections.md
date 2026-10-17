@@ -113,8 +113,7 @@ These are refused on a remote row with a message naming the gap:
 - Diff review.
 - The editor.
 - Copying a reply, marking idle, cancelling an after-turn end, reordering.
-- A new group from the list (MCP `create_group` with `host` makes one),
-  kill all and revive all.
+- Kill all and revive all.
 - File reservations and tasks, which stay per host.
 
 Focus and attach on a remote row open an SSH attach in the terminal, not the
