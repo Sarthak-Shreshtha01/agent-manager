@@ -373,7 +373,7 @@ def quit_abandon_lifecycle(sandbox, binary):
         lock.rollback()
         lock.close()
     stderr = (sandbox.artifacts / 'manager-stderr.txt').read_text()
-    if 'session lifecycle change was still running' not in stderr:
+    if 'session archive was still running' not in stderr:
         raise AssertionError(f'abandoned archive not reported: {stderr!r}')
 
 

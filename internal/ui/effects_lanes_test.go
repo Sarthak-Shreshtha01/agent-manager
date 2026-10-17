@@ -2,10 +2,12 @@ package ui
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -149,5 +151,32 @@ func TestAnAfterTurnEndHoldsTheSessionAndItsTerminals(t *testing.T) {
 	}
 	if got := m.heldSessions(afterTurnRequest{id: "agent", cancel: true}); got != nil {
 		t.Fatalf("a cancelled end holds %v, want nothing", got)
+	}
+}
+
+func TestEffectNameSaysWhichLifecycleActionRuns(t *testing.T) {
+	t.Parallel()
+	for action, want := range map[uidialogs.ConfirmAction]string{actionDelete: "session delete", actionArchive: "session archive", actionRestart: "session restart"} {
+		if got := effectName(lifecycleRequest{target: confirmTarget{action: action}}); got != want {
+			t.Errorf("effectName(%q) = %q, want %q", action, got, want)
+		}
+	}
+}
+
+// A quit that waits on accepted work says so, so a manager that does not
+// close at once is not taken for a hang.
+func TestQuitNamesTheWorkItWaitsFor(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.queueLifecycle(confirmTarget{action: actionArchive, sessions: []store.Session{{ID: "s"}}}, false, "")
+	m.nextEffectCmd()
+	m.requestQuit()
+	if !strings.Contains(m.errBar.text, "finishing session archive") || !strings.Contains(m.errBar.text, "again") {
+		t.Fatalf("status = %q, want the awaited archive and the second quit key named", m.errBar.text)
+	}
+	idle := buildModel(t)
+	idle.requestQuit()
+	if idle.errBar.text != "" {
+		t.Fatalf("a quit with nothing pending reported %q", idle.errBar.text)
 	}
 }

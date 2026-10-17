@@ -315,7 +315,24 @@ func (m *Model) requestQuit() (tea.Model, tea.Cmd) {
 	}
 	m.prepareSplitForQuit()
 	m.effects.quitting = true
+	if awaited, ok := m.firstUnfinishedEffect(); ok {
+		m.reportErr("finishing " + effectName(awaited.request) + " before quitting; press the quit key again to leave without waiting")
+	}
 	return m, m.nextEffectCmd()
+}
+
+// firstUnfinishedEffect is the job a quit drain waits on first: the running
+// main-lane job, then its queue, then the input lane.
+func (m *Model) firstUnfinishedEffect() (*effectJob, bool) {
+	for _, lane := range []*effectLane{&m.effects.main, &m.effects.input} {
+		if lane.active != nil {
+			return lane.active, true
+		}
+		if len(lane.pending) > 0 {
+			return lane.pending[0], true
+		}
+	}
+	return nil, false
 }
 
 // abandonEffects answers a second quit while the drain waits: it stops
@@ -423,7 +440,7 @@ func (m *Model) handleEffectCompleted(msg effectCompletedMsg) (tea.Model, tea.Cm
 }
 
 func effectName(request effectRequest) string {
-	switch request.(type) {
+	switch request := request.(type) {
 	case inputRequest:
 		return "input to a session"
 	case quickSendRequest:
@@ -437,7 +454,10 @@ func effectName(request effectRequest) string {
 	case installStartRequest, installSettleRequest:
 		return "CLI install"
 	case lifecycleRequest:
-		return "session lifecycle change"
+		if request.target.action == actionDelete {
+			return "session delete"
+		}
+		return "session " + string(request.target.action)
 	case afterTurnRequest:
 		return "after-turn archive or kill"
 	case railRequest:
