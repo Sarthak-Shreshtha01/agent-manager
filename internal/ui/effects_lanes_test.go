@@ -95,3 +95,59 @@ func TestEffectLifetimeWaitIsBounded(t *testing.T) {
 		t.Fatal("reported running work as finished")
 	}
 }
+
+// An input re-reads its session before it writes, but a restart that lands
+// between that read and the paste would hand the text to the replacement
+// agent. Input to the restarting pane waits for the restart, and input to
+// any other pane goes ahead.
+func TestInputToAPaneWaitsForTheJobRestartingIt(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.queueLifecycle(confirmTarget{action: actionRestart, sessions: []store.Session{{ID: "s"}}}, false, "")
+	m.nextEffectCmd()
+	if m.effects.main.active == nil {
+		t.Fatal("restart did not start")
+	}
+	m.dispatchInput(inputRequest{kind: inputPaste, session: store.Session{ID: "s"}, text: "late"})
+	m.dispatchInput(inputRequest{kind: inputKeys, session: store.Session{ID: "other"}, command: "x"})
+	m.nextEffectCmd()
+	if id, _ := inputTarget(m.effects.input.active); id != "other" {
+		t.Fatalf("input lane started %q, want the other pane's keys", id)
+	}
+	m.handleEffectCompleted(effectCompletedMsg{id: m.effects.input.active.id, result: inputEffectResult{}, finishedAt: time.Now()})
+	if m.effects.input.active != nil {
+		t.Fatal("the paste started under the restart of its own pane")
+	}
+	m.handleEffectCompleted(effectCompletedMsg{id: m.effects.main.active.id, result: lifecycleEffectResult{}, finishedAt: time.Now()})
+	if id, _ := inputTarget(m.effects.input.active); id != "s" {
+		t.Fatalf("input lane active = %#v, want the held paste once the restart ended", m.effects.input.active)
+	}
+}
+
+func TestAKillWaitsForTheInputInFlightToItsPane(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.dispatchInput(inputRequest{kind: inputPaste, session: store.Session{ID: "s"}, text: "typed"})
+	m.nextEffectCmd()
+	m.queueLifecycle(confirmTarget{action: actionKill, sessions: []store.Session{{ID: "s"}}}, false, "")
+	m.nextEffectCmd()
+	if m.effects.main.active != nil {
+		t.Fatal("kill started while its pane's paste was in flight")
+	}
+	m.handleEffectCompleted(effectCompletedMsg{id: m.effects.input.active.id, result: inputEffectResult{}, finishedAt: time.Now()})
+	if _, ok := m.effects.main.active.request.(lifecycleRequest); !ok {
+		t.Fatalf("main lane active = %#v, want the kill once the paste landed", m.effects.main.active)
+	}
+}
+
+func TestAnAfterTurnEndHoldsTheSessionAndItsTerminals(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.workspace.sessions = []store.Session{{ID: "agent"}, {ID: "shell", ParentID: "agent"}, {ID: "other"}}
+	if got := m.heldSessions(afterTurnRequest{id: "agent"}); !slices.Equal(got, []string{"agent", "shell"}) {
+		t.Fatalf("held = %v, want the agent and its terminal", got)
+	}
+	if got := m.heldSessions(afterTurnRequest{id: "agent", cancel: true}); got != nil {
+		t.Fatalf("a cancelled end holds %v, want nothing", got)
+	}
+}
