@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 )
 
 func helpKeyTokens(ctx Context) map[string]bool {
@@ -95,18 +96,27 @@ func TestCatalogRowsAreCompleteAndUniqueWithinASection(t *testing.T) {
 }
 
 func TestCatalogNamesTheInboxBadge(t *testing.T) {
-	for _, section := range helpSections(testContext(84)) {
+	for _, mode := range []presentation.GlyphMode{presentation.GlyphModeBasic, presentation.GlyphModeAdvanced} {
+		if !catalogNamesTheInboxBadge(mode) {
+			t.Errorf("%s mark section does not name the %q inbox badge", mode, presentation.GlyphsFor(mode).InboxGlyph)
+		}
+	}
+}
+
+func catalogNamesTheInboxBadge(mode presentation.GlyphMode) bool {
+	ctx := testContext(84)
+	ctx.Glyphs.Mode = mode
+	for _, section := range helpSections(ctx) {
 		if section.title != "the mark on a session row" {
 			continue
 		}
 		for _, row := range section.rows {
-			if strings.Contains(row[0], "✉") && strings.Contains(row[1], "another agent") {
-				return
+			if strings.Contains(row[0], presentation.GlyphsFor(mode).InboxGlyph) && strings.Contains(row[1], "another agent") {
+				return true
 			}
 		}
-		t.Fatal("mark section does not name the inbox badge")
 	}
-	t.Fatal("no mark section")
+	return false
 }
 
 func TestCatalogSearchMatchesRowsAndWholeSections(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -94,6 +95,9 @@ func readSettingKeys(reader settingsValueReader, keys []string) []restoredValue 
 	values := make([]restoredValue, 0, len(keys))
 	for _, key := range keys {
 		value, err := reader.get(key)
+		if err == nil && key == glyphModeSetting && value != "" && value != string(presentation.GlyphModeBasic) && value != string(presentation.GlyphModeAdvanced) {
+			err = fmt.Errorf("unknown symbols setting: %s", value)
+		}
 		values = append(values, restoredValue{Key: key, Value: value, Err: err})
 	}
 	return values
@@ -170,11 +174,7 @@ func runSettingsWithWriter(request settingsRequest, writer settingWriter) (effec
 // failure, with a per-key read error, so completion never presents a
 // failed read as the committed value.
 func settingsReadback(writer settingsValueReader) ([]restoredValue, string, error) {
-	values := make([]restoredValue, 0, len(uisettings.ReadbackKeys)+1)
-	for _, key := range uisettings.ReadbackKeys {
-		value, err := writer.get(key)
-		values = append(values, restoredValue{Key: key, Value: value, Err: err})
-	}
+	values := readSettingKeys(writer, uisettings.ReadbackKeys)
 	// The stored coordination value is the proactive marker
 	// SetProactiveCoordination writes; the dialog reads it as on or off.
 	coordValue, coordErr := writer.get(coordinationSetting)
@@ -320,6 +320,10 @@ func (m *Model) applySettingsEffect(job *effectJob, result settingsEffectResult,
 		m.reconcileSettingsPrefs(committed)
 	}
 	if request.followUpdate {
+		if err != nil {
+			m.update.applying = false
+			return nil
+		}
 		return m.applyUpdateCmd()
 	}
 	return nil
@@ -335,6 +339,8 @@ func (m *Model) reconcileSettingsPrefs(restored []restoredValue) string {
 			continue
 		}
 		switch value.Key {
+		case glyphModeSetting:
+			m.prefs.glyphMode = presentation.GlyphMode(value.Value)
 		case focusKeySetting:
 			m.prefs.focusOnEnter = value.Value != "attach"
 		case arrowStepSetting:

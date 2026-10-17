@@ -1,6 +1,9 @@
 package settings
 
-import uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
+import (
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
+)
 
 // Spec is one key Settings writes and the values it takes; the root hands
 // the list to the shell as store.SettingSpec.
@@ -27,6 +30,7 @@ func Specs(tools []string) []Spec {
 		{Key: DefaultToolSetting, Values: tools, Row: "default tool"},
 		{Key: ThemeSetting, Values: palettes, Default: uitheme.Palettes[0].Name, Row: "theme"},
 		{Key: ThemeAutoSetting, Values: onOff, Default: "off", Row: "theme follows OS"},
+		{Key: GlyphModeSetting, Values: []string{string(presentation.GlyphModeBasic), string(presentation.GlyphModeAdvanced)}, Default: string(presentation.DefaultGlyphMode), Row: "symbols"},
 		{Key: BackgroundSetting, Values: []string{"theme", "terminal"}, Default: "theme", Row: "background"},
 		{Key: ListDensitySetting, Values: []string{"compact", "comfortable"}, Default: "compact", Row: "list density"},
 		{Key: SessionLayoutSetting, Values: []string{"split", "full"}, Default: "split", Row: "sessions layout"},

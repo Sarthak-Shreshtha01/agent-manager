@@ -1,18 +1,20 @@
 package ui
 
 import (
-	"github.com/YoanWai/agent-manager/internal/clipboard"
-	"github.com/YoanWai/agent-manager/internal/config"
-	"github.com/YoanWai/agent-manager/internal/status"
-	"github.com/YoanWai/agent-manager/internal/store"
-	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/muesli/termenv"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/clipboard"
+	"github.com/YoanWai/agent-manager/internal/config"
+	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 )
 
 func TestGroupRowRendersGroupPane(t *testing.T) {
@@ -66,7 +68,7 @@ func TestComfortableGroupRowStacks(t *testing.T) {
 
 	lines := railText(t, m)
 	head := lineWith(t, lines, "fleet")
-	if !strings.Contains(lines[head], statusGlyph(status.Starting)) {
+	if !strings.Contains(lines[head], presentation.GlyphsFor("").StatusGlyph(status.Starting)) {
 		t.Fatalf("group row should carry its starting agent inline: %q", lines[head])
 	}
 }

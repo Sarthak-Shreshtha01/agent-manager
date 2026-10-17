@@ -27,6 +27,7 @@ type ViewContext struct {
 	Version, Latest string
 	Applying        bool
 	Height          int
+	InnerWidth      int
 	Styles          Styles
 	TextInput       func(textinput.Model) string
 }
@@ -168,12 +169,26 @@ func (s *State) View(ctx ViewContext) Frame {
 	if s.Editor.typing {
 		editorLine = lead(FieldEditor, "editor") + ctx.TextInput(s.Editor.input)
 	}
+	g := presentation.GlyphsFor(s.GlyphMode)
+	glyphLabel := "Compatible"
+	if s.GlyphMode.Effective() == presentation.GlyphModeAdvanced {
+		glyphLabel = "Advanced"
+	}
+	symbolsRow := row(FieldGlyphs, "symbols", glyphLabel) + "  " + g.WorkingGlyph + " " + g.WaitingGlyph + " " + g.ReorderGrip + " " + g.BranchGlyph
+	if ctx.InnerWidth < 36 {
+		style := st.Value
+		if s.Field == FieldGlyphs {
+			style = st.Key
+		}
+		symbolsRow = style.Render("symbols <" + glyphLabel + ">")
+	}
 	palette := uitheme.Palettes[s.ThemeIndex]
 	body := row(FieldTool, "default tool", toolValue) + "\n" +
 		row(FieldTheme, "theme", palette.Name) + "  " +
 		themeSwatch(palette) + "\n" +
 		row(FieldThemeAuto, "theme follows OS", themeAuto) + "\n" +
 		row(FieldBackground, "background", background) + "\n" +
+		symbolsRow + "\n" +
 		row(FieldDensity, "list density", density) + "\n" +
 		row(FieldSessionLayout, "sessions layout", sessionLayout) + "\n" +
 		row(FieldHeader, "header", header) + "\n" +
@@ -197,6 +212,8 @@ func (s *State) View(ctx ViewContext) Frame {
 		versionRow(ctx, lead, actionRow)
 	hint := [][2]string{{"↑↓", "field"}, {"←→", "change"}, {"↵/esc", "save"}}
 	switch s.Field {
+	case FieldGlyphs:
+		hint = [][2]string{{"↑↓", "field"}, {"←→/click", "symbols"}, {"↵/esc", "save"}}
 	case FieldDocs:
 		hint = [][2]string{{"↑↓", "field"}, {"↵", "open the docs"}, {"esc", "save"}}
 	case FieldBugReport, FieldFeatureRequest:

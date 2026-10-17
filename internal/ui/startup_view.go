@@ -2,10 +2,9 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/charmbracelet/lipgloss"
 )
-
-var startupFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 const startupRingPoints = 12
 
@@ -14,21 +13,21 @@ func (m *Model) startupLoader(width, height int) []string {
 	if !ok || m.mode == modeFocus || sess.Status != status.Starting || paneBooted(m.workspace.preview) {
 		return nil
 	}
-	return ringLoader(width, height, "starting up", m.startup.startupPhase)
+	return ringLoader(m.glyphs(), width, height, "starting up", m.startup.startupPhase)
 }
 
-func ringLoader(width, height int, label string, phase int) []string {
+func ringLoader(g presentation.GlyphSet, width, height int, label string, phase int) []string {
 	accent := lipgloss.NewStyle().Foreground(statusColor(status.Starting)).Bold(true)
 	glow := lipgloss.NewStyle().Foreground(statusColor(status.Starting))
 	phase = phase % startupRingPoints
 	dot := func(position int) string {
 		switch position {
 		case phase:
-			return accent.Render("●")
+			return accent.Render(g.LoaderHead)
 		case (phase + startupRingPoints - 1) % startupRingPoints:
-			return glow.Render("•")
+			return glow.Render(g.LoaderTail)
 		default:
-			return subtleStyle().Render("·")
+			return subtleStyle().Render(g.LoaderRest)
 		}
 	}
 

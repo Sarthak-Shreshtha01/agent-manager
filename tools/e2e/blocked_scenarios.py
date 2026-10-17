@@ -159,8 +159,8 @@ def settings_blocked(sandbox, binary):
     seed_store(sandbox)
     key(sandbox, 's')
     frame(sandbox, 'settings-initial-open', 'Settings')
-    # default tool, theme, theme follows OS and background sit above density.
-    for _ in range(4):
+    # default tool, theme, theme follows OS, background and symbols sit above density.
+    for _ in range(5):
         key(sandbox, 'Down')
     key(sandbox, 'Right')
     frame(sandbox, 'settings-density-edited', 'comfortable')
@@ -169,7 +169,7 @@ def settings_blocked(sandbox, binary):
         frame(sandbox, 'settings-save-accepted', 'A G E N T', 'Settings')
         key(sandbox, 's')
         frame(sandbox, 'settings-open-while-save-blocked', 'Settings')
-        for _ in range(4):
+        for _ in range(5):
             key(sandbox, 'Down')
         key(sandbox, 'Right')
         frame(sandbox, 'settings-newer-edit-while-blocked', 'compact')
@@ -195,7 +195,7 @@ def focus_blocked(sandbox, binary):
     select_row(sandbox, name, 'focus-select')
     key(sandbox, 's')
     frame(sandbox, 'focus-settings-open', 'Settings')
-    for _ in range(4):
+    for _ in range(5):
         key(sandbox, 'Down')
     key(sandbox, 'Right')
     frame(sandbox, 'focus-settings-edited', 'comfortable')

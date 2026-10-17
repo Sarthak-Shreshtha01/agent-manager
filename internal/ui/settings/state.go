@@ -6,11 +6,13 @@ package settings
 
 import (
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 )
 
 // The keys Settings writes.
 const (
+	GlyphModeSetting   = presentation.GlyphModeSetting
 	DefaultToolSetting = "default_tool"
 	ThemeSetting       = "theme"
 	ThemeAutoSetting   = "theme_auto"
@@ -56,6 +58,7 @@ const (
 	FieldTheme
 	FieldThemeAuto
 	FieldBackground
+	FieldGlyphs
 	FieldDensity
 	FieldSessionLayout
 	FieldHeader
@@ -83,25 +86,27 @@ const (
 // State is the open dialog: the choice on every row, the sub-pickers, and
 // the baseline a save compares against.
 type State struct {
-	ToolNames       []string
-	ToolIndex       int
-	ThemeIndex      int
-	Field           int
-	LayoutSplit     bool
-	QuickCloseSend  bool
-	EnterFocuses    bool
-	ArrowStep       bool
-	ComfortableRows bool
-	FullLayout      bool
-	HideHeader      bool
-	HideStats       bool
-	MouseDisabled   bool
-	WorktreeDefault bool
-	BaseFetch       bool
-	Proactive       bool
-	Notifications   bool
-	NotifyFinished  bool
-	ThemeAuto       bool
+	GlyphMode                                               presentation.GlyphMode
+	DocsRow, GlyphRow, GlyphRowWidth, SaveRow, SaveRowWidth int
+	ToolNames                                               []string
+	ToolIndex                                               int
+	ThemeIndex                                              int
+	Field                                                   int
+	LayoutSplit                                             bool
+	QuickCloseSend                                          bool
+	EnterFocuses                                            bool
+	ArrowStep                                               bool
+	ComfortableRows                                         bool
+	FullLayout                                              bool
+	HideHeader                                              bool
+	HideStats                                               bool
+	MouseDisabled                                           bool
+	WorktreeDefault                                         bool
+	BaseFetch                                               bool
+	Proactive                                               bool
+	Notifications                                           bool
+	NotifyFinished                                          bool
+	ThemeAuto                                               bool
 	// TerminalBackground is the background row's choice, applied to the
 	// model as it is stepped so the frame previews it.
 	TerminalBackground bool
@@ -190,6 +195,7 @@ func FromSnapshot(s Snapshot) State {
 	names := s.Tools.Enabled(hidden)
 	manualTheme := uitheme.Palettes[uitheme.Index(value(ThemeSetting))].Name
 	return State{
+		GlyphMode:       presentation.GlyphMode(value(GlyphModeSetting)),
 		ToolNames:       names,
 		ToolIndex:       ToolIndex(names, value(DefaultToolSetting)),
 		ThemeIndex:      uitheme.Index(s.Theme),

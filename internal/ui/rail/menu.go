@@ -37,7 +37,7 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 	kill := menuItem{label: "Kill", action: Kill, danger: true}
 	remove := menuItem{label: "Delete", action: Delete, danger: true}
 	if row.isRoot() {
-		return append(create, editor)
+		return append(create, editor, menuItem{label: "Settings", action: OpenSettings})
 	}
 	if row.kind == GroupRow {
 		live, dead := m.groupLiveAndDead(row.group)

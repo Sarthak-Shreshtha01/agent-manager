@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 )
 
 // The key map is grouped the way its bindings are learned: by what is under
@@ -58,7 +59,7 @@ func listHelpRows(list keybind.Table, arrowStep bool, glyphs Glyphs) [][2]string
 	h.action("hide / show empty groups", keybind.EmptyGroups)
 	h.action("fold / unfold every group", keybind.FoldAll)
 	h.action("resize the split (←→ or hl, or drag; ↵ commits, esc cancels)", keybind.Resize)
-	h.action("settings", keybind.Settings)
+	h.action("settings (also in the root row menu)", keybind.Settings)
 	h.action("messages", keybind.Messages)
 	h.action("this key map", keybind.Help)
 	h.action("quit (sessions keep running)", keybind.Quit)
@@ -89,14 +90,18 @@ func sessionRowHelpRows(list keybind.Table) [][2]string {
 }
 
 func markHelpRows(list keybind.Table, glyphs Glyphs) [][2]string {
+	g := presentation.GlyphsFor(glyphs.Mode)
 	rows := [][2]string{
-		{"◐ working", "the agent is busy on a turn"},
-		{"◆ waiting", "blocked on you: a dialog, a permission ask, a question"},
-		{"● finished", "the turn ended; entering the session clears it to idle"},
-		{"○ idle", "nothing running"},
-		{"✕ errored", "the tool reported an error, or the session is dead"},
-		{"◌ starting", "the pane is still launching"},
-		{"✉N", "messages from another agent, held until this one is at rest"},
+		{g.WorkingGlyph + " working", "the agent is busy on a turn"},
+		{g.WaitingGlyph + " waiting", "blocked on you: a dialog, a permission ask, a question"},
+		{g.FinishedGlyph + " finished", "the turn ended; entering the session clears it to idle"},
+		{g.IdleGlyph + " idle", "nothing running"},
+		{g.ErroredGlyph + " errored", "the tool reported an error, or the session is dead"},
+		{g.StartingGlyph + " starting", "the pane is still launching; its row mark spins"},
+		{g.InboxGlyph + "N", "messages from another agent, held until this one is at rest"},
+		{g.ReorderGrip, "drag handle; click, then use arrows to move, enter to drop"},
+		{g.BranchGlyph, "worktree branch or conversation fork"},
+		{g.GroupClosedGlyph + " / " + g.GroupOpenGlyph, "collapsed / expanded group"},
 		{glyphs.AfterTurnArchive + " / " + glyphs.AfterTurnKill, "the agent asked to be archived / killed once this turn ends"},
 	}
 	if filter := list.Binding(keybind.Filter).Glyph(" / "); filter != "" {
@@ -166,8 +171,9 @@ func helpSections(ctx Context) []helpSection {
 			{"esc", "close"},
 		}},
 		{title: titledWith("settings", list, keybind.Settings), rows: [][2]string{
-			{"↑↓", "pick a field"},
-			{"←→", "change the value"},
+			{"↑↓ / wheel", "pick a field"},
+			{"←→", "change the value, including Compatible / Advanced symbols"},
+			{"click", "change symbols, or save and close"},
 			{"↵", "run the field's action (docs, keybindings, CLIs, report, update)"},
 			{"esc", "save and close"},
 		}},

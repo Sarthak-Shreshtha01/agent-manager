@@ -78,8 +78,9 @@ func (d *Fork) Key(msg tea.KeyMsg) ForkKey {
 
 // ForkStyles are the root's text styles and field renderers the card uses.
 type ForkStyles struct {
-	Value lipgloss.Style
-	Group lipgloss.Style
+	BranchGlyph string
+	Value       lipgloss.Style
+	Group       lipgloss.Style
 	// Field lays out a labelled form row; Input renders a text field with
 	// the root's cursor marker.
 	Field func(label, value string, focused bool) string
@@ -90,7 +91,7 @@ func (d Fork) View(styles ForkStyles) Card {
 	body := "  source  " + styles.Value.Render(d.sourceName) + "\n" +
 		"  group   " + styles.Group.Render(displayGroup(d.sourceGroup)) + "\n" +
 		styles.Field("name", styles.Input(d.name), true)
-	return Card{Title: "⑂ Fork Session", Body: body, Hints: [][2]string{{"↵", "create"}, {"esc", "cancel"}}}
+	return Card{Title: styles.BranchGlyph + " Fork Session", Body: body, Hints: [][2]string{{"↵", "create"}, {"esc", "cancel"}}}
 }
 
 // cleanName trims a typed name and keeps it one path segment.

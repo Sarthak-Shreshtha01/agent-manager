@@ -272,10 +272,11 @@ func (m *Model) handleForkKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) viewFork() string {
 	return m.drawCard(m.fork.View(uidialogs.ForkStyles{
-		Value: valueStyle(),
-		Group: lipgloss.NewStyle().Foreground(colorAccent2()),
-		Field: formField,
-		Input: textInputView,
+		BranchGlyph: m.glyphs().BranchGlyph,
+		Value:       valueStyle(),
+		Group:       lipgloss.NewStyle().Foreground(colorAccent2()),
+		Field:       formField,
+		Input:       textInputView,
 	}))
 }
 

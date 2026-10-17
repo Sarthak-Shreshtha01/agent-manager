@@ -1,14 +1,16 @@
 package ui
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
-	"strings"
-	"testing"
 )
 
 // Every line of a detail head has to stay inside the content column: a fact
@@ -245,9 +247,9 @@ func TestPreviewLoaderIsCenteredAndMovesOnThePreviewTick(t *testing.T) {
 // the preview is painting the real one.
 func TestPreviewLoaderFramesAreNotStatusMarks(t *testing.T) {
 	states := []string{status.Working, status.Starting, status.Waiting, status.Finished, status.Errored, status.Dead, status.Idle}
-	for _, frame := range startupFrames {
+	for _, frame := range presentation.GlyphsFor("").StartupFrames {
 		for _, state := range states {
-			if frame == statusGlyph(state) {
+			if frame == presentation.GlyphsFor("").StatusGlyph(state) {
 				t.Fatalf("loader frame %q is the %s mark", frame, state)
 			}
 		}

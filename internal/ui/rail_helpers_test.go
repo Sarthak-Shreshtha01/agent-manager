@@ -11,7 +11,7 @@ import (
 
 const (
 	rowMenuGlyph = uirail.MenuGlyph
-	reorderGrip  = uirail.ReorderGlyph
+	reorderGrip  = "⠿"
 	rootGroup    = ""
 )
 
@@ -165,7 +165,8 @@ func railModelCount(count, cursor int, searching bool) uirail.Model {
 
 func (m *Model) searchFieldLine(width int) string {
 	frame := m.rail.Render(uirail.RenderContext{
-		Width: width, Height: 8, TerminalWidth: max(m.layout.width, width), TerminalHeight: max(m.layout.height, 8),
+		GlyphMode: m.prefs.glyphMode,
+		Width:     width, Height: 8, TerminalWidth: max(m.layout.width, width), TerminalHeight: max(m.layout.height, 8),
 		Theme: m.railTheme(), ListKeys: m.services.listKeys, CursorMarker: cursorAnchorMarker,
 	}, uirail.Frame{})
 	for _, line := range frame.Lines {
@@ -218,7 +219,8 @@ func (m *Model) renderTreeRow(entry treeRow, selected bool, width, _ int, _ stri
 		model.Focus(uirail.Selection{Kind: uirail.GroupRow})
 	}
 	frame := model.Render(uirail.RenderContext{
-		Width: width, Height: 20, TerminalWidth: max(m.layout.width, width), TerminalHeight: max(m.layout.height, 20),
+		GlyphMode: m.prefs.glyphMode,
+		Width:     width, Height: 20, TerminalWidth: max(m.layout.width, width), TerminalHeight: max(m.layout.height, 20),
 		Theme: m.railTheme(), ListKeys: m.services.listKeys, ComfortableRows: m.prefs.comfortableRows,
 		MouseDisabled: m.prefs.mouseDisabled, Focused: m.mode == modeFocus,
 		EnterFocuses: m.enterFocuses(), StartupPhase: m.startup.startupPhase, CursorMarker: cursorAnchorMarker,
@@ -245,7 +247,8 @@ func (m *Model) entryHeight(entry treeRow) int {
 func (m *Model) entryLines(_ []treeRow, _ int, width, height int) []contentLine {
 	m.rebuildRows()
 	frame := m.rail.Render(uirail.RenderContext{
-		Width: width, Height: height, TerminalWidth: max(m.layout.width, width), TerminalHeight: max(m.layout.height, height),
+		GlyphMode: m.prefs.glyphMode,
+		Width:     width, Height: height, TerminalWidth: max(m.layout.width, width), TerminalHeight: max(m.layout.height, height),
 		Theme: m.railTheme(), ListKeys: m.services.listKeys, ComfortableRows: m.prefs.comfortableRows,
 		MouseDisabled: m.prefs.mouseDisabled, Focused: m.mode == modeFocus,
 		EnterFocuses: m.enterFocuses(), StartupPhase: m.startup.startupPhase, CursorMarker: cursorAnchorMarker,

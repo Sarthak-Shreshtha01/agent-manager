@@ -2,6 +2,7 @@ package settings
 
 import (
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -49,6 +50,7 @@ type Result struct {
 	DetectTheme bool
 	// Background asks the root to preview TerminalBackground.
 	Background bool
+	Glyphs     bool
 	// SaveHidden is the CLI picker closing; SaveKeys the key picker.
 	SaveHidden bool
 	SaveKeys   bool
@@ -133,6 +135,15 @@ func (s *State) Cycle(step int) Result {
 		s.TerminalBackground = !s.TerminalBackground
 		s.Dirty = true
 		return Result{Background: true}
+	case FieldGlyphs:
+		delete(s.Baseline, GlyphModeSetting)
+		if s.GlyphMode.Effective() == presentation.GlyphModeAdvanced {
+			s.GlyphMode = presentation.GlyphModeBasic
+		} else {
+			s.GlyphMode = presentation.GlyphModeAdvanced
+		}
+		s.Dirty = true
+		return Result{Glyphs: true}
 	case FieldDensity:
 		s.ComfortableRows = !s.ComfortableRows
 	case FieldSessionLayout:

@@ -54,7 +54,7 @@ func (m *Model) focusFactsLine(width int) string {
 		sep + subtleStyle().Render(relSince(lastActivity(sess)))
 	facts := []uifocus.Fact{{Text: valueStyle().Render(truncateTail(shortHome(m.sessionDir(sess), m.env.homeDir), focusFactsDirCap)), Spare: 3}}
 	if sess.WorktreeBranch != "" {
-		facts = append(facts, uifocus.Fact{Text: subtleStyle().Render("⑂ ") + valueStyle().Render(sess.WorktreeBranch), Spare: 2})
+		facts = append(facts, uifocus.Fact{Text: subtleStyle().Render(m.glyphs().BranchGlyph+" ") + valueStyle().Render(sess.WorktreeBranch), Spare: 2})
 	}
 	if m.workspace.procFor == sess.ID && m.workspace.proc.OK {
 		facts = append(facts,

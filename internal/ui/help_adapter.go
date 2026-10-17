@@ -53,8 +53,9 @@ func (m *Model) helpContext(width int) uihelp.Context {
 		ArrowStep:   m.prefs.arrowStep,
 		Width:       width,
 		Glyphs: uihelp.Glyphs{
+			Mode:             m.prefs.glyphMode,
 			RowMenu:          uirail.MenuGlyph,
-			Reorder:          uirail.ReorderGlyph,
+			Reorder:          m.glyphs().ReorderGrip,
 			AfterTurnArchive: afterTurnGlyphs[store.AfterTurnArchive],
 			AfterTurnKill:    afterTurnGlyphs[store.AfterTurnKill],
 		},

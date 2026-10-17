@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -127,6 +128,7 @@ func TestSettingSpecsDefaultsAreValues(t *testing.T) {
 func TestOpenSettingsReadsWhatTheShellChanged(t *testing.T) {
 	m := buildModel(t)
 	changed := map[string]string{
+		glyphModeSetting:     "basic",
 		listDensitySetting:   "comfortable",
 		sessionLayoutSetting: "full",
 		hideHeaderSetting:    "on",
@@ -149,6 +151,9 @@ func TestOpenSettingsReadsWhatTheShellChanged(t *testing.T) {
 	m.applyCmd(t, m.openSettings())
 	if themes[m.settings.dialog.ThemeIndex].Name != "nord" {
 		t.Fatalf("Settings opened on %q, want the shell's nord", themes[m.settings.dialog.ThemeIndex].Name)
+	}
+	if m.settings.dialog.GlyphMode != presentation.GlyphModeBasic || m.prefs.glyphMode != presentation.GlyphModeBasic {
+		t.Fatalf("symbols opened on %q (live %q), want basic", m.settings.dialog.GlyphMode, m.prefs.glyphMode)
 	}
 	if current().Name != "nord" {
 		t.Fatalf("the palette stayed %q after Settings read nord", current().Name)

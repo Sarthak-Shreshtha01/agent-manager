@@ -159,6 +159,7 @@ func TestSettingsMouseTogglePersists(t *testing.T) {
 
 func TestSettingsShowsVersion(t *testing.T) {
 	m := &Model{
+		layout:   layoutState{width: 120, height: 60},
 		update:   updateInfo{version: "v0.9.0"},
 		settings: settingsFeature{dialog: settingsState{ToolNames: []string{"claude"}}},
 	}
@@ -215,7 +216,7 @@ func TestSettingsDocsRowOpensDocs(t *testing.T) {
 	if !strings.Contains(frame, hintCap("↵", "open the docs")) {
 		t.Fatal("the docs shortcut should wear the footer badge")
 	}
-	_, cmd = m.handleSettingsClick(m.layout.cardLeft+4, m.layout.cardTop+2+uisettings.FieldDocs)
+	_, cmd = m.handleSettingsClick(m.layout.cardLeft+4, m.layout.cardTop+2+m.settings.dialog.DocsRow)
 	m.applyCmd(t, cmd)
 	if opened != docsURL {
 		t.Fatalf("click should open the docs, got %q", opened)
@@ -287,6 +288,7 @@ func TestSettingsFeatureRequestRowOpensForm(t *testing.T) {
 
 func TestSettingsBugReportRowIsHighlighted(t *testing.T) {
 	m := footModel(t)
+	m.layout.width, m.layout.height = 120, 60
 	m.services.cfg = config.Config{Tools: map[string]config.Tool{"claude": {Command: "cat"}}}
 	m.openSettings()
 	// Keep focus off the CTA rows so the accent2 unfocused styling is what paints.

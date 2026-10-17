@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/execution"
 	"github.com/YoanWai/agent-manager/internal/git"
@@ -13,12 +16,11 @@ import (
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
 	uihelp "github.com/YoanWai/agent-manager/internal/ui/help"
 	uinotices "github.com/YoanWai/agent-manager/internal/ui/notices"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uireview "github.com/YoanWai/agent-manager/internal/ui/review"
 	"github.com/YoanWai/agent-manager/internal/update"
 	tea "github.com/charmbracelet/bubbletea"
-	"maps"
-	"slices"
 )
 
 type mode int
@@ -261,6 +263,12 @@ func newView(deps Dependencies, version string) (*Model, error) {
 		model.update.checked = len(cached.Releases) > 0
 	}
 	model.prefs.terminalBackground = model.storedTerminalBackground()
+	glyph := readSettingKeys(storeSettingWriter{st: st}, []string{glyphModeSetting})[0]
+	if glyph.Err != nil {
+		model.reportErr("reading symbols setting: " + glyph.Err.Error())
+	} else {
+		model.prefs.glyphMode = presentation.GlyphMode(glyph.Value)
+	}
 	model.openStartupNotice()
 	model.indexReleaseRanges()
 	model.review = uireview.New(model.defaultSplitLayout())

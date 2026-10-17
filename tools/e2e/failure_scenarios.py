@@ -95,8 +95,8 @@ def settings_partial_save(sandbox, binary):
         conn.execute("CREATE TRIGGER fail_layout BEFORE INSERT ON settings WHEN NEW.key='layout' BEGIN SELECT RAISE(ABORT, 'fixture layout failure'); END")
     key(sandbox, 's')
     frame(sandbox, 'settings-open', 'compact')
-    # default tool, theme, theme follows OS and background sit above density.
-    for _ in range(4):
+    # default tool, theme, theme follows OS, background and symbols sit above density.
+    for _ in range(5):
         key(sandbox, 'Down')
     key(sandbox, 'Right')
     frame(sandbox, 'settings-density-cycled', 'comfortable')
@@ -120,7 +120,7 @@ def settings_partial_save(sandbox, binary):
         conn.execute('DROP TRIGGER fail_layout')
     # A save writes only the rows changed in the dialog, so the retry makes
     # the layout change again.
-    for _ in range(5):
+    for _ in range(6):
         key(sandbox, 'Down')
     key(sandbox, 'Right')
     frame(sandbox, 'settings-layout-retried', 'full')

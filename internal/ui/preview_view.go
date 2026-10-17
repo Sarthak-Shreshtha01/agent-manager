@@ -2,13 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uifocus "github.com/YoanWai/agent-manager/internal/ui/focus"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"strings"
-	"time"
 )
 
 // Captured panes use the whole column to preserve terminal layout.
@@ -207,7 +208,7 @@ func (m *Model) viewDetail(width int) string {
 	}
 
 	state := lipgloss.NewStyle().Foreground(statusColor(sess.Status)).
-		Render(statusGlyph(sess.Status)+" "+statusLabel(sess.Status)) +
+		Render(m.glyphs().StatusGlyph(sess.Status)+" "+statusLabel(sess.Status)) +
 		subtleStyle().Render(" · "+relSince(lastActivity(sess))+m.elsewhereNote(sess))
 	if sess.AfterTurn != "" {
 		state += subtleStyle().Render(" · ") + afterTurnBadge(sess.AfterTurn) + subtleStyle().Render(" "+afterTurnNote[sess.AfterTurn])
@@ -220,12 +221,12 @@ func (m *Model) viewDetail(width int) string {
 	// rail still shows the name, while a trimmed badge leaves no trace that
 	// anything is waiting.
 	if queued := m.workspace.queuedMessages[sess.ID]; queued > 0 {
-		name = inboxBadge(queued) + " " + name
+		name = inboxBadge(m.glyphs(), queued) + " " + name
 	}
 	withTool := name + "  " + chipStyle().Render(tool)
 	heads := []string{withTool, name}
 	if sess.WorktreeBranch != "" {
-		heads = append([]string{withTool + " " + chipStyle().Render("⑂ "+sess.WorktreeBranch)}, heads...)
+		heads = append([]string{withTool + " " + chipStyle().Render(m.glyphs().BranchGlyph+" "+sess.WorktreeBranch)}, heads...)
 	}
 
 	usage := ""
@@ -314,7 +315,7 @@ func (m *Model) viewGroupAgents(group string, width, height int) string {
 		}
 		tint := lipgloss.NewStyle().Foreground(statusColor(sess.Status))
 		rows = append(rows, rosterRow{
-			name:  tint.Render(statusGlyph(sess.Status)) + " " + valueStyle().Render(m.displayName(sess)),
+			name:  tint.Render(m.glyphs().StatusGlyph(sess.Status)) + " " + valueStyle().Render(m.displayName(sess)),
 			tool:  subtleStyle().Render(sess.Tool),
 			state: tint.Render(statusLabel(sess.Status)) + subtleStyle().Render(" · "+relSince(lastActivity(sess))),
 		})

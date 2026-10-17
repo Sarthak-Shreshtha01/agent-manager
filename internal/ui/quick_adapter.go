@@ -311,7 +311,7 @@ func (m *Model) viewQuickBar(width, maxRows int) string {
 		if entry.isGroup {
 			facts.Group = displayGroup(entry.group)
 		} else {
-			facts.Answer = quickAnswerRow(entry, m.displayName(entry.sess), width)
+			facts.Answer = m.quickAnswerRow(entry, m.displayName(entry.sess), width)
 		}
 	}
 	return m.quick.View(m.quickBarHost(), facts, width, maxRows)
@@ -319,11 +319,11 @@ func (m *Model) viewQuickBar(width, maxRows int) string {
 
 // quickAnswerRow names the session an answer goes to, with its state and
 // tool where the width has room.
-func quickAnswerRow(entry treeRow, name string, width int) string {
+func (m *Model) quickAnswerRow(entry treeRow, name string, width int) string {
 	label := labelStyle().Render(padRight("answer", detailLabelWidth)) + subtleStyle().Render("│ ")
 	sess := entry.sess
 	state := lipgloss.NewStyle().Foreground(statusColor(sess.Status)).
-		Render(statusGlyph(sess.Status) + " " + statusLabel(sess.Status))
+		Render(m.glyphs().StatusGlyph(sess.Status) + " " + statusLabel(sess.Status))
 	return fitColumns(
 		[]string{label + lipgloss.NewStyle().Foreground(colorBright()).Bold(true).Render(name)},
 		[]string{state + " " + chipStyle().Render(sess.Tool), state, ""}, width)

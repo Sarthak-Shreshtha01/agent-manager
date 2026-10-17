@@ -12,10 +12,12 @@ import (
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // The keys Settings writes, under the names the root's features read them by.
 const (
+	glyphModeSetting      = uisettings.GlyphModeSetting
 	defaultToolSetting    = uisettings.DefaultToolSetting
 	themeSetting          = uisettings.ThemeSetting
 	themeAutoSetting      = uisettings.ThemeAutoSetting
@@ -173,6 +175,8 @@ func (m *Model) runSettingsResult(result uisettings.Result) tea.Cmd {
 		applyTheme(themes[d.ThemeIndex])
 		SyncTerminalColors()
 		return m.syncPaneTheme()
+	case result.Glyphs:
+		m.prefs.glyphMode = d.GlyphMode
 	case result.Background:
 		m.prefs.terminalBackground = d.TerminalBackground
 	case result.SaveHidden:
@@ -183,19 +187,29 @@ func (m *Model) runSettingsResult(result uisettings.Result) tea.Cmd {
 	return result.Cmd
 }
 
-// handleSettingsClick opens the docs from a click on their row; the body
-// starts under the card's title row and the blank row after it.
 func (m *Model) handleSettingsClick(x, y int) (tea.Model, tea.Cmd) {
 	d := &m.settings.dialog
 	if d.InSubpanel() {
 		return m, nil
 	}
-	line := y - m.layout.cardTop - 2
-	if line != uisettings.FieldDocs || x < m.layout.cardLeft || x >= m.layout.cardRight {
+	left := m.layout.cardLeft + 1 + cardPaddingX
+	inner := m.layout.cardRight - m.layout.cardLeft - cardChromeX - 2*cardPaddingX
+	row := y - m.layout.cardTop - 2
+	if x < left || x >= left+inner {
 		return m, nil
 	}
-	d.Field = uisettings.FieldDocs
-	return m, openLink(docsURL)
+	if d.GlyphRow >= 0 && row == d.GlyphRow && x < left+d.GlyphRowWidth {
+		d.Field = uisettings.FieldGlyphs
+		return m, m.runSettingsResult(d.Cycle(1))
+	}
+	if row == d.DocsRow {
+		d.Field = uisettings.FieldDocs
+		return m, openLink(docsURL)
+	}
+	if row == d.SaveRow && x < left+d.SaveRowWidth {
+		return m.saveAndCloseSettings()
+	}
+	return m, nil
 }
 
 func (m *Model) saveAndCloseSettings() (tea.Model, tea.Cmd) {
@@ -303,6 +317,7 @@ func (m *Model) submitKeys(request keysRequest) tea.Cmd {
 // reconciles these prefs back to the committed values on completion.
 func (m *Model) applySettingsPrefs() {
 	d := m.settings.dialog
+	m.prefs.glyphMode = d.GlyphMode
 	m.prefs.focusOnEnter = d.EnterFocuses
 	m.prefs.arrowStep = d.ArrowStep
 	m.prefs.comfortableRows = d.ComfortableRows
@@ -318,14 +333,15 @@ func (m *Model) applySettingsPrefs() {
 // viewSettings frames the dialog in the root's card chrome.
 func (m *Model) viewSettings() string {
 	frame := m.settings.dialog.View(uisettings.ViewContext{
-		Session:   m.services.keys,
-		List:      m.services.listKeys,
-		Version:   m.update.version,
-		Latest:    m.update.latest,
-		Applying:  m.update.applying,
-		Height:    m.layout.height,
-		Styles:    settingsStyles(),
-		TextInput: textInputView,
+		Session:    m.services.keys,
+		List:       m.services.listKeys,
+		Version:    m.update.version,
+		Latest:     m.update.latest,
+		Applying:   m.update.applying,
+		Height:     m.layout.height,
+		InnerWidth: cardInnerWidth(m.cardWidth()),
+		Styles:     settingsStyles(),
+		TextInput:  textInputView,
 	})
 	switch frame.Card {
 	case uisettings.Confirm:
@@ -333,7 +349,31 @@ func (m *Model) viewSettings() string {
 	case uisettings.Fixed:
 		return m.card(frame.Title, frame.Body, frame.Hints)
 	}
-	return m.cardFlex(frame.Title, frame.Body, frame.Hints)
+	d := &m.settings.dialog
+	lines := strings.Split(frame.Body, "\n")
+	save := keyStyle().Render("[ Save and close ]")
+	width := m.flexCardWidth(frame.Title, save+"\n"+frame.Body, frame.Hints)
+	hintRows := strings.Count(legendInline(frame.Hints, cardInnerWidth(width)), "\n") + 1
+	room := max(m.layout.height-5-hintRows-1, 1)
+	if m.errBar.text != "" {
+		room = max(room-2, 1)
+	}
+	first := 0
+	if len(lines) > room {
+		first = min(max(d.Field-room+1, 0), len(lines)-room)
+		lines = lines[first : first+room]
+	}
+	d.DocsRow = -1
+	if uisettings.FieldDocs >= first && uisettings.FieldDocs < first+len(lines) {
+		d.DocsRow = uisettings.FieldDocs - first + 1
+	}
+	d.GlyphRow = -1
+	if uisettings.FieldGlyphs >= first && uisettings.FieldGlyphs < first+len(lines) {
+		d.GlyphRow = uisettings.FieldGlyphs - first + 1
+		d.GlyphRowWidth = ansi.StringWidth(lines[uisettings.FieldGlyphs-first])
+	}
+	d.SaveRow, d.SaveRowWidth = 0, ansi.StringWidth(save)
+	return m.cardFlex(frame.Title, save+"\n"+strings.Join(lines, "\n"), frame.Hints)
 }
 
 func settingsStyles() uisettings.Styles {

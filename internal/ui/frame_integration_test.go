@@ -1,14 +1,16 @@
 package ui
 
 import (
-	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestSessionLayoutDefaultsToSplit(t *testing.T) {
@@ -364,7 +366,7 @@ func TestFullRowWorkingWithoutPaneLineAnimatesLoader(t *testing.T) {
 	if len(lines) != 3 {
 		t.Fatalf("comfortable row painted %d lines, want 3", len(lines))
 	}
-	frame := startupFrames[m.startup.startupPhase%len(startupFrames)]
+	frame := presentation.GlyphsFor("").StartupFrames[m.startup.startupPhase%len(presentation.GlyphsFor("").StartupFrames)]
 	state := ansi.Strip(lines[2])
 	if !strings.Contains(state, frame+" working") {
 		t.Fatalf("working row without a pane line should animate a loader, got %q", state)

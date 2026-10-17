@@ -13,6 +13,7 @@ import (
 const helpCardMaxWidth = 92
 
 type Glyphs struct {
+	Mode             presentation.GlyphMode
 	RowMenu          string
 	Reorder          string
 	AfterTurnArchive string

@@ -1,6 +1,9 @@
 package ui
 
-import "github.com/YoanWai/agent-manager/internal/store"
+import (
+	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+)
 
 // defaultSplitLayout reports whether review mode should open in split
 // (side-by-side) layout. Split is the default; a stored "unified" choice
@@ -125,6 +128,7 @@ func storedNotifyFinished(st *store.Store) bool {
 }
 
 func (m *Model) applyCachedSettingsPrefs() {
+	m.prefs.glyphMode = presentation.GlyphMode(m.settings.cache.value(glyphModeSetting))
 	m.prefs.focusOnEnter = m.settings.cache.value(focusKeySetting) != "attach"
 	m.prefs.arrowStep = m.settings.cache.value(arrowStepSetting) != "off"
 	m.prefs.comfortableRows = m.settings.cache.value(listDensitySetting) == "comfortable"

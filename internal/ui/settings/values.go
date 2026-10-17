@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 )
 
@@ -26,7 +27,7 @@ type Readback struct {
 // ReadbackKeys are the keys a partial failure reads back, in order; the
 // coordination key follows them through its own spelling.
 var ReadbackKeys = []string{
-	DefaultToolSetting, ThemeSetting, ThemeAutoSetting, DiffLayoutSetting,
+	GlyphModeSetting, DefaultToolSetting, ThemeSetting, ThemeAutoSetting, DiffLayoutSetting,
 	QuickCloseSetting, FocusKeySetting, ArrowStepSetting, ListDensitySetting,
 	SessionLayoutSetting, HideHeaderSetting, HideStatsSetting, MouseSetting,
 	WorktreeSetting, NotificationsSetting, NotifyFinishedSetting,
@@ -110,7 +111,7 @@ func (s *State) HiddenList() []string {
 // Values copies the dialog's chosen preferences into the ordered write
 // list the effect worker persists.
 func (s *State) Values() []Value {
-	values := make([]Value, 0, 16)
+	values := make([]Value, 0, 20)
 	if len(s.ToolNames) > 0 {
 		values = append(values, Value{Key: DefaultToolSetting, Value: s.ToolNames[s.ToolIndex]})
 	}
@@ -198,7 +199,7 @@ func (s *State) Values() []Value {
 	}
 	values = append(values, Value{Key: NotifyFinishedSetting, Value: notifyFinished})
 	values = append(values, Value{Key: EditorSetting, Value: s.Editor.Line()})
-	return values
+	return append(values, Value{Key: GlyphModeSetting, Value: string(s.GlyphMode.Effective())})
 }
 
 // Restore applies committed store values back to a live dialog after a
@@ -211,6 +212,8 @@ func (s *State) Restore(restored []Readback, hiddenRaw string, hiddenErr error, 
 			continue
 		}
 		switch value.Key {
+		case GlyphModeSetting:
+			s.GlyphMode = presentation.GlyphMode(value.Value)
 		case DefaultToolSetting:
 			for i, name := range s.ToolNames {
 				if name == value.Value {

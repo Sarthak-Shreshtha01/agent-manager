@@ -119,6 +119,8 @@ func (r renderer) menuGlyph(action ActionKind) string {
 		binding = keybind.Move
 	case OpenReview:
 		binding = keybind.Review
+	case OpenSettings:
+		binding = keybind.Settings
 	case CancelEnd:
 		binding = keybind.CancelEnd
 	}

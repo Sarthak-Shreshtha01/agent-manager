@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 )
 
 // Update is what the root knows of releases: this build, a newer release,
@@ -25,9 +26,10 @@ type Update struct {
 // Sources are the root facts the notice list is built from, copied so the
 // panel never reaches into the store, the network or the key tables.
 type Sources struct {
-	Store  bool
-	Update Update
-	Feed   []Message
+	GlyphMode presentation.GlyphMode
+	Store     bool
+	Update    Update
+	Feed      []Message
 	// WhatsNewVersion and WhatsNewFrom mirror the persisted what's-new
 	// settings; ConfigImportError is why an old config.toml was refused.
 	WhatsNewVersion   string
@@ -209,7 +211,8 @@ func (src Sources) welcomeBody() []string {
 	if prompt != "" {
 		body = append(body, prompt+" on a group row opens quick prompt mode to start a new agent there.")
 	}
-	body = append(body, "Each row's mark is its state: ◐ working, ◆ waiting, ● finished, ○ idle.", "")
+	g := presentation.GlyphsFor(src.GlyphMode)
+	body = append(body, "Each row's mark is its state: "+g.WorkingGlyph+" working, "+g.WaitingGlyph+" waiting, "+g.FinishedGlyph+" finished, "+g.IdleGlyph+" idle.", "Marks missing? Settings ("+settings+"), symbols, Compatible.", "")
 	if help != "" {
 		keyMap := "Press " + help + " for every key: the map scrolls"
 		if search != "" {
