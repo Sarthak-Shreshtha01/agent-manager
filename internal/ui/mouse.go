@@ -166,6 +166,17 @@ func (m *Model) handleMouseWheel(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch m.mode {
+	case modeSettings:
+		if m.settings.dialog.InSubpanel() {
+			return m, nil
+		}
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			return m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyUp})
+		case tea.MouseButtonWheelDown:
+			return m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyDown})
+		}
+
 	case modeList:
 		return m.applyRailDecision(m.rail.Mouse(msg, m.layout.displayedRail, m.railMouseContext()))
 	case modeDiff:

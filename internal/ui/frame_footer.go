@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/charmbracelet/lipgloss"
 	"strings"
 )
@@ -77,7 +78,7 @@ func (m *Model) transientFooter(section legendSection) string {
 	if m.prefs.fullLayout {
 		return bar
 	}
-	return padToHeight(bar, lipgloss.Height(m.listFooter()))
+	return presentation.PadToHeight(bar, lipgloss.Height(m.listFooter()))
 }
 
 func (m *Model) listGlyph(actions ...string) string {

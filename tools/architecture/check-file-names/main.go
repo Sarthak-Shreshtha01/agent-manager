@@ -32,7 +32,7 @@ var features = map[string]string{
 	"focus":        "the Focus adapter, its frame view and the pane watcher it holds",
 	"frame":        "frame composition: dialog chrome, header, legend, IME, text layout and control escaping",
 	"geometry":     "pane sizing, layout widths and the split ratio",
-	"group":        "the New Group form",
+	"group":        "the New Group form adapter",
 	"help":         "the Help adapter",
 	"input":        "raw input forwarded to panes",
 	"launchhint":   "the launch fix dialog and CLI install",

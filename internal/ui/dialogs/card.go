@@ -1,6 +1,7 @@
 // Package dialogs holds the small modal dialogs: confirm, rename, move,
-// fork and the launch fix. Each owns its state, keys and view, and returns
-// a typed outcome; the root adapters run the store, tmux and effect work.
+// fork, the New Group form and the launch fix. Each owns its state, keys
+// and view, and returns a typed outcome; the root adapters run the store,
+// tmux and effect work.
 package dialogs
 
 import "github.com/charmbracelet/bubbles/textinput"

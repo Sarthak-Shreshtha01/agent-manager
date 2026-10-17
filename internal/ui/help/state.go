@@ -1,3 +1,6 @@
+// Package help is the key map: its sections built from the live key tables,
+// its search, scroll and scope, and its frame. The root hands it copied
+// bindings and glyphs and opens the links it names.
 package help
 
 import tea "github.com/charmbracelet/bubbletea"

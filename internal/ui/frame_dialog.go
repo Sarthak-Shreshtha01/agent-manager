@@ -1,8 +1,9 @@
 package ui
 
 import (
-	"github.com/charmbracelet/lipgloss"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m *Model) cardWidth() int {
@@ -55,7 +56,7 @@ func (m *Model) flexCardWidth(title, body string, hint [][2]string) int {
 	measure(cardTitle(title))
 	measure(legendInline(hint, 1<<30))
 	if m.errBar.text != "" {
-		measure(m.statusMessage("⚠", "●", "▲"))
+		measure(m.statusMessage("⚠", m.glyphs().FinishedGlyph, "▲"))
 	}
 	if m.layout.width >= 28 && need > m.layout.width-4 {
 		need = m.layout.width - 4
@@ -107,7 +108,7 @@ func maxLineWidth(lines []string) int {
 func (m *Model) dialogRenderContext() dialogRenderContext {
 	status := ""
 	if m.errBar.text != "" {
-		status = m.statusMessage("⚠", "●", "▲")
+		status = m.statusMessage("⚠", m.glyphs().FinishedGlyph, "▲")
 	}
 	return dialogRenderContext{width: m.layout.width, height: m.layout.height, status: status}
 }

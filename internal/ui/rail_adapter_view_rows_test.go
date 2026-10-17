@@ -1,18 +1,20 @@
 package ui
 
 import (
-	"github.com/YoanWai/agent-manager/internal/clipboard"
-	"github.com/YoanWai/agent-manager/internal/config"
-	"github.com/YoanWai/agent-manager/internal/status"
-	"github.com/YoanWai/agent-manager/internal/store"
-	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/muesli/termenv"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/clipboard"
+	"github.com/YoanWai/agent-manager/internal/config"
+	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 )
 
 func TestGroupRowRendersGroupPane(t *testing.T) {
@@ -56,7 +58,7 @@ func TestComfortableGroupRowStacks(t *testing.T) {
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	m.openGroupForm()
-	m.groupForm.name.SetValue("fleet")
+	m.groupForm.SetName("fleet")
 	_, cmd := m.submitGroupForm()
 	if m.errBar.text != "" {
 		t.Fatalf("create group: %q", m.errBar.text)
@@ -66,7 +68,7 @@ func TestComfortableGroupRowStacks(t *testing.T) {
 
 	lines := railText(t, m)
 	head := lineWith(t, lines, "fleet")
-	if !strings.Contains(lines[head], statusGlyph(status.Starting)) {
+	if !strings.Contains(lines[head], presentation.GlyphsFor("").StatusGlyph(status.Starting)) {
 		t.Fatalf("group row should carry its starting agent inline: %q", lines[head])
 	}
 }
@@ -103,7 +105,7 @@ func TestComfortableMetaLineKeepsTreeGuides(t *testing.T) {
 	m := buildModel(t)
 	m.prefs.comfortableRows = true
 	m.openGroupForm()
-	m.groupForm.name.SetValue("outer")
+	m.groupForm.SetName("outer")
 	_, cmd := m.submitGroupForm()
 	if m.errBar.text != "" {
 		t.Fatalf("create outer group: %q", m.errBar.text)
@@ -111,7 +113,7 @@ func TestComfortableMetaLineKeepsTreeGuides(t *testing.T) {
 	m.applyCmd(t, cmd)
 	m.selectGroupRow(t, "outer")
 	m.openGroupForm()
-	m.groupForm.name.SetValue("inner")
+	m.groupForm.SetName("inner")
 	_, cmd = m.submitGroupForm()
 	if m.errBar.text != "" {
 		t.Fatalf("create inner group: %q", m.errBar.text)

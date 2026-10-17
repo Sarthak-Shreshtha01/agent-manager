@@ -30,7 +30,7 @@ func TestSettingsTogglesQuickClose(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
-	if chosen, err := m.services.store.Setting(quickCloseSetting); err != nil || chosen != "close" {
+	if chosen, err := m.services.store.Setting(uisettings.QuickCloseSetting); err != nil || chosen != "close" {
 		t.Fatalf("close choice = %q err %v, want persisted close", chosen, err)
 	}
 }
@@ -68,7 +68,7 @@ func TestSettingsWorktreeDefaultPersists(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
-	if chosen, err := m.services.store.Setting(worktreeSetting); err != nil || chosen != "on" {
+	if chosen, err := m.services.store.Setting(uisettings.WorktreeSetting); err != nil || chosen != "on" {
 		t.Fatalf("want stored on, got %q err %v", chosen, err)
 	}
 }
@@ -126,10 +126,10 @@ func TestSettingsNotificationsPersist(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
-	if chosen, err := m.services.store.Setting(notificationsSetting); err != nil || chosen != "off" {
+	if chosen, err := m.services.store.Setting(uisettings.NotificationsSetting); err != nil || chosen != "off" {
 		t.Fatalf("want stored off, got %q err %v", chosen, err)
 	}
-	if chosen, err := m.services.store.Setting(notifyFinishedSetting); err != nil || chosen != "on" {
+	if chosen, err := m.services.store.Setting(uisettings.NotifyFinishedSetting); err != nil || chosen != "on" {
 		t.Fatalf("want stored on, got %q err %v", chosen, err)
 	}
 }
@@ -146,7 +146,7 @@ func TestSettingsMouseTogglePersists(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyLeft})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
-	if chosen, err := m.services.store.Setting(mouseSetting); err != nil || chosen != "off" {
+	if chosen, err := m.services.store.Setting(uisettings.MouseSetting); err != nil || chosen != "off" {
 		t.Fatalf("want stored off, got %q err %v", chosen, err)
 	}
 	if !m.prefs.mouseDisabled {
@@ -159,6 +159,7 @@ func TestSettingsMouseTogglePersists(t *testing.T) {
 
 func TestSettingsShowsVersion(t *testing.T) {
 	m := &Model{
+		layout:   layoutState{width: 120, height: 60},
 		update:   updateInfo{version: "v0.9.0"},
 		settings: settingsFeature{dialog: settingsState{ToolNames: []string{"claude"}}},
 	}
@@ -215,7 +216,7 @@ func TestSettingsDocsRowOpensDocs(t *testing.T) {
 	if !strings.Contains(frame, hintCap("↵", "open the docs")) {
 		t.Fatal("the docs shortcut should wear the footer badge")
 	}
-	_, cmd = m.handleSettingsClick(m.layout.cardLeft+4, m.layout.cardTop+2+uisettings.FieldDocs)
+	_, cmd = m.handleSettingsClick(m.layout.cardLeft+4, m.layout.cardTop+2+m.settings.dialog.DocsRow)
 	m.applyCmd(t, cmd)
 	if opened != docsURL {
 		t.Fatalf("click should open the docs, got %q", opened)
@@ -287,6 +288,7 @@ func TestSettingsFeatureRequestRowOpensForm(t *testing.T) {
 
 func TestSettingsBugReportRowIsHighlighted(t *testing.T) {
 	m := footModel(t)
+	m.layout.width, m.layout.height = 120, 60
 	m.services.cfg = config.Config{Tools: map[string]config.Tool{"claude": {Command: "cat"}}}
 	m.openSettings()
 	// Keep focus off the CTA rows so the accent2 unfocused styling is what paints.
@@ -621,7 +623,7 @@ func TestSettingsUpdateRowPersistsStagedSettings(t *testing.T) {
 		t.Fatal("enter on the update row should start the update")
 	}
 	m.applyCmd(t, cmd)
-	got, err := m.services.store.Setting(themeSetting)
+	got, err := m.services.store.Setting(uisettings.ThemeSetting)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -667,7 +669,7 @@ func TestSettingsSaveKeepsOtherWritersKeys(t *testing.T) {
 			m.cycleSetting(1)
 
 			theirs := otherWriterTheme(t)
-			if err := m.services.store.SetSetting(themeSetting, theirs); err != nil {
+			if err := m.services.store.SetSetting(uisettings.ThemeSetting, theirs); err != nil {
 				t.Fatal(err)
 			}
 			if err := m.services.store.SetProactiveCoordination(true); err != nil {
@@ -679,10 +681,10 @@ func TestSettingsSaveKeepsOtherWritersKeys(t *testing.T) {
 			_, save := m.handleSettingsKey(key("enter"))
 			m.applyCmd(t, save)
 
-			if got, err := m.services.store.Setting(worktreeSetting); err != nil || got != "on" {
+			if got, err := m.services.store.Setting(uisettings.WorktreeSetting); err != nil || got != "on" {
 				t.Fatalf("worktree=%q err %v, want the changed value on", got, err)
 			}
-			if got, err := m.services.store.Setting(themeSetting); err != nil || got != theirs {
+			if got, err := m.services.store.Setting(uisettings.ThemeSetting); err != nil || got != theirs {
 				t.Fatalf("theme=%q err %v, want the other writer's %q", got, err, theirs)
 			}
 			if proactive, err := m.services.store.ProactiveCoordination(); err != nil || !proactive {
@@ -709,6 +711,6 @@ func TestSettingsEscWithoutChangesWritesNothing(t *testing.T) {
 		}
 	}
 	if hiddenErr != nil || hidden != "" {
-		t.Errorf("%s=%q err %v, want unwritten", hiddenToolsSetting, hidden, hiddenErr)
+		t.Errorf("%s=%q err %v, want unwritten", uisettings.HiddenToolsSetting, hidden, hiddenErr)
 	}
 }

@@ -223,7 +223,7 @@ func promptPreview(prompt string) string {
 }
 
 func (m *Model) sessionGlyph(session store.Session) string {
-	return uirail.SessionGlyph(m.railTheme(), uirail.Session{Status: session.Status, IsShell: m.isShell(session.Tool)}, m.startup.startupPhase)
+	return uirail.SessionGlyph(m.railTheme(), m.prefs.glyphMode, uirail.Session{Status: session.Status, IsShell: m.isShell(session.Tool)}, m.startup.startupPhase)
 }
 
 func (m *Model) prepareRailFrame(width, height int) {
@@ -252,6 +252,7 @@ func (m *Model) prepareRailFrame(width, height int) {
 		rename.View = textInputView(m.rename.NameField(fieldWidth))
 	}
 	ctx := uirail.RenderContext{
+		GlyphMode:       m.prefs.glyphMode,
 		Width:           width,
 		Height:          max(height, 0),
 		TerminalWidth:   m.layout.width,

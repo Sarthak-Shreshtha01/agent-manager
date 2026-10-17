@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -94,6 +95,9 @@ func readSettingKeys(reader settingsValueReader, keys []string) []restoredValue 
 	values := make([]restoredValue, 0, len(keys))
 	for _, key := range keys {
 		value, err := reader.get(key)
+		if err == nil && key == uisettings.GlyphModeSetting && value != "" && value != string(presentation.GlyphModeBasic) && value != string(presentation.GlyphModeAdvanced) {
+			err = fmt.Errorf("unknown symbols setting: %s", value)
+		}
 		values = append(values, restoredValue{Key: key, Value: value, Err: err})
 	}
 	return values
@@ -115,7 +119,7 @@ func loadSettingsWithReader(reader settingsValueReader) (settingsLoadResult, err
 	if hiddenErr != nil {
 		failed++
 		if first == nil {
-			first = fmt.Errorf("%s: %w", hiddenToolsSetting, hiddenErr)
+			first = fmt.Errorf("%s: %w", uisettings.HiddenToolsSetting, hiddenErr)
 		}
 	}
 	if first != nil {
@@ -157,7 +161,7 @@ func runSettingsWithWriter(request settingsRequest, writer settingWriter) (effec
 	}
 	if request.hidden != nil {
 		raw := strings.Join(request.hidden, ",")
-		if err := writer.set(hiddenToolsSetting, raw); err != nil {
+		if err := writer.set(uisettings.HiddenToolsSetting, raw); err != nil {
 			result.restored, result.restoredHidden, result.hiddenErr = settingsReadback(writer)
 			return result, fmt.Errorf("settings save committed %d of %d writes: %w", result.committed, result.tot, err)
 		}
@@ -170,20 +174,16 @@ func runSettingsWithWriter(request settingsRequest, writer settingWriter) (effec
 // failure, with a per-key read error, so completion never presents a
 // failed read as the committed value.
 func settingsReadback(writer settingsValueReader) ([]restoredValue, string, error) {
-	values := make([]restoredValue, 0, len(uisettings.ReadbackKeys)+1)
-	for _, key := range uisettings.ReadbackKeys {
-		value, err := writer.get(key)
-		values = append(values, restoredValue{Key: key, Value: value, Err: err})
-	}
+	values := readSettingKeys(writer, uisettings.ReadbackKeys)
 	// The stored coordination value is the proactive marker
 	// SetProactiveCoordination writes; the dialog reads it as on or off.
-	coordValue, coordErr := writer.get(coordinationSetting)
+	coordValue, coordErr := writer.get(uisettings.CoordinationSetting)
 	coord := "off"
 	if coordErr == nil && coordValue == "proactive" {
 		coord = "on"
 	}
-	values = append(values, restoredValue{Key: coordinationSetting, Value: coord, Err: coordErr})
-	hidden, hiddenErr := writer.get(hiddenToolsSetting)
+	values = append(values, restoredValue{Key: uisettings.CoordinationSetting, Value: coord, Err: coordErr})
+	hidden, hiddenErr := writer.get(uisettings.HiddenToolsSetting)
 	return values, hidden, hiddenErr
 }
 
@@ -320,6 +320,10 @@ func (m *Model) applySettingsEffect(job *effectJob, result settingsEffectResult,
 		m.reconcileSettingsPrefs(committed)
 	}
 	if request.followUpdate {
+		if err != nil {
+			m.update.applying = false
+			return nil
+		}
 		return m.applyUpdateCmd()
 	}
 	return nil
@@ -334,28 +338,7 @@ func (m *Model) reconcileSettingsPrefs(restored []restoredValue) string {
 			failed++
 			continue
 		}
-		switch value.Key {
-		case focusKeySetting:
-			m.prefs.focusOnEnter = value.Value == "focus"
-		case arrowStepSetting:
-			m.prefs.arrowStep = value.Value == "on"
-		case listDensitySetting:
-			m.prefs.comfortableRows = value.Value == "comfortable"
-		case sessionLayoutSetting:
-			m.prefs.fullLayout = value.Value == uisettings.SessionLayoutValue(true)
-		case hideHeaderSetting:
-			m.prefs.hideHeader = value.Value == "on"
-		case hideStatsSetting:
-			m.prefs.hideStats = value.Value == "on"
-		case mouseSetting:
-			m.prefs.mouseDisabled = value.Value == "off"
-		case backgroundSetting:
-			m.prefs.terminalBackground = value.Value == "terminal"
-		case baseFetchSetting:
-			m.prefs.baseFetchOff = value.Value == "off"
-		case editorSetting:
-			m.services.editor = value.Value
-		}
+		m.mirrorPreference(value.Key, value.Value)
 	}
 	if failed == 0 {
 		return ""

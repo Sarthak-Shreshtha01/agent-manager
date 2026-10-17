@@ -1,13 +1,17 @@
 package ui
 
 import (
+	"github.com/YoanWai/agent-manager/internal/keybind"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyMsg); ok && key.String() == "ctrl+c" {
-		return m.requestQuit()
+	if key, ok := msg.(tea.KeyMsg); ok {
+		name := keybind.Normalize(key.String())
+		if name == "ctrl+c" || (m.effects.quitting && m.services.listKeys.Binding(keybind.Quit).Has(name)) {
+			return m.requestQuit()
+		}
 	}
 	if m.effects.quitting {
 		switch msg.(type) {

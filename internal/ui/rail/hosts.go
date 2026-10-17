@@ -86,7 +86,7 @@ func RemoteRefusal(action string) string {
 	return action + " isn't available on SSH connections yet"
 }
 
-func (r renderer) renderConnection(row treeRow, selected bool, width int, pad, background string) string {
+func (r renderer) renderConnection(row treeRow, selected bool, width int, pad, background string) renderedTreeRow {
 	marker := "▾"
 	if r.model.collapsed[row.foldKey()] {
 		marker = "▸"
@@ -111,5 +111,5 @@ func (r renderer) renderConnection(row treeRow, selected bool, width int, pad, b
 			meta = r.palette.subtle.Render("no agents yet")
 		}
 	}
-	return paint(rowColumns(head, meta, width-railGutter), width, background)
+	return renderedTreeRow{text: paint(rowColumns(head, meta, width-railGutter), width, background), handleX: -1}
 }

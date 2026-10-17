@@ -365,7 +365,7 @@ func (m *Model) applyGroupEffect(request groupRequest, result groupEffectResult,
 	// screen; a newer one keeps the foreground. The reveal's collapse
 	// snapshot queues after the row exists, the order the synchronous submit
 	// kept.
-	if m.mode == modeGroupForm && m.groupForm.gen == request.gen && m.groupForm.name.Value() == request.draftName && m.groupForm.path.Value() == request.draftDir {
+	if m.mode == modeGroupForm && m.groupForm.Gen() == request.gen && m.groupForm.Name() == request.draftName && m.groupForm.Dir() == request.draftDir {
 		m.clearErr()
 		m.mode = modeList
 		m.applyRailStateDecision(m.rail.RevealGroup(result.path))

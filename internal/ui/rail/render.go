@@ -10,8 +10,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-var startupFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-
 type renderer struct {
 	model    Model
 	ctx      RenderContext
@@ -269,9 +267,9 @@ func (r renderer) emptyLines(height int) []string {
 		title, hint = "no matches", r.palette.subtle.Render("for \""+query+"\"")
 	}
 	block := []string{
-		centerLine(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Render(title), r.ctx.Width),
+		presentation.CenterLine(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Render(title), r.ctx.Width),
 		"",
-		centerLine(hint, r.ctx.Width),
+		presentation.CenterLine(hint, r.ctx.Width),
 	}
 	if height <= 0 {
 		return block
@@ -299,14 +297,12 @@ func (r *renderer) entryRowLines(row treeRow, index int, tone string) []Line {
 	if button {
 		width -= menuButtonWidth
 	}
+	rendered := r.renderTreeRow(row, selected, width, index, tone)
+	if rendered.handleX >= 0 {
+		r.frame.Handles[row.key()] = 1 + rendered.handleX
+	}
 	var lines []Line
-	for lineIndex, text := range splitLines(r.renderTreeRow(row, selected, width, index, tone)) {
-		if lineIndex == 0 {
-			plain := ansi.Strip(text)
-			if grip := strings.Index(plain, reorderGrip); grip >= 0 {
-				r.frame.Handles[row.key()] = 1 + ansi.StringWidth(plain[:grip])
-			}
-		}
+	for lineIndex, text := range splitLines(rendered.text) {
 		if button && lineIndex == 0 {
 			text += r.menuButton(selected, tone)
 		} else if button {
@@ -325,12 +321,12 @@ func (r renderer) menuButton(selected bool, background string) string {
 	return paint(" "+style.Render(MenuGlyph), menuButtonWidth, background)
 }
 
-func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, background string) string {
+func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, background string) renderedTreeRow {
 	pad := strings.Repeat(" ", railInset)
 	guides := r.treeGuidesAt(index)
 	trail := r.treeGuideTrail(index)
 	if r.renaming(row) {
-		lead := r.palette.subtle.Render("▾")
+		lead := r.palette.subtle.Render(r.groupGlyph(row))
 		if row.kind == SessionRow {
 			lead = r.sessionGlyph(row.sess)
 		}
@@ -339,7 +335,7 @@ func (r renderer) renderTreeRow(row treeRow, selected bool, width, index int, ba
 		for held := r.entryHeight(row); held > 1; held-- {
 			line += "\n" + paint(pad+trail, width, r.palette.selected())
 		}
-		return line
+		return renderedTreeRow{text: line, handleX: -1}
 	}
 	switch row.kind {
 	case ConnectionRow:
@@ -414,31 +410,31 @@ func (r renderer) rowHandle(row treeRow, selected bool) string {
 	if r.model.reorder.active && row.key() == r.model.reorder.key {
 		style = lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Accent)).Bold(true)
 	}
-	return style.Render(reorderGrip) + " "
+	return style.Render(r.glyphs().ReorderGrip) + " "
 }
 
 func (r renderer) sessionGlyph(session Session) string {
-	return r.palette.sessionGlyph(session, r.ctx.StartupPhase)
+	return r.palette.sessionGlyph(r.glyphs(), session, r.ctx.StartupPhase)
 }
 
 // SessionGlyph is the status mark a session's row wears, for root views
 // that name the same session outside the rail.
-func SessionGlyph(theme Theme, session Session, startupPhase int) string {
-	return newPalette(theme).sessionGlyph(session, startupPhase)
+func SessionGlyph(theme Theme, mode presentation.GlyphMode, session Session, startupPhase int) string {
+	return newPalette(theme).sessionGlyph(presentation.GlyphsFor(mode), session, startupPhase)
 }
 
-func (p palette) sessionGlyph(session Session, startupPhase int) string {
+func (p palette) sessionGlyph(g presentation.GlyphSet, session Session, startupPhase int) string {
 	if session.Status == "starting" {
 		return lipgloss.NewStyle().Foreground(p.statusColor(session.Status)).
-			Render(startupFrames[startupPhase%len(startupFrames)])
+			Render(g.StartupFrame(startupPhase))
 	}
 	if session.IsShell && session.Status != "dead" && session.Status != "errored" {
-		return p.subtle.Render(ShellGlyph)
+		return p.subtle.Render(g.ShellGlyph)
 	}
-	return lipgloss.NewStyle().Foreground(p.statusColor(session.Status)).Render(statusGlyph(session.Status))
+	return lipgloss.NewStyle().Foreground(p.statusColor(session.Status)).Render(g.StatusGlyph(session.Status))
 }
 
-func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guides, trail, background string) string {
+func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guides, trail, background string) renderedTreeRow {
 	session := row.sess
 	if session.Archived {
 		session.Status = "dead"
@@ -455,7 +451,7 @@ func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guid
 	}
 	badges := ""
 	if session.Queued > 0 {
-		badges = " " + r.palette.inbox(session.Queued)
+		badges = " " + r.palette.inbox(r.glyphs(), session.Queued)
 	}
 	if session.AfterTurn != "" {
 		badges += " " + r.palette.inboxBadge.Render(session.AfterTurnGlyph)
@@ -494,9 +490,9 @@ func (r renderer) renderSession(row treeRow, selected bool, width int, pad, guid
 	}
 	if r.ctx.ComfortableRows {
 		indent := pad + trail + "  " + strings.Repeat(" ", ansi.StringWidth(handle))
-		return r.tallRow(session, head, meta, indent, selected, width, background)
+		return withRowHandle(r.tallRow(session, head, meta, indent, selected, width, background), lead, handle)
 	}
-	return r.compactRow(session, head, meta, selected, width, background)
+	return withRowHandle(r.compactRow(session, head, meta, selected, width, background), lead, handle)
 }
 
 func (r renderer) compactRow(session Session, head, meta string, selected bool, width int, background string) string {
@@ -548,7 +544,7 @@ func (r renderer) tallRow(session Session, head, meta, indent string, selected b
 
 func (r renderer) replyCell(session Session, quiet lipgloss.Style, room int) string {
 	if session.Status == "working" && session.PaneLine == "" {
-		frame := startupFrames[r.ctx.StartupPhase%len(startupFrames)]
+		frame := r.glyphs().StartupFrame(r.ctx.StartupPhase)
 		return lipgloss.NewStyle().Foreground(r.palette.statusColor("working")).Render(frame + " working")
 	}
 	if session.PaneLine == "" {
@@ -562,11 +558,8 @@ func (r renderer) replyCell(session Session, quiet lipgloss.Style, room int) str
 	return r.palette.subtle.Render("↳ ") + style.Render(line)
 }
 
-func (r renderer) renderGroup(row treeRow, selected bool, width int, pad, guides, background string) string {
-	marker := "▾"
-	if r.model.collapsed[row.foldKey()] {
-		marker = "▸"
-	}
+func (r renderer) renderGroup(row treeRow, selected bool, width int, pad, guides, background string) renderedTreeRow {
+	marker := r.groupGlyph(row)
 	nameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(r.ctx.Theme.Accent2)).Bold(true)
 	name := presentation.EscapeControlsInline(BaseName(row.group))
 	if selected {
@@ -579,12 +572,13 @@ func (r renderer) renderGroup(row treeRow, selected bool, width int, pad, guides
 		}
 	}
 	lead := pad + guides + r.palette.subtle.Render(marker) + " "
-	head := lead + r.rowHandle(row, selected) + r.palette.highlight(name, r.model.search, nameStyle)
+	handle := r.rowHandle(row, selected)
+	head := lead + handle + r.palette.highlight(name, r.model.search, nameStyle)
 	meta := r.groupStatusGlyphs(row.host, row.group, false)
 	if meta == "" {
 		meta = r.palette.subtle.Render("no agents yet")
 	}
-	return paint(rowColumns(head, meta, width-railGutter), width, background)
+	return withRowHandle(paint(rowColumns(head, meta, width-railGutter), width, background), lead, handle)
 }
 
 // groupStatusGlyphs counts the agents in group's subtree; a whole host
@@ -602,7 +596,38 @@ func (r renderer) groupStatusGlyphs(host, group string, whole bool) string {
 			continue
 		}
 		parts = append(parts, lipgloss.NewStyle().Foreground(r.palette.statusColor(state)).
-			Render(fmt.Sprintf("%s %d", statusGlyph(state), counts[state])))
+			Render(fmt.Sprintf("%s %d", r.glyphs().StatusGlyph(state), counts[state])))
 	}
 	return strings.Join(parts, r.palette.subtle.Render("  "))
+}
+
+func (r renderer) glyphs() presentation.GlyphSet { return presentation.GlyphsFor(r.ctx.GlyphMode) }
+func (r renderer) groupGlyph(row treeRow) string {
+	if row.isRoot() {
+		return " "
+	}
+	if r.model.collapsed[row.foldKey()] {
+		return r.glyphs().GroupClosedGlyph
+	}
+	return r.glyphs().GroupOpenGlyph
+}
+
+type renderedTreeRow struct {
+	text    string
+	handleX int
+}
+
+func withRowHandle(text, lead, handle string) renderedTreeRow {
+	row := renderedTreeRow{text: text, handleX: -1}
+	if handle != "" {
+		x := ansi.StringWidth(lead)
+		head, _, _ := strings.Cut(text, "\n")
+		// Measure the prefix we painted, not a matching character in a
+		// name. A narrow row may have clipped the handle off entirely.
+		grip := strings.TrimSpace(ansi.Strip(handle))
+		if ansi.Strip(ansi.Cut(head, x, x+ansi.StringWidth(grip))) == grip {
+			row.handleX = x
+		}
+	}
+	return row
 }

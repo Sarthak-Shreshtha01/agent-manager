@@ -7,6 +7,13 @@ import (
 )
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.mode == modeList && m.rail.InputMode() == uirail.BrowseMode && !m.quick.active && !m.layout.split.dragging && !m.layout.split.resizeMode {
+		decision := m.rail.Key(msg, m.layout.displayedRail, m.railKeyContext())
+		if decision.Consumed {
+			m.gens.foreground++
+		}
+		return m.applyRailDecision(decision)
+	}
 	m.gens.foreground++
 	// A drag armed by the mouse alone leaves the keyboard live, so a press
 	// whose release never lands cannot strand the list: the next key ends

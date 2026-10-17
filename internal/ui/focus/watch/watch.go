@@ -1,3 +1,7 @@
+// Package watch follows one focused pane over a tmux control client: it
+// streams the pane's frames to a Sink, forwards keys over the same client,
+// counts the writes it is owed echoes for, and falls back to polling when
+// the client is lost.
 package watch
 
 import (

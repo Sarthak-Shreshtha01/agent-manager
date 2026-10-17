@@ -36,7 +36,7 @@ func TestAutoThemeName(t *testing.T) {
 func TestThemeAutoPersistsWithoutClobberingManualTheme(t *testing.T) {
 	m := buildModel(t)
 	t.Cleanup(func() { applyTheme(themes[0]) })
-	if err := m.services.store.SetSetting(themeSetting, "nord"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.ThemeSetting, "nord"); err != nil {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, m.openSettings()())
@@ -49,10 +49,10 @@ func TestThemeAutoPersistsWithoutClobberingManualTheme(t *testing.T) {
 		t.Fatal("toggle should enable theme auto")
 	}
 	m.applyCmd(t, m.captureSettingsSave(true, false))
-	if got, _ := m.services.store.Setting(themeSetting); got != "nord" {
+	if got, _ := m.services.store.Setting(uisettings.ThemeSetting); got != "nord" {
 		t.Fatalf("manual theme clobbered by auto: %q", got)
 	}
-	if got, _ := m.services.store.Setting(themeAutoSetting); got != "on" {
+	if got, _ := m.services.store.Setting(uisettings.ThemeAutoSetting); got != "on" {
 		t.Fatalf("theme_auto not persisted: %q", got)
 	}
 	if !themeAutoEnabled(m.services.store) {
@@ -63,10 +63,10 @@ func TestThemeAutoPersistsWithoutClobberingManualTheme(t *testing.T) {
 func TestManualThemeCycleDisablesAuto(t *testing.T) {
 	m := buildModel(t)
 	t.Cleanup(func() { applyTheme(themes[0]) })
-	if err := m.services.store.SetSetting(themeSetting, "classic"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.ThemeSetting, "classic"); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.services.store.SetSetting(themeAutoSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.ThemeAutoSetting, "on"); err != nil {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, m.openSettings()())
@@ -79,17 +79,17 @@ func TestManualThemeCycleDisablesAuto(t *testing.T) {
 		t.Fatal("stepping the theme by hand should turn auto off")
 	}
 	m.applyCmd(t, m.captureSettingsSave(true, false))
-	if got, _ := m.services.store.Setting(themeAutoSetting); got != "off" {
+	if got, _ := m.services.store.Setting(uisettings.ThemeAutoSetting); got != "off" {
 		t.Fatalf("theme_auto should persist off after a manual step: %q", got)
 	}
-	if got, _ := m.services.store.Setting(themeSetting); got != themes[m.settings.dialog.ThemeIndex].Name {
+	if got, _ := m.services.store.Setting(uisettings.ThemeSetting); got != themes[m.settings.dialog.ThemeIndex].Name {
 		t.Fatalf("manual step not persisted: %q", got)
 	}
 }
 
 func TestResolveStartupThemeWithoutAuto(t *testing.T) {
 	m := buildModel(t)
-	if err := m.services.store.SetSetting(themeSetting, "nord"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.ThemeSetting, "nord"); err != nil {
 		t.Fatal(err)
 	}
 	if got := resolveStartupTheme(m.services.store); got != "nord" {

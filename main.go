@@ -284,7 +284,12 @@ func run() (resultErr error) {
 	if err != nil {
 		return err
 	}
-	defer func() { resultErr = errors.Join(resultErr, local.Close()) }()
+	closeLocal := true
+	defer func() {
+		if closeLocal {
+			resultErr = errors.Join(resultErr, local.Close())
+		}
+	}()
 	rt := local.Runtime
 	model, err := ui.NewWithServices(ui.Dependencies{
 		Config: rt.Config, Store: rt.Store, TMux: rt.Driver, Engine: local.Engine, Hooks: rt.Hooks,
@@ -316,7 +321,18 @@ func run() (resultErr error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := model.StartPoller(ctx, program.Send)
 	var stopOnce sync.Once
-	stopRuntime := func() { stopOnce.Do(func() { model.StopEffects(); cancel(); <-done }) }
+	stopRuntime := func() {
+		stopOnce.Do(func() {
+			model.StopEffects()
+			cancel()
+			if len(model.AbandonedEffects()) > 0 {
+				// Abandoned workers keep their resources until the process exits.
+				closeLocal = false
+				return
+			}
+			<-done
+		})
+	}
 	defer stopRuntime()
 	final, runErr := program.Run()
 	catalog.StopAll()

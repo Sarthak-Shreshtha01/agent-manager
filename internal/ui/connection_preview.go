@@ -157,7 +157,7 @@ func (m *Model) remoteSessionDetail(row remoteRow, width int) []string {
 	if row.archived {
 		status = "archived"
 	}
-	state := lipgloss.NewStyle().Foreground(statusColor(row.status)).Render(statusGlyph(row.status) + " " + escapeControlsInline(statusLabel(status)))
+	state := lipgloss.NewStyle().Foreground(statusColor(row.status)).Render(m.glyphs().StatusGlyph(row.status) + " " + escapeControlsInline(statusLabel(status)))
 	name := lipgloss.NewStyle().Foreground(colorBright()).Bold(true).Render(escapeControlsInline(row.name))
 	host := lipgloss.NewStyle().Foreground(colorRemote()).Render(row.host)
 	group := lipgloss.NewStyle().Foreground(colorAccent2()).Render(escapeControlsInline(displayGroup(row.group)))

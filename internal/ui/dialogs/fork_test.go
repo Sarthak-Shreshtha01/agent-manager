@@ -45,10 +45,11 @@ func TestForkViewShowsSourceAndGroup(t *testing.T) {
 	d.Open("alpha", "")
 	plain := lipgloss.NewStyle()
 	card := d.View(ForkStyles{
-		Value: plain,
-		Group: plain,
-		Field: func(label, value string, focused bool) string { return label + "=" + value },
-		Input: func(textinput.Model) string { return "input" },
+		BranchGlyph: "⑂",
+		Value:       plain,
+		Group:       plain,
+		Field:       func(label, value string, focused bool) string { return label + "=" + value },
+		Input:       func(textinput.Model) string { return "input" },
 	})
 	if card.Title != "⑂ Fork Session" || card.Body != "  source  alpha\n  group   root\nname=input" {
 		t.Fatalf("card = %+v", card)

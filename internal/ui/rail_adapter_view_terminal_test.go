@@ -1,11 +1,13 @@
 package ui
 
 import (
-	"github.com/YoanWai/agent-manager/internal/status"
-	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
-	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/status"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // railFrame is the sidebar alone. The content column repeats the selected
@@ -45,7 +47,7 @@ func TestRestingShellUsesCaretGlyph(t *testing.T) {
 	shell := spawnTerminal(t, m)
 	setRailSessionStatus(m, shell.ID, status.Idle)
 
-	if rail := m.railFrame(); !strings.Contains(rail, uirail.ShellGlyph) {
+	if rail := m.railFrame(); !strings.Contains(rail, m.glyphs().ShellGlyph) {
 		t.Fatalf("a resting shell should carry the caret:\n%s", rail)
 	}
 }
@@ -57,16 +59,16 @@ func TestDeadInlineShellKeepsItsStatusGlyph(t *testing.T) {
 	shell := spawnTerminal(t, m)
 	shell.Status = status.Idle
 
-	if glyph := ansi.Strip(m.sessionGlyph(shell)); glyph != uirail.ShellGlyph {
+	if glyph := ansi.Strip(m.sessionGlyph(shell)); glyph != m.glyphs().ShellGlyph {
 		t.Fatalf("a resting shell wears the caret, got %q", glyph)
 	}
 	for _, gone := range []string{status.Dead, status.Errored} {
 		shell.Status = gone
 		glyph := ansi.Strip(m.sessionGlyph(shell))
-		if glyph == uirail.ShellGlyph {
+		if glyph == m.glyphs().ShellGlyph {
 			t.Fatalf("a %s shell must not read as resting", gone)
 		}
-		if glyph != statusGlyph(gone) {
+		if glyph != presentation.GlyphsFor("").StatusGlyph(gone) {
 			t.Fatalf("a %s shell should wear its own glyph, got %q", gone, glyph)
 		}
 	}

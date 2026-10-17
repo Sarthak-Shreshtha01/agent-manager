@@ -3,13 +3,15 @@ package ui
 import (
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/systheme"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 )
 
 // storedTheme reads the persisted theme name. A read failure falls back to
 // the default theme: the UI still paints, just not in the chosen palette.
 func storedTheme(st *store.Store) string {
-	name, err := st.Setting(themeSetting)
+	name, err := st.Setting(uisettings.ThemeSetting)
 	if err != nil {
 		return ""
 	}
@@ -17,7 +19,7 @@ func storedTheme(st *store.Store) string {
 }
 
 func themeAutoEnabled(st *store.Store) bool {
-	value, err := st.Setting(themeAutoSetting)
+	value, err := st.Setting(uisettings.ThemeAutoSetting)
 	return err == nil && value == "on"
 }
 
@@ -43,6 +45,7 @@ func autoThemeName(stored string, scheme systheme.Scheme) string {
 }
 
 type preferences struct {
+	glyphMode presentation.GlyphMode
 	// focusOnEnter mirrors the persisted focus-key setting; the footer
 	// reads it every frame, so it lives here instead of the store.
 	focusOnEnter bool

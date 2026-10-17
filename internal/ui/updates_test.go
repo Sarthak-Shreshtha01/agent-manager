@@ -5,6 +5,10 @@ import (
 	"go/parser"
 	"go/token"
 	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/keybind"
+	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // handleMsg routes each message family to the file that owns it. A case
@@ -29,4 +33,40 @@ func TestHandleMsgLineCap(t *testing.T) {
 		return
 	}
 	t.Fatal("handleMsg not found in updates.go")
+}
+
+func TestSecondQuitBindingAbandonsDrain(t *testing.T) {
+	for _, name := range []string{"q", "f12"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m := buildModel(t)
+			key, err := keybind.Parse(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m.services.listKeys = m.services.listKeys.With(keybind.Quit, keybind.Keys(key))
+			msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")}
+			if name == "f12" {
+				msg = tea.KeyMsg{Type: tea.KeyF12}
+			}
+			m.queueRail([]uirail.Mutation{{Kind: uirail.SaveCollapsed, Collapsed: []string{"a"}}}, 0, false)
+			m.Update(msg)
+			if !m.effects.quitting || m.effects.main.active == nil {
+				t.Fatal("first quit did not begin draining")
+			}
+			if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")}); cmd != nil {
+				t.Fatal("ordinary input was accepted during drain")
+			}
+			_, cmd := m.Update(msg)
+			if cmd == nil {
+				t.Fatal("second quit was discarded")
+			}
+			if _, ok := cmd().(tea.QuitMsg); !ok {
+				t.Fatal("second quit did not exit")
+			}
+			if len(m.AbandonedEffects()) != 1 {
+				t.Fatalf("abandoned = %v", m.AbandonedEffects())
+			}
+		})
+	}
 }

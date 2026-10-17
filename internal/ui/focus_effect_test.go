@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/tmux"
 	tea "github.com/charmbracelet/bubbletea"
@@ -429,5 +430,42 @@ func TestPendingFocusSurvivesTheInitiatingMouseRelease(t *testing.T) {
 	m.applyCmd(t, cmd)
 	if m.mode != modeFocus {
 		t.Fatal("release of the initiating click cancelled its pending focus")
+	}
+}
+
+func TestPendingFocusDistinguishesIgnoredAndBoundKeys(t *testing.T) {
+	for _, bound := range []bool{false, true} {
+		name := "ignored"
+		if bound {
+			name = "opens help"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m := buildModel(t)
+			createSession(t, m, "alpha", t.TempDir(), "")
+			m.selectSessionRow(t, "alpha")
+			if bound {
+				key, err := keybind.Parse("f12")
+				if err != nil {
+					t.Fatal(err)
+				}
+				m.services.listKeys = m.services.listKeys.With(keybind.Help, keybind.Keys(key))
+			}
+			_, pending := m.focusSelected()
+			m.Update(tea.KeyMsg{Type: tea.KeyF12})
+			if bound {
+				if m.mode != modeHelp {
+					t.Fatal("bound key did not open help")
+				}
+				m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			}
+			m.applyCmd(t, pending)
+			if bound && m.mode != modeList {
+				t.Fatal("old focus reopened after help was dismissed")
+			}
+			if !bound && m.mode != modeFocus {
+				t.Fatal("ignored key cancelled pending focus")
+			}
+		})
 	}
 }

@@ -42,7 +42,7 @@ func (m Model) rowMenuItems(row treeRow) []menuItem {
 	remove := menuItem{label: "Delete", action: Delete, danger: true}
 	connection := menuItem{label: "New connection", action: NewConnection}
 	if row.isRoot() {
-		return menuSections(append(create, editor), []menuItem{connection})
+		return menuSections(append(create, editor, menuItem{label: "Settings", action: OpenSettings}), []menuItem{connection})
 	}
 	if row.host != "" {
 		return remoteMenuItems(row, create, connection)

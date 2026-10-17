@@ -55,7 +55,8 @@ func (m *Model) noticeSources() uinotices.Sources {
 		messages[i] = uinotices.Message{ID: msg.ID, Title: msg.Title, Headline: msg.Headline, Body: msg.Body, Accent: msg.Accent, URL: msg.URL}
 	}
 	return uinotices.Sources{
-		Store: m.services.store != nil,
+		GlyphMode: m.prefs.glyphMode,
+		Store:     m.services.store != nil,
 		Update: uinotices.Update{
 			Version:    m.update.version,
 			Latest:     m.update.latest,
@@ -418,5 +419,5 @@ func (m *Model) statusRow() string {
 	if m.errBar.text == "" {
 		return ""
 	}
-	return m.statusMessage("✕", "●", "▲")
+	return m.statusMessage(m.glyphs().ErroredGlyph, m.glyphs().FinishedGlyph, "▲")
 }

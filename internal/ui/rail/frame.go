@@ -17,10 +17,7 @@ const (
 	railGutter      = 2
 	railInset       = railGutter - 1
 	menuButtonWidth = 4
-	ReorderGlyph    = "⠿"
 	MenuGlyph       = "[…]"
-	reorderGrip     = ReorderGlyph
-	ShellGlyph      = "❯"
 )
 
 // Theme is the palette the root renders with, read straight from ui/theme.
@@ -54,6 +51,7 @@ type Rect struct {
 }
 
 type RenderContext struct {
+	GlyphMode       presentation.GlyphMode
 	Width           int
 	Height          int
 	TerminalWidth   int
@@ -161,23 +159,6 @@ func (p palette) statusColor(state string) lipgloss.Color {
 	}
 }
 
-func statusGlyph(state string) string {
-	switch state {
-	case "working":
-		return "◐"
-	case "starting":
-		return "◌"
-	case "waiting":
-		return "◆"
-	case "finished":
-		return "●"
-	case "errored", "dead":
-		return "✕"
-	default:
-		return "○"
-	}
-}
-
 func statusLabel(state string) string {
 	if state == "starting" {
 		return "starting up"
@@ -204,8 +185,8 @@ func (p palette) keyCap(key, label string) string {
 	return p.key.Render(key) + " " + p.muted.Render(label)
 }
 
-func (p palette) inbox(count int) string {
-	return p.inboxBadge.Render("✉" + strconv.Itoa(count))
+func (p palette) inbox(g presentation.GlyphSet, count int) string {
+	return p.inboxBadge.Render(g.InboxGlyph + strconv.Itoa(count))
 }
 
 func paint(text string, width int, bg string) string {
@@ -253,17 +234,6 @@ func relSince(at time.Time) string {
 	default:
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
-}
-
-func centerLine(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-	visible := ansi.StringWidth(text)
-	if visible >= width {
-		return ansi.Truncate(text, width, "…")
-	}
-	return strings.Repeat(" ", (width-visible)/2) + text
 }
 
 func overlayAt(frame string, overlay []string, left, top int) string {

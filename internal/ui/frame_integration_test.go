@@ -1,14 +1,16 @@
 package ui
 
 import (
-	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestSessionLayoutDefaultsToSplit(t *testing.T) {
@@ -17,10 +19,10 @@ func TestSessionLayoutDefaultsToSplit(t *testing.T) {
 	if m.prefs.fullLayout {
 		t.Fatal("split should be the default sessions layout")
 	}
-	if err := m.services.store.SetSetting(sessionLayoutSetting, "full"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.SessionLayoutSetting, "full"); err != nil {
 		t.Fatal(err)
 	}
-	if !storedFullLayout(m.services.store) {
+	if !storedFlag(t, m, uisettings.SessionLayoutSetting) {
 		t.Fatal("stored full choice should turn the full layout on")
 	}
 }
@@ -37,7 +39,7 @@ func TestSettingsTogglesSessionLayout(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
-	if chosen, err := m.services.store.Setting(sessionLayoutSetting); err != nil || chosen != "full" {
+	if chosen, err := m.services.store.Setting(uisettings.SessionLayoutSetting); err != nil || chosen != "full" {
 		t.Fatalf("want stored full, got %q err %v", chosen, err)
 	}
 	if !m.prefs.fullLayout {
@@ -108,9 +110,9 @@ func TestSettingsToggleChromeIndependently(t *testing.T) {
 				t.Fatalf("model visibility = header %t stats %t, want header %t stats %t",
 					m.prefs.hideHeader, m.prefs.hideStats, tc.hideHeader, tc.hideStats)
 			}
-			if storedHideHeader(m.services.store) != tc.hideHeader || storedHideStats(m.services.store) != tc.hideStats {
+			if storedFlag(t, m, uisettings.HideHeaderSetting) != tc.hideHeader || storedFlag(t, m, uisettings.HideStatsSetting) != tc.hideStats {
 				t.Fatalf("reloaded visibility = header %t stats %t, want header %t stats %t",
-					storedHideHeader(m.services.store), storedHideStats(m.services.store), tc.hideHeader, tc.hideStats)
+					storedFlag(t, m, uisettings.HideHeaderSetting), storedFlag(t, m, uisettings.HideStatsSetting), tc.hideHeader, tc.hideStats)
 			}
 		})
 	}
@@ -364,7 +366,7 @@ func TestFullRowWorkingWithoutPaneLineAnimatesLoader(t *testing.T) {
 	if len(lines) != 3 {
 		t.Fatalf("comfortable row painted %d lines, want 3", len(lines))
 	}
-	frame := startupFrames[m.startup.startupPhase%len(startupFrames)]
+	frame := presentation.GlyphsFor("").StartupFrames[m.startup.startupPhase%len(presentation.GlyphsFor("").StartupFrames)]
 	state := ansi.Strip(lines[2])
 	if !strings.Contains(state, frame+" working") {
 		t.Fatalf("working row without a pane line should animate a loader, got %q", state)

@@ -16,7 +16,7 @@ func loadPathSuggestions(m *Model, target pathSuggestionTarget, typed string) {
 	case pathSuggestionForm:
 		m.form.SetDir(typed)
 	case pathSuggestionGroup:
-		m.groupForm.path.SetValue(typed)
+		m.groupForm.SetDir(typed)
 	case pathSuggestionRename:
 		m.rename.SetDir(typed)
 	}
@@ -177,19 +177,19 @@ func TestGroupPickerExitsToAdjacentFields(t *testing.T) {
 	m := buildModel(t)
 
 	m.openGroupForm()
-	m.groupForm.focusStep(m, 1)
+	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyTab})
 	m.form.groupIndex = 0
 	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyUp})
-	if m.groupForm.focus != gfName {
-		t.Fatalf("up past first parent should focus name, focus=%d", m.groupForm.focus)
+	if m.groupForm.Focus() != uidialogs.GroupFormNameField {
+		t.Fatalf("up past first parent should focus name, focus=%d", m.groupForm.Focus())
 	}
 
 	m.openGroupForm()
-	m.groupForm.focusStep(m, 1)
+	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyTab})
 	m.form.groupIndex = len(m.form.groups) - 1
 	m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyDown})
-	if m.groupForm.focus != gfPath {
-		t.Fatalf("down past last parent should focus path, focus=%d", m.groupForm.focus)
+	if m.groupForm.Focus() != uidialogs.GroupFormPathField {
+		t.Fatalf("down past last parent should focus path, focus=%d", m.groupForm.Focus())
 	}
 
 	m.openForm()
@@ -256,21 +256,20 @@ func TestGroupFormInheritsParentPath(t *testing.T) {
 	// The cursor starts on root, which has no stored path to inherit.
 	m.selectGroupRow(t, "projects")
 	m.openGroupForm()
-	if m.groupForm.path.Value() != parentPath {
-		t.Fatalf("cursor on group should inherit its path, got %q want %q", m.groupForm.path.Value(), parentPath)
+	if m.groupForm.Dir() != parentPath {
+		t.Fatalf("cursor on group should inherit its path, got %q want %q", m.groupForm.Dir(), parentPath)
 	}
 	pickGroup(t, m, "")
 	m.moveGroupCursor(0)
-	if m.groupForm.path.Value() != "" {
-		t.Fatalf("root parent should clear auto path, got %q", m.groupForm.path.Value())
+	if m.groupForm.Dir() != "" {
+		t.Fatalf("root parent should clear auto path, got %q", m.groupForm.Dir())
 	}
 
-	m.groupForm.path.SetValue("/custom")
-	m.groupForm.pathAuto = false
+	m.groupForm.TakePath("/custom")
 	pickGroup(t, m, "")
 	m.moveGroupCursor(0)
-	if m.groupForm.path.Value() != "/custom" {
-		t.Fatalf("manual path should survive parent change, got %q", m.groupForm.path.Value())
+	if m.groupForm.Dir() != "/custom" {
+		t.Fatalf("manual path should survive parent change, got %q", m.groupForm.Dir())
 	}
 }
 
@@ -298,8 +297,8 @@ func TestRelativePathsStoredAbsolute(t *testing.T) {
 	t.Chdir(base)
 
 	m.openGroupForm()
-	m.groupForm.name.SetValue("relgrp")
-	m.groupForm.path.SetValue("sub")
+	m.groupForm.SetName("relgrp")
+	m.groupForm.SetDir("sub")
 	_, cmd := m.submitGroupForm()
 	if m.errBar.text != "" {
 		t.Fatalf("group form should submit, err=%q", m.errBar.text)

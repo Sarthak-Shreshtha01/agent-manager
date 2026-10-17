@@ -248,7 +248,7 @@ func TestSwappedKeysRouteActions(t *testing.T) {
 	m.cycleSetting(1)
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
-	if chosen, err := m.services.store.Setting(focusKeySetting); err != nil || chosen != "attach" {
+	if chosen, err := m.services.store.Setting(uisettings.FocusKeySetting); err != nil || chosen != "attach" {
 		t.Fatalf("swap did not persist, chosen = %q, err = %v", chosen, err)
 	}
 	// Swapped: A focuses instead.
@@ -1251,10 +1251,10 @@ func TestArrowStepSettingDisablesThePair(t *testing.T) {
 	m.cycleSetting(1)
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
-	if chosen, err := m.services.store.Setting(arrowStepSetting); err != nil || chosen != "off" {
+	if chosen, err := m.services.store.Setting(uisettings.ArrowStepSetting); err != nil || chosen != "off" {
 		t.Fatalf("toggle did not persist, chosen = %q, err = %v", chosen, err)
 	}
-	if storedArrowStep(m.services.store) {
+	if storedFlag(t, m, uisettings.ArrowStepSetting) {
 		t.Fatal("storedArrowStep still reads on")
 	}
 

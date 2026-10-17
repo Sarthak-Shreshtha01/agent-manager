@@ -2,11 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"strings"
 )
 
 // viewHeaderRows is the full-width band over both columns: the wordmark
@@ -135,7 +136,7 @@ func (m *Model) viewStatusCounts(compact bool) string {
 		if counts[st] == 0 {
 			continue
 		}
-		dot := lipgloss.NewStyle().Foreground(statusColor(st)).Render(statusGlyph(st))
+		dot := lipgloss.NewStyle().Foreground(statusColor(st)).Render(m.glyphs().StatusGlyph(st))
 		label := fmt.Sprintf(" %d %s", counts[st], st)
 		if compact {
 			label = fmt.Sprintf(" %d", counts[st])

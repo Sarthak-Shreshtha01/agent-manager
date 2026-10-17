@@ -311,7 +311,7 @@ func (m *Model) FileList(ctx RenderContext, width, height int) Pane {
 		if nameBudget < 4 {
 			nameBudget = 4
 		}
-		name := truncatePath(presentation.EscapeControlsInline(fd.File.Path), nameBudget)
+		name := presentation.TruncatePath(presentation.EscapeControlsInline(fd.File.Path), nameBudget)
 		left := bar + glyph + " " + s.Value.Render(name)
 		gap := width - ansi.StringWidth(left) - ansi.StringWidth(counts)
 		if gap < 1 {
@@ -374,24 +374,6 @@ func (m *Model) Legend() []LegendSection {
 			{"esc/q", "close"}, {"ctrl+c", "quit"},
 		}},
 	}
-}
-
-func truncatePath(path string, limit int) string {
-	runes := []rune(path)
-	if limit <= 0 {
-		return ""
-	}
-	if len(runes) <= limit {
-		return path
-	}
-	if limit == 1 {
-		return "…"
-	}
-	tail := string(runes[len(runes)-limit+1:])
-	if i := strings.IndexByte(tail, '/'); i >= 0 && i < len(tail)-1 {
-		return "…" + tail[i:]
-	}
-	return "…" + tail
 }
 
 // scrollWindow keeps the cursor visible inside a height-limited window of

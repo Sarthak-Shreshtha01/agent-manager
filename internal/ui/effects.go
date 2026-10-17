@@ -29,10 +29,13 @@ type effectJob struct {
 }
 
 // Effects run on three FIFO lanes. Input forwarded to a pane has its own lane
-// so a keystroke never waits behind a spawn, fork or poll-locked reflow; each
-// input re-checks its session's identity in the worker, so it needs no order
-// against lifecycle work. Calls to SSH connections have the third, so a slow
-// host holds up only its own kind of work.
+// so a keystroke never waits behind a spawn, fork or poll-locked reflow. Each
+// input re-reads its session before it writes, but the read and the paste
+// are two steps, and a job that kills or relaunches that pane between them
+// would hand the input to the replacement agent. So an input and such a job
+// never run on one session at once, while input to any other pane goes ahead.
+// Calls to SSH connections have the third lane, so a slow host holds up only
+// its own kind of work.
 type effectState struct {
 	nextID, nextChain   uint64
 	main, input, remote effectLane
@@ -225,20 +228,77 @@ func (m *Model) enqueueEffect(request effectRequest, chain uint64, first bool) {
 
 func (m *Model) nextEffectCmd() tea.Cmd {
 	var commands []tea.Cmd
-	idle := true
-	for _, lane := range m.lanes() {
-		if lane.active == nil && len(lane.pending) > 0 {
-			lane.active, lane.pending = lane.pending[0], lane.pending[1:]
-			commands = append(commands, lane.active.command)
-		}
-		if lane.active != nil {
-			idle = false
+	main, input, remote := &m.effects.main, &m.effects.input, &m.effects.remote
+	if main.active == nil && len(main.pending) > 0 && !m.inputInFlightOn(main.pending[0]) {
+		main.active, main.pending = main.pending[0], main.pending[1:]
+		commands = append(commands, main.active.command)
+	}
+	if remote.active == nil && len(remote.pending) > 0 {
+		remote.active, remote.pending = remote.pending[0], remote.pending[1:]
+		commands = append(commands, remote.active.command)
+	}
+	if input.active == nil {
+		for i, job := range input.pending {
+			if m.paneHeldFrom(job) {
+				continue
+			}
+			input.active = job
+			input.pending = slices.Delete(input.pending, i, i+1)
+			commands = append(commands, job.command)
+			break
 		}
 	}
-	if idle && m.effects.quitting {
+	if main.active == nil && input.active == nil && remote.active == nil && m.effects.quitting {
 		return tea.Quit
 	}
 	return tea.Batch(commands...)
+}
+
+// heldSessions names the panes a main-lane job kills or relaunches: the
+// sessions a lifecycle action targets, and a session ending after its turn
+// together with the terminals nested under it.
+func (m *Model) heldSessions(request effectRequest) []string {
+	switch value := request.(type) {
+	case lifecycleRequest:
+		ids := make([]string, 0, len(value.target.sessions))
+		for _, sess := range value.target.sessions {
+			ids = append(ids, sess.ID)
+		}
+		return ids
+	case afterTurnRequest:
+		if value.cancel {
+			return nil
+		}
+		ids := []string{value.id}
+		for _, sess := range m.workspace.sessions {
+			if sess.ParentID == value.id {
+				ids = append(ids, sess.ID)
+			}
+		}
+		return ids
+	}
+	return nil
+}
+
+func inputTarget(job *effectJob) (string, bool) {
+	if job == nil {
+		return "", false
+	}
+	request, ok := job.request.(inputRequest)
+	return request.session.ID, ok
+}
+
+func (m *Model) inputInFlightOn(job *effectJob) bool {
+	id, ok := inputTarget(m.effects.input.active)
+	return ok && slices.Contains(m.heldSessions(job.request), id)
+}
+
+func (m *Model) paneHeldFrom(job *effectJob) bool {
+	if m.effects.main.active == nil {
+		return false
+	}
+	id, ok := inputTarget(job)
+	return ok && slices.Contains(m.heldSessions(m.effects.main.active.request), id)
 }
 
 func (m *Model) requestQuit() (tea.Model, tea.Cmd) {
@@ -268,7 +328,24 @@ func (m *Model) requestQuit() (tea.Model, tea.Cmd) {
 	}
 	m.prepareSplitForQuit()
 	m.effects.quitting = true
+	if awaited, ok := m.firstUnfinishedEffect(); ok {
+		m.reportErr("finishing " + effectName(awaited.request) + " before quitting; press the quit key again to leave without waiting")
+	}
 	return m, m.nextEffectCmd()
+}
+
+// firstUnfinishedEffect is the job a quit drain waits on first: the running
+// main-lane job, then its queue, then the input lane.
+func (m *Model) firstUnfinishedEffect() (*effectJob, bool) {
+	for _, lane := range m.lanes() {
+		if lane.active != nil {
+			return lane.active, true
+		}
+		if len(lane.pending) > 0 {
+			return lane.pending[0], true
+		}
+	}
+	return nil, false
 }
 
 // abandonEffects answers a second quit while the drain waits: it stops
@@ -380,7 +457,7 @@ func (m *Model) handleEffectCompleted(msg effectCompletedMsg) (tea.Model, tea.Cm
 }
 
 func effectName(request effectRequest) string {
-	switch request.(type) {
+	switch request := request.(type) {
 	case inputRequest:
 		return "input to a session"
 	case quickSendRequest:
@@ -394,7 +471,10 @@ func effectName(request effectRequest) string {
 	case installStartRequest, installSettleRequest:
 		return "CLI install"
 	case lifecycleRequest:
-		return "session lifecycle change"
+		if request.target.action == actionDelete {
+			return "session delete"
+		}
+		return "session " + string(request.target.action)
 	case afterTurnRequest:
 		return "after-turn archive or kill"
 	case railRequest:

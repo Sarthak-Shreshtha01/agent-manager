@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/store"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type groupOption struct {
@@ -109,4 +110,29 @@ func (m *Model) materializeGroupsLocal(paths []string) {
 			known[path] = true
 		}
 	}
+}
+
+func (m *Model) viewGroupPicker() string { return m.form.viewGroupPicker() }
+
+func (d *formDialog) viewGroupPicker() string {
+	var b strings.Builder
+	for i, opt := range d.groups {
+		selected := i == d.groupIndex
+		marker := "  "
+		if selected {
+			marker = lipgloss.NewStyle().Foreground(colorAccent()).Render("❯ ")
+		}
+		label := displayGroup(opt.path)
+		if opt.sessID != "" {
+			label = strings.Repeat("  ", opt.depth) + opt.name
+		} else if opt.path != "" {
+			label = strings.Repeat("  ", opt.depth) + baseName(opt.path)
+		}
+		style := mutedStyle()
+		if selected {
+			style = lipgloss.NewStyle().Foreground(colorAccent2()).Bold(true)
+		}
+		b.WriteString("  " + marker + style.Render(escapeControlsInline(label)) + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }

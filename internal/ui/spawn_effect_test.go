@@ -127,8 +127,8 @@ func TestGroupPreflightFailureKeepsFormAndDoesNotMutate(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("docs")
-	m.groupForm.path.SetValue("/missing/docs")
+	m.groupForm.SetName("docs")
+	m.groupForm.SetDir("/missing/docs")
 	reader := &blockedDirectoryPreflight{
 		started: make(chan struct{}), release: make(chan struct{}),
 		resolved: "/missing/docs", dirOK: false,
@@ -148,7 +148,7 @@ func TestAcceptedGroupDrainsBlockedValidationOnQuit(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("accepted")
+	m.groupForm.SetName("accepted")
 	reader := &blockedDirectoryPreflight{
 		started: make(chan struct{}), release: make(chan struct{}),
 		resolved: t.TempDir(), dirOK: true,
@@ -280,8 +280,8 @@ func TestGroupFormDefersCreationFromUpdate(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("manual")
-	m.groupForm.path.SetValue(t.TempDir())
+	m.groupForm.SetName("manual")
+	m.groupForm.SetDir(t.TempDir())
 	_, cmd := m.submitGroupForm()
 	if m.errBar.text != "" {
 		t.Fatalf("group form reported an error: %q", m.errBar.text)
@@ -487,8 +487,8 @@ func TestGroupFormCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("first")
-	m.groupForm.path.SetValue(t.TempDir())
+	m.groupForm.SetName("first")
+	m.groupForm.SetDir(t.TempDir())
 	_, cmd := m.submitGroupForm()
 	if m.effects.main.active == nil {
 		t.Fatal("accepted group submission did not queue the mutation")
@@ -496,8 +496,8 @@ func TestGroupFormCompletionDoesNotReplaceNewerDialog(t *testing.T) {
 	// The user reopens the group form before the first one completes: a
 	// newer dialog in the same slot.
 	m.openGroupForm()
-	m.groupForm.name.SetValue("second")
-	m.groupForm.path.SetValue(t.TempDir())
+	m.groupForm.SetName("second")
+	m.groupForm.SetDir(t.TempDir())
 	m.applyCmd(t, cmd)
 	if m.mode != modeGroupForm {
 		t.Fatalf("completion replaced the newer group form; mode=%v", m.mode)
@@ -638,12 +638,12 @@ func TestGroupCompletionPreservesEditedForm(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("first")
-	m.dispatchGroup(groupRequest{path: "first", gen: m.groupForm.gen})
+	m.groupForm.SetName("first")
+	m.dispatchGroup(groupRequest{path: "first", gen: m.groupForm.Gen()})
 	request := m.effects.main.pending[0].request.(groupRequest)
-	m.groupForm.name.SetValue("next")
+	m.groupForm.SetName("next")
 	m.applyGroupEffect(request, groupEffectResult{path: "first"}, nil)
-	if m.mode != modeGroupForm || m.groupForm.name.Value() != "next" {
+	if m.mode != modeGroupForm || m.groupForm.Name() != "next" {
 		t.Fatal("completion closed the edited group form")
 	}
 	if !hasWorkspaceGroup(m, "first") {

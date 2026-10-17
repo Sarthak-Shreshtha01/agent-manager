@@ -10,17 +10,6 @@ import (
 	"time"
 )
 
-func centerLine(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-	visible := ansi.StringWidth(text)
-	if visible >= width {
-		return ansi.Truncate(text, width, "…")
-	}
-	return strings.Repeat(" ", (width-visible)/2) + text
-}
-
 // rowColumns lays a list row out as a name column and a right-aligned meta
 // column, so status, tool and age line up down the list instead of ragging
 // off the end of each name. Rows too narrow to split keep meta inline and
@@ -115,24 +104,6 @@ func shortHome(path, home string) string {
 }
 
 func truncateTail(s string, max int) string { return presentation.TruncateTail(s, max) }
-
-func truncatePath(path string, limit int) string {
-	runes := []rune(path)
-	if limit <= 0 {
-		return ""
-	}
-	if len(runes) <= limit {
-		return path
-	}
-	if limit == 1 {
-		return "…"
-	}
-	tail := string(runes[len(runes)-limit+1:])
-	if i := strings.IndexByte(tail, '/'); i >= 0 && i < len(tail)-1 {
-		return "…" + tail[i:]
-	}
-	return "…" + tail
-}
 
 // scrollWindow keeps the cursor visible inside a height-limited window of
 // single-line rows, reserving one line for each overflow indicator.

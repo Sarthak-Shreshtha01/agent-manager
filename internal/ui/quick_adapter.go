@@ -7,6 +7,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -91,7 +92,7 @@ func (m *Model) openQuickModeWithReader(reader settingsValueReader) tea.Cmd {
 		aim:            aim,
 		active:         true,
 		composer:       composer{input: input, maxRows: quickBarMaxRows, gen: m.nextComposerGen()},
-		closeAfterSend: m.settings.cache.value(quickCloseSetting) == "close",
+		closeAfterSend: m.settings.cache.value(uisettings.QuickCloseSetting) == "close",
 		Bar:            uiquick.NewBar(m.spawnHost(), names, index, m.cachedSpawnWorktreeDefault(m.quickTargetGroup())),
 	}
 	catalog := m.ensureCatalog(names[index])
@@ -106,7 +107,7 @@ func (m *Model) openQuickModeWithReader(reader settingsValueReader) tea.Cmd {
 func (m *Model) applyCachedQuickDefaults() tea.Cmd {
 	before := m.quick.Tool()
 	m.quick.SetTools(m.cachedSpawnToolSelection())
-	m.quick.closeAfterSend = m.settings.cache.value(quickCloseSetting) == "close"
+	m.quick.closeAfterSend = m.settings.cache.value(uisettings.QuickCloseSetting) == "close"
 	m.quick.DefaultWorktree(m.cachedSpawnWorktreeDefault(m.quickTargetGroup()))
 	toolName := m.quick.Tool()
 	if toolName == before || toolName == "" {
@@ -325,7 +326,7 @@ func (m *Model) viewQuickBar(width, maxRows int) string {
 		if entry.isGroup {
 			facts.Group = displayGroup(entry.group)
 		} else {
-			facts.Answer = quickAnswerRow(entry, m.displayName(entry.sess), width)
+			facts.Answer = m.quickAnswerRow(entry, m.displayName(entry.sess), width)
 		}
 	}
 	m.remoteQuickFacts(&facts)
@@ -334,11 +335,11 @@ func (m *Model) viewQuickBar(width, maxRows int) string {
 
 // quickAnswerRow names the session an answer goes to, with its state and
 // tool where the width has room.
-func quickAnswerRow(entry treeRow, name string, width int) string {
+func (m *Model) quickAnswerRow(entry treeRow, name string, width int) string {
 	label := labelStyle().Render(padRight("answer", detailLabelWidth)) + subtleStyle().Render("│ ")
 	sess := entry.sess
 	state := lipgloss.NewStyle().Foreground(statusColor(sess.Status)).
-		Render(statusGlyph(sess.Status) + " " + statusLabel(sess.Status))
+		Render(m.glyphs().StatusGlyph(sess.Status) + " " + statusLabel(sess.Status))
 	return fitColumns(
 		[]string{label + lipgloss.NewStyle().Foreground(colorBright()).Bold(true).Render(name)},
 		[]string{state + " " + chipStyle().Render(sess.Tool), state, ""}, width)

@@ -1,6 +1,10 @@
 package ui
 
-import "testing"
+import (
+	"testing"
+
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
+)
 
 func TestDefaultSplitLayout(t *testing.T) {
 	t.Parallel()
@@ -8,7 +12,7 @@ func TestDefaultSplitLayout(t *testing.T) {
 	if !m.defaultSplitLayout() {
 		t.Fatal("split should be the default layout")
 	}
-	if err := m.services.store.SetSetting(diffLayoutSetting, "unified"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.DiffLayoutSetting, "unified"); err != nil {
 		t.Fatal(err)
 	}
 	if m.defaultSplitLayout() {

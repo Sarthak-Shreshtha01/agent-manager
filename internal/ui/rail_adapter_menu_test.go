@@ -1,12 +1,13 @@
 package ui
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
-	"strings"
-	"testing"
 )
 
 func menuEntry(t *testing.T, m *Model, label string) int {
@@ -19,6 +20,27 @@ func menuEntry(t *testing.T, m *Model, label string) int {
 	}
 	t.Fatalf("the menu has no %q entry", label)
 	return -1
+}
+
+func TestRootMenuOpensSettings(t *testing.T) {
+	m := buildModel(t)
+	m.rebuildRows()
+	preparedView(m)
+	y0, _ := m.bodyYRange()
+	m.handleMouse(tea.MouseMsg{X: 2, Y: y0, Action: tea.MouseActionPress, Button: tea.MouseButtonRight})
+	m.View()
+	settings := menuEntry(t, m, "Settings")
+	if line := strings.Fields(ansi.Strip(m.layout.displayedRail.Menu[settings+1])); len(line) < 3 || line[len(line)-2] != "s" {
+		t.Fatalf("the Settings entry should name its key: %q", m.layout.displayedRail.Menu[settings+1])
+	}
+	_, cmd := m.handleMouse(tea.MouseMsg{
+		X: m.layout.displayedRail.MenuRect.Left + 2, Y: m.layout.displayedRail.MenuRect.Top + 1 + settings,
+		Action: tea.MouseActionPress, Button: tea.MouseButtonLeft,
+	})
+	m.runBatch(t, cmd)
+	if m.rail.MenuOpen() || m.mode != modeSettings {
+		t.Fatal("root menu must open Settings even in an empty workspace")
+	}
 }
 
 func TestMenuStaysOpenAfterTheDotsRelease(t *testing.T) {

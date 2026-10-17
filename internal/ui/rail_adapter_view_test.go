@@ -101,7 +101,7 @@ func TestSettingsTogglesListDensity(t *testing.T) {
 	if !m.prefs.comfortableRows {
 		t.Fatal("model did not pick up the comfortable density")
 	}
-	if !storedComfortableRows(m.services.store) {
+	if !storedFlag(t, m, uisettings.ListDensitySetting) {
 		t.Fatal("comfortable density did not persist")
 	}
 	sessionRow := railRows(m)[0]

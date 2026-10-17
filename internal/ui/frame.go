@@ -32,7 +32,7 @@ func (m *Model) renderFrame() string {
 	}
 	if m.startup.booting {
 		var lines []string
-		for _, line := range ringLoader(m.layout.width, m.layout.height, "loading", m.startup.startupPhase) {
+		for _, line := range ringLoader(m.glyphs(), m.layout.width, m.layout.height, "loading", m.startup.startupPhase) {
 			lines = append(lines, paint(line, m.layout.width, backdropHex()))
 		}
 		frame := m.overlayTopRight(strings.Join(lines, "\n"), m.statusToast(), 0)

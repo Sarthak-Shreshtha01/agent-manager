@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/YoanWai/agent-manager/internal/config"
+	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -39,9 +40,9 @@ func TestGroupFormStepsBaseThroughTheRepoBranches(t *testing.T) {
 	m := buildModel(t)
 	repo := repoWithDevelop(t)
 	m.openGroupForm()
-	m.groupForm.name.SetValue("based")
-	m.groupForm.path.SetValue(repo)
-	m.groupForm.focus = gfBase
+	m.groupForm.SetName("based")
+	m.groupForm.SetDir(repo)
+	focusGroupField(t, m, uidialogs.GroupFormBaseField)
 	_, step := m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.applyTestMsg(t, step())
 	if m.groupForm.base != "develop" {
@@ -87,8 +88,8 @@ func TestGroupFormBaseNeedsARepository(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	m.openGroupForm()
-	m.groupForm.path.SetValue(t.TempDir())
-	m.groupForm.focus = gfBase
+	m.groupForm.SetDir(t.TempDir())
+	focusGroupField(t, m, uidialogs.GroupFormBaseField)
 	_, step := m.handleGroupFormKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.applyTestMsg(t, step())
 	if m.groupForm.base != "" {
@@ -133,7 +134,7 @@ func TestFormShowsAndFetchesTheWorktreeBase(t *testing.T) {
 	clone := filepath.Join(t.TempDir(), "clone")
 	runGit(t, remote, "clone", "-q", remote, clone)
 	runGit(t, remote, "commit", "-q", "--allow-empty", "-m", "after the clone")
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
@@ -183,11 +184,11 @@ func TestSettingsFetchOnSpawnTurnsTheFetchOff(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
-	if chosen, err := m.services.store.Setting(baseFetchSetting); err != nil || chosen != "off" {
+	if chosen, err := m.services.store.Setting(uisettings.BaseFetchSetting); err != nil || chosen != "off" {
 		t.Fatalf("want stored off, got %q err %v", chosen, err)
 	}
 
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
@@ -213,7 +214,7 @@ func TestFormMarksAFailedBaseFetch(t *testing.T) {
 	clone := filepath.Join(t.TempDir(), "clone")
 	runGit(t, remote, "clone", "-q", remote, clone)
 	runGit(t, clone, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone"))
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())

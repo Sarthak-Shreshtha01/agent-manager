@@ -6,11 +6,13 @@ package settings
 
 import (
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	uitheme "github.com/YoanWai/agent-manager/internal/ui/theme"
 )
 
 // The keys Settings writes.
 const (
+	GlyphModeSetting   = presentation.GlyphModeSetting
 	DefaultToolSetting = "default_tool"
 	ThemeSetting       = "theme"
 	ThemeAutoSetting   = "theme_auto"
@@ -56,6 +58,7 @@ const (
 	FieldTheme
 	FieldThemeAuto
 	FieldBackground
+	FieldGlyphs
 	FieldDensity
 	FieldSessionLayout
 	FieldHeader
@@ -83,25 +86,27 @@ const (
 // State is the open dialog: the choice on every row, the sub-pickers, and
 // the baseline a save compares against.
 type State struct {
-	ToolNames       []string
-	ToolIndex       int
-	ThemeIndex      int
-	Field           int
-	LayoutSplit     bool
-	QuickCloseSend  bool
-	EnterFocuses    bool
-	ArrowStep       bool
-	ComfortableRows bool
-	FullLayout      bool
-	HideHeader      bool
-	HideStats       bool
-	MouseDisabled   bool
-	WorktreeDefault bool
-	BaseFetch       bool
-	Proactive       bool
-	Notifications   bool
-	NotifyFinished  bool
-	ThemeAuto       bool
+	GlyphMode                                               presentation.GlyphMode
+	DocsRow, GlyphRow, GlyphRowWidth, SaveRow, SaveRowWidth int
+	ToolNames                                               []string
+	ToolIndex                                               int
+	ThemeIndex                                              int
+	Field                                                   int
+	LayoutSplit                                             bool
+	QuickCloseSend                                          bool
+	EnterFocuses                                            bool
+	ArrowStep                                               bool
+	ComfortableRows                                         bool
+	FullLayout                                              bool
+	HideHeader                                              bool
+	HideStats                                               bool
+	MouseDisabled                                           bool
+	WorktreeDefault                                         bool
+	BaseFetch                                               bool
+	Proactive                                               bool
+	Notifications                                           bool
+	NotifyFinished                                          bool
+	ThemeAuto                                               bool
 	// TerminalBackground is the background row's choice, applied to the
 	// model as it is stepped so the frame previews it.
 	TerminalBackground bool
@@ -188,32 +193,21 @@ func FromSnapshot(s Snapshot) State {
 	value := func(key string) string { return s.Values[key] }
 	hidden := s.Tools.KnownHidden(s.Hidden)
 	names := s.Tools.Enabled(hidden)
-	manualTheme := uitheme.Palettes[uitheme.Index(value(ThemeSetting))].Name
-	return State{
-		ToolNames:       names,
-		ToolIndex:       ToolIndex(names, value(DefaultToolSetting)),
-		ThemeIndex:      uitheme.Index(s.Theme),
-		LayoutSplit:     value(DiffLayoutSetting) != "unified",
-		QuickCloseSend:  value(QuickCloseSetting) == "close",
-		EnterFocuses:    value(FocusKeySetting) != "attach",
-		ArrowStep:       value(ArrowStepSetting) != "off",
-		ComfortableRows: value(ListDensitySetting) == "comfortable",
-		FullLayout:      value(SessionLayoutSetting) == "full",
-		HideHeader:      value(HideHeaderSetting) == "on",
-		HideStats:       value(HideStatsSetting) == "on",
-		MouseDisabled:   value(MouseSetting) == "off",
-		WorktreeDefault: value(WorktreeSetting) == "on",
-		BaseFetch:       value(BaseFetchSetting) != "off",
-		Proactive:       value(CoordinationSetting) == "on",
-		Notifications:   value(NotificationsSetting) != "off",
-		NotifyFinished:  value(NotifyFinishedSetting) == "on",
-		ThemeAuto:       value(ThemeAutoSetting) == "on",
-		ManualTheme:     manualTheme,
-		CLIHidden:       hidden,
-		Editor:          NewEditorRow(value(EditorSetting), s.Editors),
-
-		TerminalBackground: value(BackgroundSetting) == "terminal",
+	state := State{
+		GlyphMode:   presentation.GlyphMode(value(GlyphModeSetting)),
+		ToolNames:   names,
+		ToolIndex:   ToolIndex(names, value(DefaultToolSetting)),
+		ThemeIndex:  uitheme.Index(s.Theme),
+		ManualTheme: uitheme.Palettes[uitheme.Index(value(ThemeSetting))].Name,
+		CLIHidden:   hidden,
+		Editor:      NewEditorRow(value(EditorSetting), s.Editors),
 	}
+	for _, setting := range table {
+		if setting.Flag != nil {
+			*setting.Flag(&state) = setting.on(value(setting.Key))
+		}
+	}
+	return state
 }
 
 // Busy reports a dialog a fresh store read must not rebuild: one with
@@ -225,12 +219,4 @@ func (s State) Busy() bool {
 // InSubpanel reports a sub-picker or a typed line covering the rows.
 func (s State) InSubpanel() bool {
 	return s.CLIPicker || s.KeyPicker || s.Editor.Typing()
-}
-
-// SessionLayoutValue is the stored spelling of the sessions layout.
-func SessionLayoutValue(full bool) string {
-	if full {
-		return "full"
-	}
-	return "split"
 }
