@@ -15,31 +15,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The keys Settings writes, under the names the root's features read them by.
-const (
-	glyphModeSetting      = uisettings.GlyphModeSetting
-	defaultToolSetting    = uisettings.DefaultToolSetting
-	themeSetting          = uisettings.ThemeSetting
-	themeAutoSetting      = uisettings.ThemeAutoSetting
-	diffLayoutSetting     = uisettings.DiffLayoutSetting
-	sessionLayoutSetting  = uisettings.SessionLayoutSetting
-	listDensitySetting    = uisettings.ListDensitySetting
-	hideHeaderSetting     = uisettings.HideHeaderSetting
-	hideStatsSetting      = uisettings.HideStatsSetting
-	backgroundSetting     = uisettings.BackgroundSetting
-	focusKeySetting       = uisettings.FocusKeySetting
-	arrowStepSetting      = uisettings.ArrowStepSetting
-	mouseSetting          = uisettings.MouseSetting
-	quickCloseSetting     = uisettings.QuickCloseSetting
-	worktreeSetting       = uisettings.WorktreeSetting
-	baseFetchSetting      = uisettings.BaseFetchSetting
-	coordinationSetting   = uisettings.CoordinationSetting
-	notificationsSetting  = uisettings.NotificationsSetting
-	notifyFinishedSetting = uisettings.NotifyFinishedSetting
-	hiddenToolsSetting    = uisettings.HiddenToolsSetting
-	editorSetting         = uisettings.EditorSetting
-)
-
 type (
 	settingsState    = uisettings.State
 	settingValue     = uisettings.Value
@@ -90,7 +65,7 @@ func (m *Model) settingsContext() uisettings.Context {
 	return uisettings.Context{
 		Tools:       settingsTools(m.services.cfg),
 		Hidden:      m.settings.cache.hidden,
-		DefaultTool: m.settings.cache.value(defaultToolSetting),
+		DefaultTool: m.settings.cache.value(uisettings.DefaultToolSetting),
 		Session:     session,
 		List:        list,
 	}
@@ -316,18 +291,12 @@ func (m *Model) submitKeys(request keysRequest) tea.Cmd {
 // theme's. It is not a persistence receipt — a save that later fails
 // reconciles these prefs back to the committed values on completion.
 func (m *Model) applySettingsPrefs() {
-	d := m.settings.dialog
+	d := &m.settings.dialog
 	m.prefs.glyphMode = d.GlyphMode
-	m.prefs.focusOnEnter = d.EnterFocuses
-	m.prefs.arrowStep = d.ArrowStep
-	m.prefs.comfortableRows = d.ComfortableRows
-	m.prefs.fullLayout = d.FullLayout
-	m.prefs.hideHeader = d.HideHeader
-	m.prefs.hideStats = d.HideStats
-	m.prefs.mouseDisabled = d.MouseDisabled
-	m.prefs.terminalBackground = d.TerminalBackground
-	m.prefs.baseFetchOff = !d.BaseFetch
 	m.services.editor = d.Editor.Line()
+	for _, key := range uisettings.FlagKeys() {
+		m.mirrorFlag(key, d.Flag(key))
+	}
 }
 
 // viewSettings frames the dialog in the root's card chrome.

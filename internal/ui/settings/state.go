@@ -193,33 +193,21 @@ func FromSnapshot(s Snapshot) State {
 	value := func(key string) string { return s.Values[key] }
 	hidden := s.Tools.KnownHidden(s.Hidden)
 	names := s.Tools.Enabled(hidden)
-	manualTheme := uitheme.Palettes[uitheme.Index(value(ThemeSetting))].Name
-	return State{
-		GlyphMode:       presentation.GlyphMode(value(GlyphModeSetting)),
-		ToolNames:       names,
-		ToolIndex:       ToolIndex(names, value(DefaultToolSetting)),
-		ThemeIndex:      uitheme.Index(s.Theme),
-		LayoutSplit:     value(DiffLayoutSetting) != "unified",
-		QuickCloseSend:  value(QuickCloseSetting) == "close",
-		EnterFocuses:    value(FocusKeySetting) != "attach",
-		ArrowStep:       value(ArrowStepSetting) != "off",
-		ComfortableRows: value(ListDensitySetting) == "comfortable",
-		FullLayout:      value(SessionLayoutSetting) == "full",
-		HideHeader:      value(HideHeaderSetting) == "on",
-		HideStats:       value(HideStatsSetting) == "on",
-		MouseDisabled:   value(MouseSetting) == "off",
-		WorktreeDefault: value(WorktreeSetting) == "on",
-		BaseFetch:       value(BaseFetchSetting) != "off",
-		Proactive:       value(CoordinationSetting) == "on",
-		Notifications:   value(NotificationsSetting) != "off",
-		NotifyFinished:  value(NotifyFinishedSetting) == "on",
-		ThemeAuto:       value(ThemeAutoSetting) == "on",
-		ManualTheme:     manualTheme,
-		CLIHidden:       hidden,
-		Editor:          NewEditorRow(value(EditorSetting), s.Editors),
-
-		TerminalBackground: value(BackgroundSetting) == "terminal",
+	state := State{
+		GlyphMode:   presentation.GlyphMode(value(GlyphModeSetting)),
+		ToolNames:   names,
+		ToolIndex:   ToolIndex(names, value(DefaultToolSetting)),
+		ThemeIndex:  uitheme.Index(s.Theme),
+		ManualTheme: uitheme.Palettes[uitheme.Index(value(ThemeSetting))].Name,
+		CLIHidden:   hidden,
+		Editor:      NewEditorRow(value(EditorSetting), s.Editors),
 	}
+	for _, setting := range table {
+		if setting.Flag != nil {
+			*setting.Flag(&state) = setting.on(value(setting.Key))
+		}
+	}
+	return state
 }
 
 // Busy reports a dialog a fresh store read must not rebuild: one with
@@ -231,12 +219,4 @@ func (s State) Busy() bool {
 // InSubpanel reports a sub-picker or a typed line covering the rows.
 func (s State) InSubpanel() bool {
 	return s.CLIPicker || s.KeyPicker || s.Editor.Typing()
-}
-
-// SessionLayoutValue is the stored spelling of the sessions layout.
-func SessionLayoutValue(full bool) string {
-	if full {
-		return "full"
-	}
-	return "split"
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -19,7 +20,7 @@ func TestFormWorktreeToggleSeedsFromSetting(t *testing.T) {
 		t.Fatal("worktree should default off with no setting")
 	}
 	m.mode = modeList
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
@@ -32,7 +33,7 @@ func TestFormWorktreeGatedInNonRepoDir(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	plain := t.TempDir()
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.openForm()
@@ -165,7 +166,7 @@ func TestFormWorktreeStaysOnInRepoDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	initGitRepo(t, repo)
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())

@@ -110,7 +110,6 @@ func (s *State) Key(msg tea.KeyMsg, ctx Context) Result {
 // Cycle steps the focused setting by one. The theme applies as it is
 // stepped so the picker doubles as a live preview of the palette.
 func (s *State) Cycle(step int) Result {
-	changed := true
 	switch s.Field {
 	case FieldTool:
 		count := len(s.ToolNames)
@@ -144,42 +143,17 @@ func (s *State) Cycle(step int) Result {
 		}
 		s.Dirty = true
 		return Result{Glyphs: true}
-	case FieldDensity:
-		s.ComfortableRows = !s.ComfortableRows
-	case FieldSessionLayout:
-		s.FullLayout = !s.FullLayout
-	case FieldHeader:
-		s.HideHeader = !s.HideHeader
-	case FieldStats:
-		s.HideStats = !s.HideStats
-	case FieldLayout:
-		s.LayoutSplit = !s.LayoutSplit
-	case FieldQuickClose:
-		s.QuickCloseSend = !s.QuickCloseSend
-	case FieldFocusKey:
-		s.EnterFocuses = !s.EnterFocuses
-	case FieldArrowStep:
-		s.ArrowStep = !s.ArrowStep
-	case FieldMouse:
-		s.MouseDisabled = !s.MouseDisabled
-	case FieldWorktree:
-		s.WorktreeDefault = !s.WorktreeDefault
-	case FieldBaseFetch:
-		s.BaseFetch = !s.BaseFetch
-	case FieldCoordination:
-		s.Proactive = !s.Proactive
-	case FieldNotify:
-		s.Notifications = !s.Notifications
-	case FieldNotifyFinish:
-		s.NotifyFinished = !s.NotifyFinished
 	case FieldEditor:
 		s.Editor.cycle(step)
 	default:
-		changed = false
+		setting := byField[s.Field]
+		if setting == nil || setting.Flag == nil {
+			return Result{}
+		}
+		flag := setting.Flag(s)
+		*flag = !*flag
 	}
-	if changed {
-		s.Dirty = true
-	}
+	s.Dirty = true
 	return Result{}
 }
 

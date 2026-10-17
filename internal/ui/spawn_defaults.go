@@ -37,7 +37,7 @@ func (m *Model) cachedSpawnWorktreeDefault(group string) bool {
 			return m.ledger.lastSpawnWorktree
 		}
 	}
-	return m.settings.cache.value(worktreeSetting) == "on"
+	return m.settings.cache.value(uisettings.WorktreeSetting) == "on"
 }
 
 func (m *Model) cachedEnabledToolNames() []string {
@@ -261,7 +261,7 @@ func (m *Model) cachedToolSelection(hidden map[string]bool, preferred string) ([
 func (s *settingsFeature) cachedToolSelection(cfg config.Config, hidden map[string]bool, preferred string) ([]string, int) {
 	names := cfg.EnabledAgentTools(hidden)
 	if preferred == "" {
-		preferred = s.cache.value(defaultToolSetting)
+		preferred = s.cache.value(uisettings.DefaultToolSetting)
 	}
 	return names, uisettings.ToolIndex(names, preferred)
 }

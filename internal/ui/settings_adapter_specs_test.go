@@ -6,6 +6,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -28,10 +29,10 @@ func specByKey(t *testing.T) map[string]store.SettingSpec {
 // The dialog spells the keys the store reads the same way.
 func TestSettingKeysMatchTheStore(t *testing.T) {
 	for got, want := range map[string]string{
-		defaultToolSetting:  store.DefaultToolSetting,
-		coordinationSetting: store.CoordinationSetting,
-		editorSetting:       store.EditorSetting,
-		hiddenToolsSetting:  store.HiddenToolsSetting,
+		uisettings.DefaultToolSetting:  store.DefaultToolSetting,
+		uisettings.CoordinationSetting: store.CoordinationSetting,
+		uisettings.EditorSetting:       store.EditorSetting,
+		uisettings.HiddenToolsSetting:  store.HiddenToolsSetting,
 	} {
 		if got != want {
 			t.Errorf("settings key %q, store reads %q", got, want)
@@ -100,8 +101,8 @@ func TestSettingSpecsNameEveryThemeAndAgentCLI(t *testing.T) {
 	for _, theme := range themes {
 		names = append(names, theme.Name)
 	}
-	if !slices.Equal(specs[themeSetting].Values, names) {
-		t.Fatalf("theme takes %v, want the shipped palettes %v", specs[themeSetting].Values, names)
+	if !slices.Equal(specs[uisettings.ThemeSetting].Values, names) {
+		t.Fatalf("theme takes %v, want the shipped palettes %v", specs[uisettings.ThemeSetting].Values, names)
 	}
 	if !slices.Contains(specs[store.DefaultToolSetting].Values, "claude") || slices.Contains(specs[store.DefaultToolSetting].Values, "terminal") {
 		t.Fatalf("default_tool takes %v, want the agent CLIs without the shell", specs[store.DefaultToolSetting].Values)
@@ -128,17 +129,17 @@ func TestSettingSpecsDefaultsAreValues(t *testing.T) {
 func TestOpenSettingsReadsWhatTheShellChanged(t *testing.T) {
 	m := buildModel(t)
 	changed := map[string]string{
-		glyphModeSetting:     "basic",
-		listDensitySetting:   "comfortable",
-		sessionLayoutSetting: "full",
-		hideHeaderSetting:    "on",
-		hideStatsSetting:     "on",
-		mouseSetting:         "off",
-		arrowStepSetting:     "off",
-		focusKeySetting:      "attach",
-		baseFetchSetting:     "off",
-		backgroundSetting:    "terminal",
-		themeSetting:         "nord",
+		uisettings.GlyphModeSetting:     "basic",
+		uisettings.ListDensitySetting:   "comfortable",
+		uisettings.SessionLayoutSetting: "full",
+		uisettings.HideHeaderSetting:    "on",
+		uisettings.HideStatsSetting:     "on",
+		uisettings.MouseSetting:         "off",
+		uisettings.ArrowStepSetting:     "off",
+		uisettings.FocusKeySetting:      "attach",
+		uisettings.BaseFetchSetting:     "off",
+		uisettings.BackgroundSetting:    "terminal",
+		uisettings.ThemeSetting:         "nord",
 	}
 	for key, value := range changed {
 		if err := m.services.store.SetSetting(key, value); err != nil {

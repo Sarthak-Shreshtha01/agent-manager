@@ -16,7 +16,7 @@ func TestSymbolsExplicitChoiceAndPendingReopen(t *testing.T) {
 	m.applyCmd(t, m.openSettings())
 	_, save := m.saveAndCloseSettings()
 	m.applyCmd(t, save)
-	if raw, _ := m.services.store.Setting(glyphModeSetting); raw != "" {
+	if raw, _ := m.services.store.Setting(uisettings.GlyphModeSetting); raw != "" {
 		t.Fatal("untouched settings pinned symbols default")
 	}
 	for _, mode := range []presentation.GlyphMode{presentation.GlyphModeBasic, presentation.GlyphModeAdvanced} {
@@ -46,7 +46,7 @@ func TestSymbolsExplicitChoiceAndPendingReopen(t *testing.T) {
 	fresh.handleSettingsKey(key("left"))
 	_, save = fresh.saveAndCloseSettings()
 	fresh.applyCmd(t, save)
-	if raw, _ := fresh.services.store.Setting(glyphModeSetting); raw != "advanced" {
+	if raw, _ := fresh.services.store.Setting(uisettings.GlyphModeSetting); raw != "advanced" {
 		t.Fatal("cycling back did not pin explicit default")
 	}
 }
@@ -71,7 +71,7 @@ func TestSymbolsMouseSaveUsesPaintedRows(t *testing.T) {
 		}
 		_, save := m.handleMouse(tea.MouseMsg{X: x, Y: m.layout.cardTop + 2 + m.settings.dialog.SaveRow, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 		m.applyCmd(t, save)
-		if raw, _ := m.services.store.Setting(glyphModeSetting); raw != "basic" || m.mode != modeList {
+		if raw, _ := m.services.store.Setting(uisettings.GlyphModeSetting); raw != "basic" || m.mode != modeList {
 			t.Fatal("mouse save did not persist and close")
 		}
 	}
@@ -80,7 +80,7 @@ func TestSymbolsMouseSaveUsesPaintedRows(t *testing.T) {
 func TestSymbolsRejectInvalidAndStaleReads(t *testing.T) {
 	m := buildModel(t)
 	m.applyCmd(t, m.openSettings())
-	stale := settingsLoadedMsg{request: settingsLoadRequest{target: settingsLoadDialog, generation: m.settings.gen}, result: settingsLoadResult{values: []restoredValue{{Key: glyphModeSetting, Value: "advanced"}}}}
+	stale := settingsLoadedMsg{request: settingsLoadRequest{target: settingsLoadDialog, generation: m.settings.gen}, result: settingsLoadResult{values: []restoredValue{{Key: uisettings.GlyphModeSetting, Value: "advanced"}}}}
 	m.settings.dialog.Field = uisettings.FieldGlyphs
 	m.handleSettingsKey(key("right"))
 	m.handleSettingsLoaded(stale)
@@ -89,7 +89,7 @@ func TestSymbolsRejectInvalidAndStaleReads(t *testing.T) {
 	}
 	_, save := m.saveAndCloseSettings()
 	m.applyCmd(t, save)
-	if err := m.services.store.SetSetting(glyphModeSetting, "unknown"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.GlyphModeSetting, "unknown"); err != nil {
 		t.Fatal(err)
 	}
 	m.applyCmd(t, m.openSettings())
@@ -104,7 +104,7 @@ func TestSymbolsSaveFailureRestoresAndCanRetry(t *testing.T) {
 	m.settings.dialog.Field = uisettings.FieldGlyphs
 	m.handleSettingsKey(key("right"))
 	request := settingsRequest{values: m.settings.dialog.ChangedValues(), generation: m.settings.gen}
-	writer := &settingsScriptWriter{failOn: glyphModeSetting, values: map[string]string{}}
+	writer := &settingsScriptWriter{failOn: uisettings.GlyphModeSetting, values: map[string]string{}}
 	result, err := runSettingsWithWriter(request, writer)
 	if err == nil {
 		t.Fatal("fixture write must fail")
@@ -117,7 +117,7 @@ func TestSymbolsSaveFailureRestoresAndCanRetry(t *testing.T) {
 	m.handleSettingsKey(key("right"))
 	_, save := m.saveAndCloseSettings()
 	m.applyCmd(t, save)
-	if raw, _ := m.services.store.Setting(glyphModeSetting); raw != "basic" {
+	if raw, _ := m.services.store.Setting(uisettings.GlyphModeSetting); raw != "basic" {
 		t.Fatal("retry did not save")
 	}
 }

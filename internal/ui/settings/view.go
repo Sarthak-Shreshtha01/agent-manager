@@ -64,73 +64,9 @@ func (s *State) View(ctx ViewContext) Frame {
 		return s.viewKeyPicker(ctx)
 	}
 	st := ctx.Styles
-	layout := "unified"
-	if s.LayoutSplit {
-		layout = "split"
-	}
-	density := "compact"
-	if s.ComfortableRows {
-		density = "comfortable"
-	}
-	sessionLayout := "split"
-	if s.FullLayout {
-		sessionLayout = "full screen"
-	}
-	header := "show"
-	if s.HideHeader {
-		header = "hide"
-	}
-	stats := "show"
-	if s.HideStats {
-		stats = "hide"
-	}
-	quickClose := "stay open"
-	if s.QuickCloseSend {
-		quickClose = "close"
-	}
-	focusKey := "↵ focus · A attach"
-	if !s.EnterFocuses {
-		focusKey = "↵ attach · A focus"
-	}
-	worktreeDefault := "off"
-	if s.WorktreeDefault {
-		worktreeDefault = "on"
-	}
-	baseFetch := "off"
-	if s.BaseFetch {
-		baseFetch = "on"
-	}
-	coordination := "on request"
-	if s.Proactive {
-		coordination = "proactive"
-	}
-	arrowStep := "off"
-	if s.ArrowStep {
-		arrowStep = "on"
-	}
-	mouseMode := "on"
-	if s.MouseDisabled {
-		mouseMode = "off"
-	}
 	// The beta tag borrows the messages modal's yellow, so the row reads as
 	// the one still under test.
 	betaTag := lipgloss.NewStyle().Foreground(lipgloss.Color("#e2c044")).Render(" beta")
-	themeAuto := "off"
-	if s.ThemeAuto {
-		themeAuto = "on"
-	}
-	background := "theme"
-	if s.TerminalBackground {
-		background = "terminal"
-	}
-	notifications := "off"
-	if s.Notifications {
-		notifications = "on"
-	}
-	notifyFinished := "off"
-	if s.NotifyFinished {
-		notifyFinished = "on"
-	}
 	toolValue := ""
 	if len(s.ToolNames) > 0 {
 		toolValue = s.ToolNames[s.ToolIndex]
@@ -165,51 +101,58 @@ func (s *State) View(ctx ViewContext) Frame {
 	ctaRow := func(field int, name, action string) string {
 		return ctaLead(field, name) + st.Key.Render("↵") + " " + st.ActionText.Render(action)
 	}
-	editorLine := row(FieldEditor, "editor", s.Editor.Label())
+	label := func(field int) string { return byField[field].Row }
+	editorLine := row(FieldEditor, label(FieldEditor), s.Editor.Label())
 	if s.Editor.typing {
-		editorLine = lead(FieldEditor, "editor") + ctx.TextInput(s.Editor.input)
+		editorLine = lead(FieldEditor, label(FieldEditor)) + ctx.TextInput(s.Editor.input)
 	}
 	g := presentation.GlyphsFor(s.GlyphMode)
 	glyphLabel := "Compatible"
 	if s.GlyphMode.Effective() == presentation.GlyphModeAdvanced {
 		glyphLabel = "Advanced"
 	}
-	symbolsRow := row(FieldGlyphs, "symbols", glyphLabel) + "  " + g.WorkingGlyph + " " + g.WaitingGlyph + " " + g.ReorderGrip + " " + g.BranchGlyph
+	symbolsRow := row(FieldGlyphs, label(FieldGlyphs), glyphLabel) + "  " + g.WorkingGlyph + " " + g.WaitingGlyph + " " + g.ReorderGrip + " " + g.BranchGlyph
 	if ctx.InnerWidth < 36 {
 		style := st.Value
 		if s.Field == FieldGlyphs {
 			style = st.Key
 		}
-		symbolsRow = style.Render("symbols <" + glyphLabel + ">")
+		symbolsRow = style.Render(label(FieldGlyphs) + " <" + glyphLabel + ">")
 	}
 	palette := uitheme.Palettes[s.ThemeIndex]
-	body := row(FieldTool, "default tool", toolValue) + "\n" +
-		row(FieldTheme, "theme", palette.Name) + "  " +
-		themeSwatch(palette) + "\n" +
-		row(FieldThemeAuto, "theme follows OS", themeAuto) + "\n" +
-		row(FieldBackground, "background", background) + "\n" +
-		symbolsRow + "\n" +
-		row(FieldDensity, "list density", density) + "\n" +
-		row(FieldSessionLayout, "sessions layout", sessionLayout) + "\n" +
-		row(FieldHeader, "header", header) + "\n" +
-		row(FieldStats, "computer stats", stats) + "\n" +
-		row(FieldLayout, "review layout", layout) + "\n" +
-		row(FieldQuickClose, "after quick prompt", quickClose) + "\n" +
-		row(FieldFocusKey, "session keys", focusKey) + "\n" +
-		row(FieldArrowStep, "←→ step in/out", arrowStep) + betaTag + "\n" +
-		row(FieldMouse, "mouse", mouseMode) + "\n" +
-		row(FieldWorktree, "spawn in worktree", worktreeDefault) + "\n" +
-		row(FieldBaseFetch, "fetch on spawn", baseFetch) + "\n" +
-		row(FieldCoordination, "coordination", coordination) + "\n" +
-		row(FieldNotify, "notifications", notifications) + "\n" +
-		row(FieldNotifyFinish, "notify on finish", notifyFinished) + "\n" +
-		editorLine + "\n" +
-		actionRow(FieldKeybindings, "keybindings", keybindingsSummary(ctx.Session, ctx.List)) + "\n" +
-		actionRow(FieldCLIs, "CLIs", "show or hide for new sessions") + "\n" +
-		ctaRow(FieldDocs, "docs", "open the docs") + "\n" +
-		ctaRow(FieldBugReport, "report a bug", "open the bug report form") + "\n" +
-		ctaRow(FieldFeatureRequest, "suggest a change", "open the feature request form") + "\n" +
-		versionRow(ctx, lead, actionRow)
+	lines := make([]string, 0, FieldCount)
+	for field := range FieldCount {
+		switch field {
+		case FieldTool:
+			lines = append(lines, row(FieldTool, label(FieldTool), toolValue))
+		case FieldTheme:
+			lines = append(lines, row(FieldTheme, label(FieldTheme), palette.Name)+"  "+themeSwatch(palette))
+		case FieldGlyphs:
+			lines = append(lines, symbolsRow)
+		case FieldEditor:
+			lines = append(lines, editorLine)
+		case FieldKeybindings:
+			lines = append(lines, actionRow(FieldKeybindings, "keybindings", keybindingsSummary(ctx.Session, ctx.List)))
+		case FieldCLIs:
+			lines = append(lines, actionRow(FieldCLIs, label(FieldCLIs), "show or hide for new sessions"))
+		case FieldDocs:
+			lines = append(lines, ctaRow(FieldDocs, "docs", "open the docs"))
+		case FieldBugReport:
+			lines = append(lines, ctaRow(FieldBugReport, "report a bug", "open the bug report form"))
+		case FieldFeatureRequest:
+			lines = append(lines, ctaRow(FieldFeatureRequest, "suggest a change", "open the feature request form"))
+		case FieldUpdate:
+			lines = append(lines, versionRow(ctx, lead, actionRow))
+		default:
+			setting := byField[field]
+			line := row(field, setting.Row, setting.label(*setting.Flag(s)))
+			if setting.Beta {
+				line += betaTag
+			}
+			lines = append(lines, line)
+		}
+	}
+	body := strings.Join(lines, "\n")
 	hint := [][2]string{{"↑↓", "field"}, {"←→", "change"}, {"↵/esc", "save"}}
 	switch s.Field {
 	case FieldGlyphs:

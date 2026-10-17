@@ -19,10 +19,10 @@ func TestSessionLayoutDefaultsToSplit(t *testing.T) {
 	if m.prefs.fullLayout {
 		t.Fatal("split should be the default sessions layout")
 	}
-	if err := m.services.store.SetSetting(sessionLayoutSetting, "full"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.SessionLayoutSetting, "full"); err != nil {
 		t.Fatal(err)
 	}
-	if !storedFullLayout(m.services.store) {
+	if !storedFlag(t, m, uisettings.SessionLayoutSetting) {
 		t.Fatal("stored full choice should turn the full layout on")
 	}
 }
@@ -39,7 +39,7 @@ func TestSettingsTogglesSessionLayout(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.drainEffects(t)
-	if chosen, err := m.services.store.Setting(sessionLayoutSetting); err != nil || chosen != "full" {
+	if chosen, err := m.services.store.Setting(uisettings.SessionLayoutSetting); err != nil || chosen != "full" {
 		t.Fatalf("want stored full, got %q err %v", chosen, err)
 	}
 	if !m.prefs.fullLayout {
@@ -110,9 +110,9 @@ func TestSettingsToggleChromeIndependently(t *testing.T) {
 				t.Fatalf("model visibility = header %t stats %t, want header %t stats %t",
 					m.prefs.hideHeader, m.prefs.hideStats, tc.hideHeader, tc.hideStats)
 			}
-			if storedHideHeader(m.services.store) != tc.hideHeader || storedHideStats(m.services.store) != tc.hideStats {
+			if storedFlag(t, m, uisettings.HideHeaderSetting) != tc.hideHeader || storedFlag(t, m, uisettings.HideStatsSetting) != tc.hideStats {
 				t.Fatalf("reloaded visibility = header %t stats %t, want header %t stats %t",
-					storedHideHeader(m.services.store), storedHideStats(m.services.store), tc.hideHeader, tc.hideStats)
+					storedFlag(t, m, uisettings.HideHeaderSetting), storedFlag(t, m, uisettings.HideStatsSetting), tc.hideHeader, tc.hideStats)
 			}
 		})
 	}

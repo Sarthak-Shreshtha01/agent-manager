@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/YoanWai/agent-manager/internal/keybind"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -76,9 +77,9 @@ func TestOpenQuickModeDefersSettingsReadAndGuardsDefaults(t *testing.T) {
 			started: make(chan struct{}),
 			release: make(chan struct{}),
 			values: map[string]string{
-				"default_tool":    "ready-tool",
-				quickCloseSetting: "close",
-				worktreeSetting:   "on",
+				"default_tool":               "ready-tool",
+				uisettings.QuickCloseSetting: "close",
+				uisettings.WorktreeSetting:   "on",
 			},
 		}
 		cmd := m.openQuickModeWithReader(reader)
@@ -828,10 +829,10 @@ func TestQuickSeedsFromLastFormSpawn(t *testing.T) {
 func TestQuickCloseAfterSendDefaultsToStayingOpen(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
-	if m.settings.cache.value(quickCloseSetting) == "close" {
+	if m.settings.cache.value(uisettings.QuickCloseSetting) == "close" {
 		t.Fatal("quick bar should stay open by default")
 	}
-	if err := m.services.store.SetSetting(quickCloseSetting, "close"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.QuickCloseSetting, "close"); err != nil {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, m.openQuickMode()())
@@ -845,7 +846,7 @@ func TestQuickPromptClosesAfterSendWhenEnabled(t *testing.T) {
 	m := buildModel(t)
 	createSession(t, m, "answer-me", t.TempDir(), "")
 	m.selectSessionRow(t, "answer-me")
-	if err := m.services.store.SetSetting(quickCloseSetting, "close"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.QuickCloseSetting, "close"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -881,7 +882,7 @@ func TestQuickWorktreeToggle(t *testing.T) {
 func TestQuickWorktreeSeedsFromSetting(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openQuickMode()())

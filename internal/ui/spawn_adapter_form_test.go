@@ -16,6 +16,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/launch"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -41,7 +42,7 @@ func TestOpenFormDefersSettingsReadAndAcceptsPristineDefaults(t *testing.T) {
 	reader := &blockedSettingReader{
 		started: make(chan struct{}),
 		release: make(chan struct{}),
-		values:  map[string]string{"default_tool": "ready-tool", worktreeSetting: "on"},
+		values:  map[string]string{"default_tool": "ready-tool", uisettings.WorktreeSetting: "on"},
 	}
 
 	cmd := m.openFormWithReader(reader)
@@ -110,10 +111,10 @@ func TestFormSettingsLoadAppliesSuccessfulReadsOnPartialFailure(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	reader := &settingsScriptWriter{
-		failGetOn: quickCloseSetting,
+		failGetOn: uisettings.QuickCloseSetting,
 		values: map[string]string{
-			"default_tool":  "ready-tool",
-			worktreeSetting: "on",
+			"default_tool":             "ready-tool",
+			uisettings.WorktreeSetting: "on",
 		},
 	}
 	cmd := m.openFormWithReader(reader)

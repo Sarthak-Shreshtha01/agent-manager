@@ -10,6 +10,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/status"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/ui/presentation"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -104,7 +105,7 @@ func TestGlyphModeKeepsModelsIndependentAndAdvancedAppearance(t *testing.T) {
 func TestUnknownStoredSymbolsSettingSurfacesAtStartup(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.db")
 	st := openTestStore(t, path)
-	if err := st.SetSetting(glyphModeSetting, "unknown"); err != nil {
+	if err := st.SetSetting(uisettings.GlyphModeSetting, "unknown"); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.Close(); err != nil {

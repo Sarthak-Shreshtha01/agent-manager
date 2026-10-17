@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -26,13 +27,37 @@ type Readback struct {
 
 // ReadbackKeys are the keys a partial failure reads back, in order; the
 // coordination key follows them through its own spelling.
-var ReadbackKeys = []string{
-	GlyphModeSetting, DefaultToolSetting, ThemeSetting, ThemeAutoSetting, DiffLayoutSetting,
-	QuickCloseSetting, FocusKeySetting, ArrowStepSetting, ListDensitySetting,
-	SessionLayoutSetting, HideHeaderSetting, HideStatsSetting, MouseSetting,
-	WorktreeSetting, NotificationsSetting, NotifyFinishedSetting,
-	BackgroundSetting, BaseFetchSetting, EditorSetting,
-}
+var ReadbackKeys = func() []string {
+	keys := make([]string, 0, len(table))
+	for _, setting := range table {
+		if setting.saved() && !setting.Proactive {
+			keys = append(keys, setting.Key)
+		}
+	}
+	return keys
+}()
+
+// saveOrder is the order a save has always written the rows in, so a save
+// that fails midway commits the same prefix as before; a row it does not
+// name follows in table order.
+var saveOrder = func() []Setting {
+	named := []string{
+		DefaultToolSetting, ThemeSetting, ThemeAutoSetting, DiffLayoutSetting, QuickCloseSetting,
+		FocusKeySetting, ArrowStepSetting, ListDensitySetting, SessionLayoutSetting, HideHeaderSetting,
+		HideStatsSetting, BackgroundSetting, MouseSetting, WorktreeSetting, BaseFetchSetting,
+		CoordinationSetting, NotificationsSetting, NotifyFinishedSetting, EditorSetting, GlyphModeSetting,
+	}
+	ordered := make([]Setting, 0, len(table))
+	for _, key := range named {
+		ordered = append(ordered, *byKey(key))
+	}
+	for _, setting := range table {
+		if setting.saved() && !slices.Contains(named, setting.Key) {
+			ordered = append(ordered, setting)
+		}
+	}
+	return ordered
+}()
 
 // ParseHidden reads the stored hidden-CLI list.
 func ParseHidden(raw string) map[string]bool {
@@ -111,95 +136,34 @@ func (s *State) HiddenList() []string {
 // Values copies the dialog's chosen preferences into the ordered write
 // list the effect worker persists.
 func (s *State) Values() []Value {
-	values := make([]Value, 0, 20)
-	if len(s.ToolNames) > 0 {
-		values = append(values, Value{Key: DefaultToolSetting, Value: s.ToolNames[s.ToolIndex]})
+	values := make([]Value, 0, len(saveOrder))
+	for _, setting := range saveOrder {
+		switch setting.Key {
+		case DefaultToolSetting:
+			if len(s.ToolNames) > 0 {
+				values = append(values, Value{Key: DefaultToolSetting, Value: s.ToolNames[s.ToolIndex]})
+			}
+		case ThemeSetting:
+			values = append(values, Value{Key: ThemeSetting, Value: s.storedTheme()})
+		case GlyphModeSetting:
+			values = append(values, Value{Key: GlyphModeSetting, Value: string(s.GlyphMode.Effective())})
+		case EditorSetting:
+			values = append(values, Value{Key: EditorSetting, Value: s.Editor.Line()})
+		default:
+			values = append(values, Value{Key: setting.Key, Value: setting.spelling(*setting.Flag(s)), Proactive: setting.Proactive})
+		}
 	}
-	// With auto-detect on, the picker shows the detected theme; the theme
-	// key keeps the manual choice so turning auto off returns to it.
-	manualTheme := uitheme.Palettes[s.ThemeIndex].Name
+	return values
+}
+
+// storedTheme is the theme key's value. With auto-detect on, the picker
+// shows the detected theme; the key keeps the manual choice so turning
+// auto off returns to it.
+func (s *State) storedTheme() string {
 	if s.ThemeAuto {
-		manualTheme = s.ManualTheme
+		return s.ManualTheme
 	}
-	values = append(values, Value{Key: ThemeSetting, Value: manualTheme})
-	themeAuto := "off"
-	if s.ThemeAuto {
-		themeAuto = "on"
-	}
-	values = append(values, Value{Key: ThemeAutoSetting, Value: themeAuto})
-	layout := "split"
-	if !s.LayoutSplit {
-		layout = "unified"
-	}
-	values = append(values, Value{Key: DiffLayoutSetting, Value: layout})
-	quickClose := "stay"
-	if s.QuickCloseSend {
-		quickClose = "close"
-	}
-	values = append(values, Value{Key: QuickCloseSetting, Value: quickClose})
-	focusKey := "focus"
-	if !s.EnterFocuses {
-		focusKey = "attach"
-	}
-	values = append(values, Value{Key: FocusKeySetting, Value: focusKey})
-	arrowStep := "on"
-	if !s.ArrowStep {
-		arrowStep = "off"
-	}
-	values = append(values, Value{Key: ArrowStepSetting, Value: arrowStep})
-	density := "compact"
-	if s.ComfortableRows {
-		density = "comfortable"
-	}
-	values = append(values, Value{Key: ListDensitySetting, Value: density})
-	values = append(values, Value{Key: SessionLayoutSetting, Value: SessionLayoutValue(s.FullLayout)})
-	hideHeader := "off"
-	if s.HideHeader {
-		hideHeader = "on"
-	}
-	values = append(values, Value{Key: HideHeaderSetting, Value: hideHeader})
-	hideStats := "off"
-	if s.HideStats {
-		hideStats = "on"
-	}
-	values = append(values, Value{Key: HideStatsSetting, Value: hideStats})
-	background := "theme"
-	if s.TerminalBackground {
-		background = "terminal"
-	}
-	values = append(values, Value{Key: BackgroundSetting, Value: background})
-	mouseMode := "on"
-	if s.MouseDisabled {
-		mouseMode = "off"
-	}
-	values = append(values, Value{Key: MouseSetting, Value: mouseMode})
-	worktreeChoice := "off"
-	if s.WorktreeDefault {
-		worktreeChoice = "on"
-	}
-	values = append(values, Value{Key: WorktreeSetting, Value: worktreeChoice})
-	baseFetch := "on"
-	if !s.BaseFetch {
-		baseFetch = "off"
-	}
-	values = append(values, Value{Key: BaseFetchSetting, Value: baseFetch})
-	proactive := "off"
-	if s.Proactive {
-		proactive = "on"
-	}
-	values = append(values, Value{Key: CoordinationSetting, Value: proactive, Proactive: true})
-	notifications := "off"
-	if s.Notifications {
-		notifications = "on"
-	}
-	values = append(values, Value{Key: NotificationsSetting, Value: notifications})
-	notifyFinished := "off"
-	if s.NotifyFinished {
-		notifyFinished = "on"
-	}
-	values = append(values, Value{Key: NotifyFinishedSetting, Value: notifyFinished})
-	values = append(values, Value{Key: EditorSetting, Value: s.Editor.Line()})
-	return append(values, Value{Key: GlyphModeSetting, Value: string(s.GlyphMode.Effective())})
+	return uitheme.Palettes[s.ThemeIndex].Name
 }
 
 // Restore applies committed store values back to a live dialog after a
@@ -226,40 +190,12 @@ func (s *State) Restore(restored []Readback, hiddenRaw string, hiddenErr error, 
 			if !s.ThemeAuto {
 				s.ManualTheme = value.Value
 			}
-		case ThemeAutoSetting:
-			s.ThemeAuto = value.Value == "on"
-		case DiffLayoutSetting:
-			s.LayoutSplit = value.Value != "unified"
-		case QuickCloseSetting:
-			s.QuickCloseSend = value.Value == "close"
-		case FocusKeySetting:
-			s.EnterFocuses = value.Value != "attach"
-		case ArrowStepSetting:
-			s.ArrowStep = value.Value != "off"
-		case ListDensitySetting:
-			s.ComfortableRows = value.Value == "comfortable"
-		case SessionLayoutSetting:
-			s.FullLayout = value.Value == SessionLayoutValue(true)
-		case HideHeaderSetting:
-			s.HideHeader = value.Value == "on"
-		case HideStatsSetting:
-			s.HideStats = value.Value == "on"
-		case MouseSetting:
-			s.MouseDisabled = value.Value == "off"
-		case WorktreeSetting:
-			s.WorktreeDefault = value.Value == "on"
-		case NotificationsSetting:
-			s.Notifications = value.Value != "off"
-		case NotifyFinishedSetting:
-			s.NotifyFinished = value.Value == "on"
-		case CoordinationSetting:
-			s.Proactive = value.Value == "on"
-		case BackgroundSetting:
-			s.TerminalBackground = value.Value == "terminal"
-		case BaseFetchSetting:
-			s.BaseFetch = value.Value != "off"
 		case EditorSetting:
 			s.Editor = NewEditorRow(value.Value, editors)
+		default:
+			if setting := byKey(value.Key); setting != nil && setting.Flag != nil {
+				*setting.Flag(s) = setting.on(value.Value)
+			}
 		}
 	}
 	// An empty committed hidden state is a real state: it clears the

@@ -95,7 +95,7 @@ func readSettingKeys(reader settingsValueReader, keys []string) []restoredValue 
 	values := make([]restoredValue, 0, len(keys))
 	for _, key := range keys {
 		value, err := reader.get(key)
-		if err == nil && key == glyphModeSetting && value != "" && value != string(presentation.GlyphModeBasic) && value != string(presentation.GlyphModeAdvanced) {
+		if err == nil && key == uisettings.GlyphModeSetting && value != "" && value != string(presentation.GlyphModeBasic) && value != string(presentation.GlyphModeAdvanced) {
 			err = fmt.Errorf("unknown symbols setting: %s", value)
 		}
 		values = append(values, restoredValue{Key: key, Value: value, Err: err})
@@ -119,7 +119,7 @@ func loadSettingsWithReader(reader settingsValueReader) (settingsLoadResult, err
 	if hiddenErr != nil {
 		failed++
 		if first == nil {
-			first = fmt.Errorf("%s: %w", hiddenToolsSetting, hiddenErr)
+			first = fmt.Errorf("%s: %w", uisettings.HiddenToolsSetting, hiddenErr)
 		}
 	}
 	if first != nil {
@@ -161,7 +161,7 @@ func runSettingsWithWriter(request settingsRequest, writer settingWriter) (effec
 	}
 	if request.hidden != nil {
 		raw := strings.Join(request.hidden, ",")
-		if err := writer.set(hiddenToolsSetting, raw); err != nil {
+		if err := writer.set(uisettings.HiddenToolsSetting, raw); err != nil {
 			result.restored, result.restoredHidden, result.hiddenErr = settingsReadback(writer)
 			return result, fmt.Errorf("settings save committed %d of %d writes: %w", result.committed, result.tot, err)
 		}
@@ -177,13 +177,13 @@ func settingsReadback(writer settingsValueReader) ([]restoredValue, string, erro
 	values := readSettingKeys(writer, uisettings.ReadbackKeys)
 	// The stored coordination value is the proactive marker
 	// SetProactiveCoordination writes; the dialog reads it as on or off.
-	coordValue, coordErr := writer.get(coordinationSetting)
+	coordValue, coordErr := writer.get(uisettings.CoordinationSetting)
 	coord := "off"
 	if coordErr == nil && coordValue == "proactive" {
 		coord = "on"
 	}
-	values = append(values, restoredValue{Key: coordinationSetting, Value: coord, Err: coordErr})
-	hidden, hiddenErr := writer.get(hiddenToolsSetting)
+	values = append(values, restoredValue{Key: uisettings.CoordinationSetting, Value: coord, Err: coordErr})
+	hidden, hiddenErr := writer.get(uisettings.HiddenToolsSetting)
 	return values, hidden, hiddenErr
 }
 
@@ -338,30 +338,7 @@ func (m *Model) reconcileSettingsPrefs(restored []restoredValue) string {
 			failed++
 			continue
 		}
-		switch value.Key {
-		case glyphModeSetting:
-			m.prefs.glyphMode = presentation.GlyphMode(value.Value)
-		case focusKeySetting:
-			m.prefs.focusOnEnter = value.Value != "attach"
-		case arrowStepSetting:
-			m.prefs.arrowStep = value.Value != "off"
-		case listDensitySetting:
-			m.prefs.comfortableRows = value.Value == "comfortable"
-		case sessionLayoutSetting:
-			m.prefs.fullLayout = value.Value == uisettings.SessionLayoutValue(true)
-		case hideHeaderSetting:
-			m.prefs.hideHeader = value.Value == "on"
-		case hideStatsSetting:
-			m.prefs.hideStats = value.Value == "on"
-		case mouseSetting:
-			m.prefs.mouseDisabled = value.Value == "off"
-		case backgroundSetting:
-			m.prefs.terminalBackground = value.Value == "terminal"
-		case baseFetchSetting:
-			m.prefs.baseFetchOff = value.Value == "off"
-		case editorSetting:
-			m.services.editor = value.Value
-		}
+		m.mirrorPreference(value.Key, value.Value)
 	}
 	if failed == 0 {
 		return ""

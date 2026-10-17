@@ -134,7 +134,7 @@ func TestFormShowsAndFetchesTheWorktreeBase(t *testing.T) {
 	clone := filepath.Join(t.TempDir(), "clone")
 	runGit(t, remote, "clone", "-q", remote, clone)
 	runGit(t, remote, "commit", "-q", "--allow-empty", "-m", "after the clone")
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
@@ -184,11 +184,11 @@ func TestSettingsFetchOnSpawnTurnsTheFetchOff(t *testing.T) {
 	m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyRight})
 	_, cmd := m.handleSettingsKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyCmd(t, cmd)
-	if chosen, err := m.services.store.Setting(baseFetchSetting); err != nil || chosen != "off" {
+	if chosen, err := m.services.store.Setting(uisettings.BaseFetchSetting); err != nil || chosen != "off" {
 		t.Fatalf("want stored off, got %q err %v", chosen, err)
 	}
 
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())
@@ -214,7 +214,7 @@ func TestFormMarksAFailedBaseFetch(t *testing.T) {
 	clone := filepath.Join(t.TempDir(), "clone")
 	runGit(t, remote, "clone", "-q", remote, clone)
 	runGit(t, clone, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone"))
-	if err := m.services.store.SetSetting(worktreeSetting, "on"); err != nil {
+	if err := m.services.store.SetSetting(uisettings.WorktreeSetting, "on"); err != nil {
 		t.Fatalf("set setting: %v", err)
 	}
 	m.applyTestMsg(t, m.openForm()())

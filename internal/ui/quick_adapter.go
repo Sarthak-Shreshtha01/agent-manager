@@ -6,6 +6,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/clipboard"
 	"github.com/YoanWai/agent-manager/internal/config"
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
+	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -84,7 +85,7 @@ func (m *Model) openQuickModeWithReader(reader settingsValueReader) tea.Cmd {
 	m.quick = quickBar{
 		active:         true,
 		composer:       composer{input: input, maxRows: quickBarMaxRows, gen: m.nextComposerGen()},
-		closeAfterSend: m.settings.cache.value(quickCloseSetting) == "close",
+		closeAfterSend: m.settings.cache.value(uisettings.QuickCloseSetting) == "close",
 		Bar:            uiquick.NewBar(m.spawnHost(), names, index, m.cachedSpawnWorktreeDefault(m.quickTargetGroup())),
 	}
 	catalog := m.ensureCatalog(names[index])
@@ -99,7 +100,7 @@ func (m *Model) openQuickModeWithReader(reader settingsValueReader) tea.Cmd {
 func (m *Model) applyCachedQuickDefaults() tea.Cmd {
 	before := m.quick.Tool()
 	m.quick.SetTools(m.cachedSpawnToolSelection())
-	m.quick.closeAfterSend = m.settings.cache.value(quickCloseSetting) == "close"
+	m.quick.closeAfterSend = m.settings.cache.value(uisettings.QuickCloseSetting) == "close"
 	m.quick.DefaultWorktree(m.cachedSpawnWorktreeDefault(m.quickTargetGroup()))
 	toolName := m.quick.Tool()
 	if toolName == before || toolName == "" {
