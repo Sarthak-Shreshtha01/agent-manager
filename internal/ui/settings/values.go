@@ -226,13 +226,13 @@ func (s *State) Restore(restored []Readback, hiddenRaw string, hiddenErr error, 
 		case ThemeAutoSetting:
 			s.ThemeAuto = value.Value == "on"
 		case DiffLayoutSetting:
-			s.LayoutSplit = value.Value == "split"
+			s.LayoutSplit = value.Value != "unified"
 		case QuickCloseSetting:
 			s.QuickCloseSend = value.Value == "close"
 		case FocusKeySetting:
-			s.EnterFocuses = value.Value == "focus"
+			s.EnterFocuses = value.Value != "attach"
 		case ArrowStepSetting:
-			s.ArrowStep = value.Value == "on"
+			s.ArrowStep = value.Value != "off"
 		case ListDensitySetting:
 			s.ComfortableRows = value.Value == "comfortable"
 		case SessionLayoutSetting:
@@ -246,7 +246,7 @@ func (s *State) Restore(restored []Readback, hiddenRaw string, hiddenErr error, 
 		case WorktreeSetting:
 			s.WorktreeDefault = value.Value == "on"
 		case NotificationsSetting:
-			s.Notifications = value.Value == "on"
+			s.Notifications = value.Value != "off"
 		case NotifyFinishedSetting:
 			s.NotifyFinished = value.Value == "on"
 		case CoordinationSetting:

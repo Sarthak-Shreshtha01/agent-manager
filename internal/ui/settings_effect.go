@@ -336,9 +336,9 @@ func (m *Model) reconcileSettingsPrefs(restored []restoredValue) string {
 		}
 		switch value.Key {
 		case focusKeySetting:
-			m.prefs.focusOnEnter = value.Value == "focus"
+			m.prefs.focusOnEnter = value.Value != "attach"
 		case arrowStepSetting:
-			m.prefs.arrowStep = value.Value == "on"
+			m.prefs.arrowStep = value.Value != "off"
 		case listDensitySetting:
 			m.prefs.comfortableRows = value.Value == "comfortable"
 		case sessionLayoutSetting:

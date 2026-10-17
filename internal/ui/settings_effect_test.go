@@ -740,3 +740,25 @@ func TestLaterSuccessfulSettingsSaveReappliesCommittedPrefs(t *testing.T) {
 		t.Fatal("successful queued save did not reconcile its committed preferences")
 	}
 }
+
+func TestFailedSettingsSavePreservesUnsetDefaults(t *testing.T) {
+	m := buildModel(t)
+	m.openSettings()
+	if !m.prefs.focusOnEnter || !m.prefs.arrowStep {
+		t.Fatal("fixture does not start with enabled defaults")
+	}
+	m.settings.dialog.Field = uisettings.FieldDensity
+	m.cycleSetting(1)
+	_, _ = m.saveAndCloseSettings()
+	job := m.effects.main.active
+	request := job.request.(settingsRequest)
+	writer := &settingsScriptWriter{failOn: listDensitySetting, values: map[string]string{}}
+	result, err := runSettingsWithWriter(request, writer)
+	if err == nil {
+		t.Fatal("expected failed save")
+	}
+	m.applySettingsEffect(job, result.(settingsEffectResult), err)
+	if !m.prefs.focusOnEnter || !m.prefs.arrowStep {
+		t.Fatalf("failed density save changed unrelated defaults, focus=%v arrows=%v", m.prefs.focusOnEnter, m.prefs.arrowStep)
+	}
+}
