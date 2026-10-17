@@ -129,11 +129,14 @@ func TestResultsAreCleaned(t *testing.T) {
 		t.Errorf("TerminalSend accepted an unsafe id: %+v", got)
 	}
 
-	for _, terminal := range []bool{false, true} {
-		c, _ = recorder(t, `{"output":"$ ls\r\n\u001b[31mred\u001b[0m\tx\b\u000e\n"}`)
-		if got, err := c.Read(ctx, ref, terminal); err != nil || got != "$ ls\nred\tx\n" {
-			t.Errorf("Read(terminal %v) = %q, %v", terminal, got, err)
-		}
+	const screen = `"output":"$ ls\r\n\u001b[31mred\u001b[0m\tx\b\u000e\n"`
+	c, _ = recorder(t, `{"session":{"id":"a1","name":"`+hostile+`"},`+screen+`}`)
+	if got, err := c.ReadSession(ctx, ref); err != nil || got.Output != "$ ls\nred\tx\n" || got.Session.Name != "xy" {
+		t.Errorf("ReadSession = %+v, %v", got, err)
+	}
+	c, _ = recorder(t, `{"terminal":{"id":"a1","name":"`+hostile+`"},`+screen+`}`)
+	if got, err := c.ReadTerminal(ctx, ref); err != nil || got.Output != "$ ls\nred\tx\n" || got.Terminal.Name != "xy" {
+		t.Errorf("ReadTerminal = %+v, %v", got, err)
 	}
 }
 

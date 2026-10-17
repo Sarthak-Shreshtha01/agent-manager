@@ -57,13 +57,13 @@ func (f *fakeSSH) answer(_ context.Context, argv []string) ([]byte, []byte, erro
 	case "send":
 		reply = sessioncmd.SendResult{MessageID: 7, QueuePosition: 1, ManagerAwake: true}
 	case "read":
-		reply = sessioncmd.SessionScreen{Output: screen}
+		reply = sessioncmd.SessionScreen{Session: sessioncmd.Session{ID: words[len(words)-1]}, Output: screen}
 	case "terminal":
 		switch words[1] {
 		case "close":
 			return []byte("closed\n"), nil, nil
 		case "read":
-			reply = sessioncmd.TerminalScreen{Output: screen}
+			reply = sessioncmd.TerminalScreen{Terminal: sessioncmd.Terminal{ID: words[len(words)-1]}, Output: screen}
 		case "send":
 			reply = sessioncmd.TerminalInput{TerminalID: words[len(words)-1], Sent: "command"}
 		default:

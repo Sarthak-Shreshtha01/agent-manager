@@ -362,6 +362,28 @@ func TestQualifiedIDsRouteToTheirHost(t *testing.T) {
 	}
 }
 
+// A read answers with the row the host reports, not one cached by an
+// earlier listing in this process, so a server that has listed nothing yet
+// still reports whether the session runs.
+func TestRemoteReadsCarryTheHostsRow(t *testing.T) {
+	f := newRemoteFixture(t, "cafe", func(_ string, words []string) ([]byte, []byte, error) {
+		if words[0] == "terminal" {
+			return mustJSON(t, sessioncmd.TerminalScreen{Terminal: sessioncmd.Terminal{ID: "t1", Name: "shell", ParentID: "r1", Running: true}, Output: "$ ls"}), nil, nil
+		}
+		return mustJSON(t, sessioncmd.SessionScreen{Session: sessioncmd.Session{ID: "r1", Name: "remote-worker", Status: "working", Running: true}, Output: "screen"}), nil, nil
+	})
+	var session sessioncmd.SessionScreen
+	structured(t, callTool(t, f.session, "read_session", map[string]any{"session_id": "gpu::r1"}), &session)
+	if want := (sessioncmd.Session{ID: "gpu::r1", Name: "remote-worker", Status: "working", Running: true}); session.Session != want {
+		t.Fatalf("read_session row = %+v, want %+v", session.Session, want)
+	}
+	var terminal sessioncmd.TerminalScreen
+	structured(t, callTool(t, f.session, "read_terminal", map[string]any{"terminal_id": "gpu::t1"}), &terminal)
+	if want := (sessioncmd.Terminal{ID: "gpu::t1", Name: "shell", ParentID: "gpu::r1", Running: true}); terminal.Terminal != want {
+		t.Fatalf("read_terminal row = %+v, want %+v", terminal.Terminal, want)
+	}
+}
+
 func TestARemoteRefusalReachesTheAgent(t *testing.T) {
 	f := newRemoteFixture(t, "cafe", func(string, []string) ([]byte, []byte, error) {
 		return nil, []byte("agent-manager: terminal t1 is nested under remote-worker; only that session drives it\n"), exitStatus(1)

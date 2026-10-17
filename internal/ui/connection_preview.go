@@ -64,9 +64,18 @@ func (m *Model) readRemotePreview() tea.Cmd {
 	p.reading = true
 	client, ref, terminal, gen := m.ssh.client, p.ref, p.terminal, p.gen
 	return func() tea.Msg {
-		text, err := client.Read(context.Background(), ref, terminal)
+		text, err := readRemoteScreen(client, ref, terminal)
 		return remotePreviewMsg{ref: ref, gen: gen, text: text, err: err}
 	}
+}
+
+func readRemoteScreen(client *remote.Client, ref remote.Ref, terminal bool) (string, error) {
+	if terminal {
+		screen, err := client.ReadTerminal(context.Background(), ref)
+		return screen.Output, err
+	}
+	screen, err := client.ReadSession(context.Background(), ref)
+	return screen.Output, err
 }
 
 func (m *Model) applyRemotePreview(msg remotePreviewMsg) {

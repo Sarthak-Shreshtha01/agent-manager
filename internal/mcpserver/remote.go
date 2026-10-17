@@ -244,46 +244,28 @@ func localOnly(tool string, ids ...string) error {
 	return nil
 }
 
-// cachedSession fills the row a remote read does not return from the
-// host's last snapshot.
-func (h *remoteHosts) cachedSession(ref remote.Ref) sessioncmd.Session {
-	for _, sess := range h.client.State(ref.Host).Snapshot.Sessions {
-		if sess.ID == ref.ID {
-			return qualifySession(ref.Host, sess)
-		}
-	}
-	return sessioncmd.Session{ID: ref.String()}
-}
-
-func (h *remoteHosts) cachedTerminal(ref remote.Ref) sessioncmd.Terminal {
-	for _, terminal := range h.client.State(ref.Host).Snapshot.Terminals {
-		if terminal.ID == ref.ID {
-			return qualifyTerminal(ref.Host, terminal)
-		}
-	}
-	return sessioncmd.Terminal{ID: ref.String()}
-}
-
 func (h *remoteHosts) readSession(ctx context.Context, ref remote.Ref) (sessioncmd.SessionScreen, error) {
 	if _, err := h.ready(); err != nil {
 		return sessioncmd.SessionScreen{}, err
 	}
-	output, err := h.client.Read(ctx, ref, false)
+	screen, err := h.client.ReadSession(ctx, ref)
 	if err != nil {
 		return sessioncmd.SessionScreen{}, err
 	}
-	return sessioncmd.SessionScreen{Session: h.cachedSession(ref), Output: output}, nil
+	screen.Session = qualifySession(ref.Host, screen.Session)
+	return screen, nil
 }
 
 func (h *remoteHosts) readTerminal(ctx context.Context, ref remote.Ref) (sessioncmd.TerminalScreen, error) {
 	if _, err := h.ready(); err != nil {
 		return sessioncmd.TerminalScreen{}, err
 	}
-	output, err := h.client.Read(ctx, ref, true)
+	screen, err := h.client.ReadTerminal(ctx, ref)
 	if err != nil {
 		return sessioncmd.TerminalScreen{}, err
 	}
-	return sessioncmd.TerminalScreen{Terminal: h.cachedTerminal(ref), Output: output}, nil
+	screen.Terminal = qualifyTerminal(ref.Host, screen.Terminal)
+	return screen, nil
 }
 
 func (h *remoteHosts) send(ctx context.Context, ref remote.Ref, message string) (string, sessioncmd.SendResult, error) {

@@ -36,18 +36,35 @@ func (c *Client) StartManager(ctx context.Context, host string) (bool, error) {
 	return started.Started, err
 }
 
-func (c *Client) Read(ctx context.Context, ref Ref, terminal bool) (string, error) {
-	if err := validRef(ref); err != nil {
-		return "", err
-	}
-	if terminal {
-		var screen sessioncmd.TerminalScreen
-		err := c.decode(ctx, ref.Host, callTimeout, &screen, "terminal", "read", "--json", "--", ref.ID)
-		return cleanScreen(screen.Output), err
-	}
+// ReadSession returns the row and the screen the host reports for ref.
+func (c *Client) ReadSession(ctx context.Context, ref Ref) (sessioncmd.SessionScreen, error) {
 	var screen sessioncmd.SessionScreen
-	err := c.decode(ctx, ref.Host, callTimeout, &screen, "read", "--json", "--", ref.ID)
-	return cleanScreen(screen.Output), err
+	if err := validRef(ref); err != nil {
+		return screen, err
+	}
+	if err := c.decode(ctx, ref.Host, callTimeout, &screen, "read", "--json", "--", ref.ID); err != nil {
+		return sessioncmd.SessionScreen{}, err
+	}
+	session, err := cleanSession(screen.Session)
+	if err != nil {
+		return sessioncmd.SessionScreen{}, unreadable(ref.Host, "read", err)
+	}
+	return sessioncmd.SessionScreen{Session: session, Output: cleanScreen(screen.Output)}, nil
+}
+
+func (c *Client) ReadTerminal(ctx context.Context, ref Ref) (sessioncmd.TerminalScreen, error) {
+	var screen sessioncmd.TerminalScreen
+	if err := validRef(ref); err != nil {
+		return screen, err
+	}
+	if err := c.decode(ctx, ref.Host, callTimeout, &screen, "terminal", "read", "--json", "--", ref.ID); err != nil {
+		return sessioncmd.TerminalScreen{}, err
+	}
+	terminal, err := cleanTerminal(screen.Terminal)
+	if err != nil {
+		return sessioncmd.TerminalScreen{}, unreadable(ref.Host, "terminal read", err)
+	}
+	return sessioncmd.TerminalScreen{Terminal: terminal, Output: cleanScreen(screen.Output)}, nil
 }
 
 // Send queues text for the agent at ref, from a sender with no session on

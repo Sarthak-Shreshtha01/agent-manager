@@ -42,11 +42,11 @@ func TestOperationArgv(t *testing.T) {
 			return err
 		}, []string{"serve", "--background"}},
 		{"read", func(ctx context.Context, c *Client) error {
-			_, err := c.Read(ctx, ref, false)
+			_, err := c.ReadSession(ctx, ref)
 			return err
 		}, []string{"read", "--json", "--", "a1b2c3d4"}},
 		{"terminal read", func(ctx context.Context, c *Client) error {
-			_, err := c.Read(ctx, ref, true)
+			_, err := c.ReadTerminal(ctx, ref)
 			return err
 		}, []string{"terminal", "read", "--json", "--", "a1b2c3d4"}},
 		{"send", func(ctx context.Context, c *Client) error {
@@ -119,7 +119,7 @@ func TestOperationArgv(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, calls := recorder(t, `{"version":1,"id":"a1","terminal_id":"a1"}`)
+			c, calls := recorder(t, `{"version":1,"id":"a1","terminal_id":"a1","session":{"id":"a1"},"terminal":{"id":"a1"}}`)
 			if err := tc.run(context.Background(), c); err != nil {
 				t.Fatal(err)
 			}
@@ -136,7 +136,9 @@ func TestUnsafeIDsNeverReachSSH(t *testing.T) {
 	ctx := context.Background()
 	bad := Ref{Host: "gpu", ID: "a1; rm -rf ~"}
 	errs := []error{}
-	_, err := c.Read(ctx, bad, false)
+	_, err := c.ReadSession(ctx, bad)
+	errs = append(errs, err)
+	_, err = c.ReadTerminal(ctx, bad)
 	errs = append(errs, err)
 	_, err = c.Send(ctx, bad, "hi", "me")
 	errs = append(errs, err)
@@ -163,13 +165,19 @@ func TestOperationsDecodeTheRemoteJSON(t *testing.T) {
 	ctx := context.Background()
 	ref := Ref{Host: "gpu", ID: "a1"}
 
-	c, _ := recorder(t, `{"session":{"id":"a1"},"output":"hello\n"}`)
-	if got, err := c.Read(ctx, ref, false); err != nil || got != "hello\n" {
-		t.Fatalf("Read = %q, %v", got, err)
+	c, _ := recorder(t, `{"session":{"id":"a1","name":"w\u001b[31m","status":"idle","running":true},"output":"hello\n"}`)
+	if got, err := c.ReadSession(ctx, ref); err != nil || got.Output != "hello\n" ||
+		got.Session != (sessioncmd.Session{ID: "a1", Name: "w", Status: "idle", Running: true}) {
+		t.Fatalf("ReadSession = %+v, %v", got, err)
 	}
-	c, _ = recorder(t, `{"terminal":{"id":"a1"},"output":"$ "}`)
-	if got, err := c.Read(ctx, ref, true); err != nil || got != "$ " {
-		t.Fatalf("terminal Read = %q, %v", got, err)
+	c, _ = recorder(t, `{"terminal":{"id":"a1","name":"sh","running":true},"output":"$ "}`)
+	if got, err := c.ReadTerminal(ctx, ref); err != nil || got.Output != "$ " ||
+		got.Terminal != (sessioncmd.Terminal{ID: "a1", Name: "sh", Running: true}) {
+		t.Fatalf("ReadTerminal = %+v, %v", got, err)
+	}
+	c, _ = recorder(t, `{"session":{"id":"a1; rm"},"output":""}`)
+	if _, err := c.ReadSession(ctx, ref); err == nil {
+		t.Fatal("ReadSession accepted a row with an unsafe id")
 	}
 	c, _ = recorder(t, `{"message_id":7,"queue_position":2,"manager_awake":true}`)
 	if got, err := c.Send(ctx, ref, "hi", "me"); err != nil || got != (sessioncmd.SendResult{MessageID: 7, QueuePosition: 2, ManagerAwake: true}) {
