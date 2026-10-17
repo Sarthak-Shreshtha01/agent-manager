@@ -4,6 +4,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -175,6 +176,13 @@ func remoteSessionRow(row remoteRow, sess sessioncmd.Session) remoteRow {
 	row.ref = remote.Ref{Host: row.host, ID: sess.ID}
 	row.name, row.status, row.group, row.archived = sess.Name, sess.Status, sess.Group, sess.Archived
 	return row
+}
+
+// resting reports whether a host that failed its last refresh is still
+// inside the wait before its next try.
+func (c *connectionsFeature) resting(host string, now time.Time) bool {
+	state, seen := c.hosts[host]
+	return seen && !state.OK && now.Sub(state.Attempted) < remote.RetryWait(state.Failures)
 }
 
 // offline is the refusal for a call to a host the last refresh could not

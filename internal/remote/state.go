@@ -8,6 +8,18 @@ import (
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 )
 
+// RetryWait is how long a host that failed its last refreshes rests before
+// the next try: a poll apart at first, doubling to half a minute, so an
+// unreachable host is not dialled on every poll for as long as it is down.
+func RetryWait(failures int) time.Duration {
+	const longest = 30 * time.Second
+	wait := 2 * time.Second
+	for i := 1; i < failures && wait < longest; i++ {
+		wait *= 2
+	}
+	return min(wait, longest)
+}
+
 // managerStartInterval spaces the attempts to start a manager on a host
 // that keeps reporting none awake, so a failing start is not retried on
 // every poll.
@@ -23,6 +35,8 @@ type HostState struct {
 	// manager's when the snapshot succeeded.
 	Err    error
 	LastOK time.Time
+	// Attempted is when the last refresh ran, successful or not.
+	Attempted time.Time
 	// Failures counts the snapshots that failed since the last good one.
 	Failures int
 	// StartedManager reports that the last refresh started a manager.
@@ -43,13 +57,14 @@ func (c *Client) Refresh(ctx context.Context, host string) HostState {
 	snapshot, err := c.Snapshot(ctx, host)
 	state := c.State(host)
 	state.StartedManager = false
+	state.Attempted = c.now()
 	if err != nil {
 		state.OK = false
 		state.Err = err
 		state.Failures++
 		return c.record(conn, state)
 	}
-	state = HostState{Snapshot: snapshot, OK: true, LastOK: c.now()}
+	state = HostState{Snapshot: snapshot, OK: true, LastOK: c.now(), Attempted: state.Attempted}
 	if !snapshot.ManagerAwake && c.claimManagerStart(host) {
 		state.StartedManager, state.Err = c.StartManager(ctx, host)
 	}

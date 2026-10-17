@@ -57,7 +57,7 @@ func TestRefreshKeepsTheLastGoodSnapshotAndStartsTheManagerOncePerMinute(t *test
 	if state.OK || state.Failures != 2 || !Unreachable(state.Err) || len(state.Snapshot.Sessions) != 1 || !state.LastOK.Equal(start.Add(30*time.Second)) {
 		t.Fatalf("refresh while down = %+v", state)
 	}
-	if cached := c.State("gpu"); cached.Failures != 2 || len(cached.Snapshot.Sessions) != 1 {
+	if cached := c.State("gpu"); cached.Failures != 2 || len(cached.Snapshot.Sessions) != 1 || !cached.Attempted.Equal(host.now) {
 		t.Fatalf("State = %+v", cached)
 	}
 
@@ -73,6 +73,15 @@ func TestRefreshKeepsTheLastGoodSnapshotAndStartsTheManagerOncePerMinute(t *test
 	state = c.Refresh(ctx, "gpu")
 	if !state.OK || state.StartedManager || host.serves != 2 {
 		t.Fatalf("refresh with a manager awake = %+v, serves %d", state, host.serves)
+	}
+}
+
+func TestRetryWaitDoublesToHalfAMinute(t *testing.T) {
+	want := map[int]time.Duration{0: 2 * time.Second, 1: 2 * time.Second, 2: 4 * time.Second, 3: 8 * time.Second, 4: 16 * time.Second, 5: 30 * time.Second, 50: 30 * time.Second}
+	for failures, wait := range want {
+		if got := RetryWait(failures); got != wait {
+			t.Errorf("RetryWait(%d) = %v, want %v", failures, got, wait)
+		}
 	}
 }
 

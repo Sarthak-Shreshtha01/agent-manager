@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,7 +28,7 @@ func (m *Model) pollConnections() tea.Cmd {
 
 func (m *Model) pollConnection(host string) tea.Cmd {
 	c := &m.ssh
-	if _, listed := c.connection(host); !listed || c.polling[host] {
+	if _, listed := c.connection(host); !listed || c.polling[host] || c.resting(host, time.Now()) {
 		return nil
 	}
 	c.polling[host] = true

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/remote/remotetest"
@@ -102,10 +104,19 @@ func connectedModel(t *testing.T, fake *fakeSSH) *Model {
 	t.Helper()
 	m := buildModel(t)
 	fake.snapshot = boxSnapshot()
-	m.ssh = newConnections(remote.New(t.TempDir(), remote.WithRunner(fake.run)), []store.Connection{{Name: "box", Destination: "me@box"}})
+	m.ssh = newConnections(testRemoteClient(t, remote.WithRunner(fake.run)), []store.Connection{{Name: "box", Destination: "me@box"}})
 	m.ssh.hosts["box"] = remote.HostState{OK: true, Snapshot: fake.snapshot}
 	m.rebuildRows()
 	return m
+}
+
+// testRemoteClient makes a client on a throwaway profile and removes the
+// control directory the first call creates under /tmp.
+func testRemoteClient(t *testing.T, opts ...remote.Option) *remote.Client {
+	t.Helper()
+	profile := t.TempDir()
+	t.Cleanup(func() { os.RemoveAll(remote.ControlDir(profile)) })
+	return remote.New(profile, opts...)
 }
 
 var (
@@ -171,6 +182,31 @@ func TestOfflineHostKeepsItsLastRows(t *testing.T) {
 	}
 	if host := m.ssh.railHosts()[0]; host.State != uirail.HostOffline {
 		t.Fatalf("rail host = %+v, want offline", host)
+	}
+}
+
+// A host that failed its last refresh is not dialled again on the next
+// poll; it waits out remote.RetryWait for its failure count first.
+func TestUnreachableHostRestsBetweenRetries(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	fake.mu.Lock()
+	fake.stderr, fake.code = "ssh: connect to host box port 22: Connection refused", 255
+	fake.mu.Unlock()
+	m.applyTestMsg(t, m.pollConnection("box")())
+	if m.pollConnection("box") != nil {
+		t.Fatal("a host that just failed was dialled again at once")
+	}
+	state := m.ssh.hosts["box"]
+	state.Attempted = time.Now().Add(-remote.RetryWait(state.Failures))
+	m.ssh.hosts["box"] = state
+	cmd := m.pollConnection("box")
+	if cmd == nil {
+		t.Fatal("a host past its wait was not dialled")
+	}
+	m.applyTestMsg(t, cmd())
+	if got := m.ssh.hosts["box"].Failures; got != 2 {
+		t.Fatalf("failures = %d, want 2", got)
 	}
 }
 
