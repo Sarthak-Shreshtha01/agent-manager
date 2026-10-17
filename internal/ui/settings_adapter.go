@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/YoanWai/agent-manager/internal/config"
+	"github.com/YoanWai/agent-manager/internal/keybind"
 	"github.com/YoanWai/agent-manager/internal/store"
 	"github.com/YoanWai/agent-manager/internal/systheme"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
@@ -83,12 +84,13 @@ func (s *settingsFeature) stateFromCache(cfg config.Config) settingsState {
 }
 
 func (m *Model) settingsContext() uisettings.Context {
+	session, list := m.settingsKeyTables()
 	return uisettings.Context{
 		Tools:       settingsTools(m.services.cfg),
 		Hidden:      m.settings.cache.hidden,
 		DefaultTool: m.settings.cache.value(defaultToolSetting),
-		Session:     m.services.keys,
-		List:        m.services.listKeys,
+		Session:     session,
+		List:        list,
 	}
 }
 
@@ -244,15 +246,7 @@ func (m *Model) captureHiddenSave() tea.Cmd {
 // writes happen off the update path and a partial commit reconciles the
 // runtime to the store.
 func (m *Model) saveSettingsKeys() tea.Cmd {
-	expectedSession, expectedList := m.services.keys, m.services.listKeys
-	for _, pending := range m.queuedKeys() {
-		if pending.listChanged {
-			expectedList = pending.list
-		}
-		if pending.sessionChanged {
-			expectedSession = pending.session
-		}
-	}
+	expectedSession, expectedList := m.settingsKeyTables()
 	change, ok := m.settings.dialog.KeysToSave(expectedSession, expectedList)
 	if !ok {
 		return nil
@@ -263,6 +257,19 @@ func (m *Model) saveSettingsKeys() tea.Cmd {
 		listChanged:    change.ListChanged,
 		sessionChanged: change.SessionChanged,
 	})
+}
+
+func (m *Model) settingsKeyTables() (keybind.Table, keybind.Table) {
+	expectedSession, expectedList := m.services.keys, m.services.listKeys
+	for _, pending := range m.queuedKeys() {
+		if pending.listChanged {
+			expectedList = pending.list
+		}
+		if pending.sessionChanged {
+			expectedSession = pending.session
+		}
+	}
+	return expectedSession, expectedList
 }
 
 // queuedKeys lists the key saves on the lane, running first, in the order

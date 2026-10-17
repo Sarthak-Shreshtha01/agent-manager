@@ -201,3 +201,18 @@ func savedKeys(t *testing.T, m *Model) string {
 	t.Helper()
 	return storedKeyRow(t, m, keybind.ScopeSession) + "\n" + storedKeyRow(t, m, keybind.ScopeList)
 }
+
+func TestReopenedKeyPickerKeepsPendingSave(t *testing.T) {
+	m := keyPickerModel(t)
+	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
+	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyF9})
+	first := m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEsc})
+	m.settings.dialog.Field = uisettings.FieldKeybindings
+	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEnter})
+	m.pressInPicker(t, tea.KeyMsg{Type: tea.KeyEsc})
+	m.applyCmd(t, first)
+	m.drainEffects(t)
+	if got := storedSessionKeys(t, m).Binding(keybind.Detach).Label(); got != "f9" {
+		t.Fatalf("reopening and closing the picker reverted the accepted binding to %q", got)
+	}
+}
