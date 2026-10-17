@@ -48,6 +48,16 @@ def fake_ssh_script(remote_env):
             f'exec env -i PATH="$PATH" {exports} /bin/sh -c "$last"\n')
 
 
+def remote_shell_script(bin_dir):
+    """The remote host's login shell. A macOS login shell runs path_helper,
+    which moves the system directories ahead of the fixture binary, so the
+    shell puts the fixture back in front and skips the login profile."""
+    return ('#!/bin/sh\n'
+            f'PATH={shlex.quote(str(bin_dir))}:$PATH; export PATH\n'
+            'if [ "$1" = -lc ]; then shift; set -- -c "$@"; fi\n'
+            'exec /bin/sh "$@"\n')
+
+
 class Remote:
     """The fixture host: its own HOME, profile and short tmux socket dir."""
 
@@ -59,7 +69,7 @@ class Remote:
         self.env = {
             'HOME': str(self.home),
             'TMUX_TMPDIR': str(self.socket_dir),
-            'SHELL': '/bin/sh',
+            'SHELL': str(self.home / 'login-shell'),
             'TERM': 'xterm-256color',
             'XDG_CONFIG_HOME': str(self.home / '.config'),
             'XDG_DATA_HOME': str(self.home / '.local/share'),
@@ -112,7 +122,9 @@ def write_fixtures(sandbox, remote, binary):
     shutil.copy2(binary, manager)
     (bin_dir / FAKE_BIN).write_text(fake_cli_script(READY_MARKER))
     (bin_dir / 'ssh').write_text(fake_ssh_script(remote.env))
-    for path in (bin_dir / FAKE_BIN, bin_dir / 'ssh'):
+    shell = remote.home / 'login-shell'
+    shell.write_text(remote_shell_script(bin_dir))
+    for path in (bin_dir / FAKE_BIN, bin_dir / 'ssh', shell):
         path.chmod(0o755)
     for profile in (profile_dir(sandbox), remote.profile()):
         profile.mkdir(parents=True)
