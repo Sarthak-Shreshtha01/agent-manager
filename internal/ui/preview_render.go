@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"regexp"
 	"strings"
@@ -113,12 +112,4 @@ func paneExact(pane string, n, width, caretRow int) []string {
 		lines[i] = expandPaneTabs(line, width)
 	}
 	return lines
-}
-
-func padToHeight(s string, height int) string {
-	missing := height - lipgloss.Height(s)
-	if missing > 0 {
-		s += strings.Repeat("\n", missing)
-	}
-	return s
 }

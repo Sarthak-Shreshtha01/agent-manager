@@ -73,3 +73,43 @@ func TruncateTail(s string, max int) string {
 	}
 	return "…" + string(runes[len(runes)-max+1:])
 }
+
+// CenterLine centers text inside width, clipping it when it is wider.
+func CenterLine(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+	visible := ansi.StringWidth(text)
+	if visible >= width {
+		return ansi.Truncate(text, width, "…")
+	}
+	return strings.Repeat(" ", (width-visible)/2) + text
+}
+
+// TruncatePath keeps the end of a path and cuts at a separator when one is near.
+func TruncatePath(path string, limit int) string {
+	runes := []rune(path)
+	if limit <= 0 {
+		return ""
+	}
+	if len(runes) <= limit {
+		return path
+	}
+	if limit == 1 {
+		return "…"
+	}
+	tail := string(runes[len(runes)-limit+1:])
+	if i := strings.IndexByte(tail, '/'); i >= 0 && i < len(tail)-1 {
+		return "…" + tail[i:]
+	}
+	return "…" + tail
+}
+
+// PadToHeight appends blank rows until the text is height rows tall.
+func PadToHeight(s string, height int) string {
+	missing := height - lipgloss.Height(s)
+	if missing > 0 {
+		s += strings.Repeat("\n", missing)
+	}
+	return s
+}

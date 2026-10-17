@@ -236,17 +236,6 @@ func relSince(at time.Time) string {
 	}
 }
 
-func centerLine(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-	visible := ansi.StringWidth(text)
-	if visible >= width {
-		return ansi.Truncate(text, width, "…")
-	}
-	return strings.Repeat(" ", (width-visible)/2) + text
-}
-
 func overlayAt(frame string, overlay []string, left, top int) string {
 	lines := strings.Split(frame, "\n")
 	for row, over := range overlay {

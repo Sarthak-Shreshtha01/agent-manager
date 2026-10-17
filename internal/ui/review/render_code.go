@@ -47,7 +47,7 @@ func (m *Model) Code(ctx RenderContext, width, height int) Pane {
 
 	body := strings.TrimRight(b.String(), "\n")
 	if bar != "" {
-		return Pane{Text: padToHeight(body, height) + "\n" + bar}
+		return Pane{Text: presentation.PadToHeight(body, height) + "\n" + bar}
 	}
 	return Pane{Text: body}
 }
@@ -355,12 +355,4 @@ func (r renderer) renderSideCell(fd *diff.FileDiff, hl *Highlight, index, width 
 		out[i] = presentation.PadRight(r.s.Subtle.Render(g)+text, width)
 	}
 	return out
-}
-
-func padToHeight(s string, height int) string {
-	missing := height - lipgloss.Height(s)
-	if missing > 0 {
-		s += strings.Repeat("\n", missing)
-	}
-	return s
 }

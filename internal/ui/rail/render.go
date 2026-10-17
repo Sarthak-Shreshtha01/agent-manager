@@ -267,9 +267,9 @@ func (r renderer) emptyLines(height int) []string {
 		title, hint = "no matches", r.palette.subtle.Render("for \""+query+"\"")
 	}
 	block := []string{
-		centerLine(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Render(title), r.ctx.Width),
+		presentation.CenterLine(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(r.ctx.Theme.Bright)).Render(title), r.ctx.Width),
 		"",
-		centerLine(hint, r.ctx.Width),
+		presentation.CenterLine(hint, r.ctx.Width),
 	}
 	if height <= 0 {
 		return block

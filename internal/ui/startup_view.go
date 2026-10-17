@@ -32,12 +32,12 @@ func ringLoader(g presentation.GlyphSet, width, height int, label string, phase 
 	}
 
 	block := []string{
-		centerLine(dot(11)+"   "+dot(0)+"   "+dot(1), width),
-		centerLine(dot(10)+"       "+dot(2), width),
-		centerLine(dot(9)+"       "+dot(3), width),
-		centerLine(dot(8)+"       "+dot(4), width),
-		centerLine(dot(7)+"   "+dot(6)+"   "+dot(5), width),
-		centerLine(valueStyle().Bold(true).Render(label), width),
+		presentation.CenterLine(dot(11)+"   "+dot(0)+"   "+dot(1), width),
+		presentation.CenterLine(dot(10)+"       "+dot(2), width),
+		presentation.CenterLine(dot(9)+"       "+dot(3), width),
+		presentation.CenterLine(dot(8)+"       "+dot(4), width),
+		presentation.CenterLine(dot(7)+"   "+dot(6)+"   "+dot(5), width),
+		presentation.CenterLine(valueStyle().Bold(true).Render(label), width),
 	}
 	if height <= len(block) {
 		return block[:height]
