@@ -63,9 +63,10 @@ func (b *cappedBuffer) Write(p []byte) (int, error) {
 	return b.buf.Write(p)
 }
 
-// controlDir is short because OpenSSH caps a control socket path near 104
-// bytes, and %C alone expands to 40; macOS's os.TempDir is far too long.
-func controlDir(profileDir string) string {
+// ControlDir is where a profile's SSH control sockets live. It is short
+// because OpenSSH caps a control socket path near 104 bytes, and %C alone
+// expands to 40; macOS's os.TempDir is far too long.
+func ControlDir(profileDir string) string {
 	sum := sha256.Sum256([]byte(profileDir))
 	root := os.TempDir()
 	if info, err := os.Stat("/tmp"); err == nil && info.IsDir() {

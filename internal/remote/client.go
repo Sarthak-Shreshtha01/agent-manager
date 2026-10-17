@@ -54,7 +54,7 @@ func WithClock(now func() time.Time) Option {
 // one machine never share an SSH master.
 func New(profileDir string, opts ...Option) *Client {
 	c := &Client{
-		controlDir: controlDir(profileDir),
+		controlDir: ControlDir(profileDir),
 		run:        runSSH,
 		now:        time.Now,
 		inFlight:   make(chan struct{}, maxInFlight),

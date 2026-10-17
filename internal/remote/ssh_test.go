@@ -165,8 +165,8 @@ func TestRealSSHRoundTrip(t *testing.T) {
 }
 
 func TestControlDirIsShortPrivateAndPerProfile(t *testing.T) {
-	dir := controlDir("/home/me/.config/agent-manager")
-	if dir != controlDir("/home/me/.config/agent-manager") || dir == controlDir("/home/me/other") {
+	dir := ControlDir("/home/me/.config/agent-manager")
+	if dir != ControlDir("/home/me/.config/agent-manager") || dir == ControlDir("/home/me/other") {
 		t.Fatalf("control dir %s is not one per profile", dir)
 	}
 	base := filepath.Base(dir)

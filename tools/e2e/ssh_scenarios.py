@@ -10,6 +10,7 @@ attach, quick spawn and a new terminal. A second connection whose host
 refuses stays offline and is removed. Every process it started is ended by PID.
 """
 import argparse
+import hashlib
 import json
 import os
 import shlex
@@ -381,7 +382,8 @@ def cleanup(sandbox, remote, manager):
     stuck = end_pids(list(ended))
     if stuck:
         return [f'processes still running: {stuck}']
-    for directory in (remote.socket_dir, sandbox.socket_dir):
+    control_dir = Path('/tmp') / ('am-ssh-' + hashlib.sha256(str(profile_dir(sandbox)).encode()).hexdigest()[:8])
+    for directory in (remote.socket_dir, sandbox.socket_dir, control_dir):
         shutil.rmtree(directory, ignore_errors=True)
     return []
 

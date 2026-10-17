@@ -3,7 +3,6 @@ package ui
 import (
 	"testing"
 
-	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/store"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,7 +10,7 @@ import (
 
 func TestNewConnectionKeyOpensTheDialogAndSavesToTheStore(t *testing.T) {
 	m := buildModel(t)
-	m.ssh = newConnections(remote.New(t.TempDir()), nil)
+	m.ssh = newConnections(testRemoteClient(t), nil)
 	m.applyTestMsg(t, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
 	if m.mode != modeConnection {
 		t.Fatalf("C left mode %v", m.mode)

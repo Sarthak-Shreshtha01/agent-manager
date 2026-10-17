@@ -2,11 +2,8 @@ package mcpserver
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -110,10 +107,7 @@ func newRemoteFixture(t *testing.T, sessionID string, answer func(destination st
 		connections: []store.Connection{{Name: "gpu", Destination: "me@gpu"}},
 	}
 	profile := t.TempDir()
-	// The client keeps its control sockets under /tmp, named after the
-	// profile the way internal/remote names them.
-	sum := sha256.Sum256([]byte(profile))
-	t.Cleanup(func() { os.RemoveAll(filepath.Join("/tmp", "am-ssh-"+hex.EncodeToString(sum[:])[:8])) })
+	t.Cleanup(func() { os.RemoveAll(remote.ControlDir(profile)) })
 	source := remoteSource{
 		client: remote.New(profile, remote.WithRunner(f.hosts.run)),
 		connections: func() ([]store.Connection, error) {
