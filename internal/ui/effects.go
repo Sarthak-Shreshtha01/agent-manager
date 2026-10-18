@@ -427,6 +427,8 @@ func (m *Model) handleEffectCompleted(msg effectCompletedMsg) (tea.Model, tea.Cm
 		m.applyMoveDialogClose(job.request.(moveDialogClose))
 	case settingsEffectResult:
 		command = m.applySettingsEffect(job, result, msg.err)
+	case savedPromptResult:
+		m.applySavedPromptEffect(job.request.(savedPromptRequest), result, msg.err)
 	case reviewEffectResult:
 		command = m.applyReviewEffect(job, result, msg.err)
 	case keysEffectResult:
@@ -493,6 +495,8 @@ func effectName(request effectRequest) string {
 		return "move"
 	case settingsRequest:
 		return "settings save"
+	case savedPromptRequest:
+		return "saved prompt change"
 	case reviewEffectRequest:
 		return "review change"
 	case keysRequest:

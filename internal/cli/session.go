@@ -16,8 +16,8 @@ import (
 const (
 	usageSessions      = "sessions [--json]"
 	usageSnapshot      = "snapshot --json"
-	usageSpawn         = "spawn [--name <name>] [--prompt <text>] [--tool <cli>] [--model <model>] [--effort <level>] [--profile <name>] [--group <path>] [--directory <path>] [--worktree] [--json]"
-	usageSend          = `send <session-id> "<message>" [--from <name>] [--json]`
+	usageSpawn         = "spawn [--name <name>] [--prompt <text>] [--saved <name>] [--tool <cli>] [--model <model>] [--effort <level>] [--profile <name>] [--group <path>] [--directory <path>] [--worktree] [--json]"
+	usageSend          = `send <session-id> ["<message>"] [--saved <name>] [--from <name>] [--json]`
 	usageRead          = "read <session-id> [--json]"
 	usageWait          = "wait <session-id> [--until <state>] [--timeout <duration>] [--json]"
 	usageMessageStatus = "message-status <message-id> [--json]"
@@ -37,6 +37,7 @@ type sessionCommands interface {
 	Create(sessionID string, opts sessioncmd.CreateSessionOptions) (sessioncmd.Session, error)
 	Send(sessionID, targetID, message string) (sessioncmd.SendResult, error)
 	SendFrom(sessionID, senderName, targetID, message string) (sessioncmd.SendResult, error)
+	ExpandSaved(name, text string) (string, error)
 	Read(sessionID, targetID string) (sessioncmd.SessionScreen, error)
 	Wait(ctx context.Context, sessionID, targetID string, until []string, timeout time.Duration) (sessioncmd.WaitResult, error)
 	MessageStatus(sessionID string, messageID int64) (sessioncmd.MessageState, error)
@@ -114,6 +115,7 @@ func runSpawn(out io.Writer, sessions sessionCommands, args []string, sessionID 
 	set := newFlagSet(usageSpawn)
 	name := set.String("name", "", "kebab-case name naming the work it will do; the new agent names itself when this is empty")
 	prompt := set.String("prompt", "", "first task to hand it, written as a full instruction, since it cannot see your conversation")
+	saved := set.String("saved", "", "saved prompt to put in front of the first task; resolved when creating the session")
 	tool := set.String("tool", "", "agent CLI to run; defaults to the caller's CLI, or to the one picked in settings from a terminal or with no caller")
 	model := set.String("model", "", "model to run it on, one the CLI lists; defaults to the CLI's own, and a restart, revive or fork keeps it")
 	effort := set.String("effort", "", "reasoning effort, one the model takes; defaults to the CLI's own")
@@ -130,6 +132,7 @@ func runSpawn(out io.Writer, sessions sessionCommands, args []string, sessionID 
 		Name:      *name,
 		Directory: *directory,
 		Prompt:    *prompt,
+		Preset:    *saved,
 		Model:     *model,
 		Effort:    *effort,
 		Profile:   *profile,
@@ -153,9 +156,21 @@ func runSpawn(out io.Writer, sessions sessionCommands, args []string, sessionID 
 
 func runSend(out io.Writer, sessions sessionCommands, args []string, sessionID string) error {
 	set := newFlagSet(usageSend)
+	saved := set.String("saved", "", "saved prompt to put in front of the message; the message can be omitted when this is set")
 	from := set.String("from", "", "name to send as when this runs outside any session on this machine, as an agent on another machine does over SSH; the message says no reply can reach it")
 	asJSON := jsonFlag(set)
-	operands, err := parseCommand(out, set, args, 2, 2)
+	operands, err := parseCommand(out, set, args, 1, 2)
+	if err != nil {
+		return err
+	}
+	message := ""
+	if len(operands) == 2 {
+		message = operands[1]
+	}
+	if message == "" && *saved == "" {
+		return usageError(usageSend)
+	}
+	text, err := sessions.ExpandSaved(*saved, message)
 	if err != nil {
 		return err
 	}
@@ -163,9 +178,9 @@ func runSend(out io.Writer, sessions sessionCommands, args []string, sessionID s
 	set.Visit(func(given *flag.Flag) { fromGiven = fromGiven || given.Name == "from" })
 	var result sessioncmd.SendResult
 	if fromGiven {
-		result, err = sessions.SendFrom(sessionID, *from, operands[0], operands[1])
+		result, err = sessions.SendFrom(sessionID, *from, operands[0], text)
 	} else {
-		result, err = sessions.Send(sessionID, operands[0], operands[1])
+		result, err = sessions.Send(sessionID, operands[0], text)
 	}
 	if err != nil {
 		return err

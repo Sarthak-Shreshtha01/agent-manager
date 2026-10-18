@@ -333,6 +333,11 @@ func TestQualifiedIDsRouteToTheirHost(t *testing.T) {
 		{"close_terminal", map[string]any{"terminal_id": "gpu::t1"}, []string{"terminal", "close", "--", "t1"}, "closed terminal gpu::t1"},
 		{"create_session", map[string]any{"host": "gpu", "name": "remote-fix", "prompt": "fix it", "tool": "codex", "group": "work", "worktree": true},
 			[]string{"spawn", "--json", "--name=remote-fix", "--prompt=fix it", "--tool=codex", "--group=work", "--worktree=true"}, "created remote-worker (id gpu::r1)"},
+		// Saved prompts are this machine's, so the host gets their text.
+		{"create_session", map[string]any{"host": "gpu", "prompt": "fix it", "saved": "reviewer"},
+			[]string{"spawn", "--json", "--prompt=saved:reviewer\n\nfix it"}, "created remote-worker (id gpu::r1)"},
+		{"send_session", map[string]any{"session_id": "gpu::r1", "message": "rebase on main", "saved": "reviewer"},
+			[]string{"send", "--from=lead on " + hostname, "--json", "--", "r1", "saved:reviewer\n\nrebase on main"}, "queued a message for session gpu::r1"},
 		{"create_terminal", map[string]any{"host": "gpu", "directory": "/srv"}, []string{"terminal", "create", "--json", "--directory=/srv"}, "created shell (id gpu::t1)"},
 		{"create_group", map[string]any{"host": "gpu", "path": "work", "directory": "/srv"}, []string{"create-group", "--json", "--directory=/srv", "--", "work"}, "created group work on gpu"},
 		{"delete_group", map[string]any{"host": "gpu", "path": "work"}, []string{"delete-group", "--json", "--", "work"}, "deleted work; 1 session(s) moved to the root group: gpu::r1 on gpu"},
