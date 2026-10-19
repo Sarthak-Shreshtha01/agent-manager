@@ -19,21 +19,35 @@ import (
 // maxSenderBytes is the longest name the remote send --from takes.
 const maxSenderBytes = 64
 
-// remoteSource is where the server finds the user's SSH connections and
-// the client that reaches them.
+// remoteSource is where the server finds the user's SSH connections, the
+// client that reaches them, and the store that records which session opened
+// a terminal there.
 type remoteSource struct {
 	client      *remote.Client
 	connections func() ([]store.Connection, error)
+	withStore   func(func(*store.Store) error) error
 }
 
-func storeConnections(configDir string) func() ([]store.Connection, error) {
-	return func() ([]store.Connection, error) {
+func storeAt(configDir string) func(func(*store.Store) error) error {
+	return func(use func(*store.Store) error) error {
 		st, err := store.Open(filepath.Join(configDir, "state.db"))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		defer st.Close()
-		return st.Connections()
+		return use(st)
+	}
+}
+
+func storeConnections(withStore func(func(*store.Store) error) error) func() ([]store.Connection, error) {
+	return func() ([]store.Connection, error) {
+		var connections []store.Connection
+		err := withStore(func(st *store.Store) error {
+			var err error
+			connections, err = st.Connections()
+			return err
+		})
+		return connections, err
 	}
 }
 
@@ -41,7 +55,6 @@ func storeConnections(configDir string) func() ([]store.Connection, error) {
 type remoteHosts struct {
 	remoteSource
 	sessionID string
-	noCaller  error
 	sessions  sessionCommands
 	terminals terminalCommands
 }
@@ -74,13 +87,9 @@ type hostRows struct {
 	state remote.HostState
 }
 
-// ready refuses a caller outside Agent Manager, as the local tools do, and
-// picks up a connection the user added, edited or removed in the manager
-// since the last call.
+// ready picks up a connection the user added, edited or removed in the
+// manager since the last call.
 func (h *remoteHosts) ready() ([]remote.Connection, error) {
-	if h.noCaller != nil {
-		return nil, h.noCaller
-	}
 	stored, err := h.connections()
 	if err != nil {
 		return nil, err
@@ -386,11 +395,43 @@ func (h *remoteHosts) createTerminal(ctx context.Context, host string, opts sess
 		return sessioncmd.Terminal{}, err
 	}
 	created, err := h.client.CreateTerminal(ctx, host, opts)
-	return qualifyTerminal(host, created), err
+	if err != nil {
+		return qualifyTerminal(host, created), err
+	}
+	err = h.withStore(func(st *store.Store) error {
+		return st.SetRemoteTerminalOpener(host, created.ID, h.sessionID)
+	})
+	if err != nil {
+		return sessioncmd.Terminal{}, fmt.Errorf("opened terminal %s, but no session can drive it: recording this one as its opener failed: %w", remote.Ref{Host: host, ID: created.ID}, err)
+	}
+	return qualifyTerminal(host, created), nil
+}
+
+// opened refuses a terminal this session did not open, the way a session
+// here drives only the terminals nested under it. The host sees every SSH
+// call as one caller with no session, so it cannot tell agents apart, nor
+// an agent from the user's own T on the connection row.
+func (h *remoteHosts) opened(ref remote.Ref) error {
+	var opener string
+	err := h.withStore(func(st *store.Store) error {
+		var err error
+		opener, err = st.RemoteTerminalOpener(ref.Host, ref.ID)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if opener != h.sessionID {
+		return fmt.Errorf("terminal %s was not opened by this session; a session drives only the terminals it opened on %s with create_terminal", ref, ref.Host)
+	}
+	return nil
 }
 
 func (h *remoteHosts) sendTerminal(ctx context.Context, ref remote.Ref, command string, keys []string) (sessioncmd.TerminalInput, error) {
 	if _, err := h.ready(); err != nil {
+		return sessioncmd.TerminalInput{}, err
+	}
+	if err := h.opened(ref); err != nil {
 		return sessioncmd.TerminalInput{}, err
 	}
 	sent, err := h.client.TerminalSend(ctx, ref, command, keys)
@@ -402,7 +443,19 @@ func (h *remoteHosts) closeTerminal(ctx context.Context, ref remote.Ref) error {
 	if _, err := h.ready(); err != nil {
 		return err
 	}
-	return h.client.TerminalClose(ctx, ref)
+	if err := h.opened(ref); err != nil {
+		return err
+	}
+	if err := h.client.TerminalClose(ctx, ref); err != nil {
+		return err
+	}
+	err := h.withStore(func(st *store.Store) error {
+		return st.DeleteRemoteTerminal(ref.Host, ref.ID)
+	})
+	if err != nil {
+		return fmt.Errorf("closed terminal %s, but forgetting its opener failed: %w", ref, err)
+	}
+	return nil
 }
 
 func (h *remoteHosts) createGroup(ctx context.Context, host, path, directory string) (sessioncmd.Group, error) {
