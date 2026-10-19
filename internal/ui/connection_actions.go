@@ -4,10 +4,11 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/YoanWai/agent-manager/internal/catalog"
+	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
-	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
@@ -152,9 +153,34 @@ func (m *Model) queueRemote(request remoteRequest) tea.Cmd {
 		m.reportErr(refusal)
 		return nil
 	}
+	if refusal, repeated := m.remoteRepeat(request); repeated {
+		m.reportErr(refusal)
+		return nil
+	}
 	m.clearErr()
 	m.enqueueEffect(request, 0, false)
 	return m.nextEffectCmd()
+}
+
+// remoteRepeat refuses a second enter on a composer whose prompt or spawn
+// is still on its way to the host, as the local lane refuses one.
+func (m *Model) remoteRepeat(request remoteRequest) (string, bool) {
+	refusal, guarded := map[remoteOp]string{
+		remoteType:  "this prompt is already being sent",
+		remoteSpawn: "this spawn is already in progress",
+	}[request.op]
+	if !guarded {
+		return "", false
+	}
+	for _, job := range append([]*effectJob{m.effects.remote.active}, m.effects.remote.pending...) {
+		if job == nil {
+			continue
+		}
+		if pending, ok := job.request.(remoteRequest); ok && pending.op == request.op && pending.composerGen == request.composerGen {
+			return refusal, true
+		}
+	}
+	return "", false
 }
 
 func (m *Model) confirmRemoveConnection(name string) {
@@ -207,57 +233,84 @@ func (m *Model) runRemoteAttach(msg remoteAttachReadyMsg) tea.Cmd {
 	return execTerminalProcess(msg.cmd, func(err error) tea.Msg { return remoteAttachDoneMsg{host: host, err: err} })
 }
 
-// remoteQuickKey answers enter in the quick bar when the target is on a
-// connection: a remote agent gets the prompt as a message, a connection or
-// remote group gets a new agent.
-func (m *Model) remoteQuickKey(msg tea.KeyMsg) (tea.Cmd, bool) {
-	if msg.Type != tea.KeyEnter || m.quick.Picking() != uiquick.PickNone {
-		return nil, false
-	}
+// remoteQuickTarget is the connection row the quick bar is pointed at.
+func (m *Model) remoteQuickTarget() (remoteRow, bool) {
+	selection, _ := m.rail.Selected()
+	return m.ssh.row(selection)
+}
+
+// remoteQuickRow is the connection row a send or spawn the quick bar
+// accepted goes to. taken says either end of the bar's aim is on a
+// connection, and refused that the call cannot go, with the reason shown.
+func (m *Model) remoteQuickRow() (row remoteRow, taken, refused bool) {
 	selection, _ := m.rail.Selected()
 	if refusal, lost := m.quickAimLost(selection); lost {
 		m.reportErr(refusal)
-		return nil, true
+		return remoteRow{}, true, true
 	}
 	row, ok := m.ssh.row(selection)
 	if !ok {
-		return nil, false
+		return remoteRow{}, false, false
 	}
-	q := &m.quick
-	switch {
-	case q.pasting():
-		m.reportErr("still reading the pasted image - try again in a moment")
-		return nil, true
-	case len(q.attachments) > 0:
+	if len(m.quick.attachments) > 0 {
 		m.reportErr(uirail.RemoteRefusal("pasted images"))
+		return row, true, true
+	}
+	return row, true, false
+}
+
+// remoteQuickSend types the prompt into a remote agent's pane the way a
+// send does into a local one.
+func (m *Model) remoteQuickSend(text string) (tea.Cmd, bool) {
+	row, taken, refused := m.remoteQuickRow()
+	if !taken || refused {
+		return nil, taken
+	}
+	if row.terminal {
+		m.reportErr(shellPromptHint(row.name))
 		return nil, true
 	}
-	text := q.message()
-	if text == "" {
-		m.reportErr("prompt cannot be empty")
-		return nil, true
+	request := m.quickRemoteRequest(row.host, text)
+	request.op, request.ref, request.name = remoteType, row.ref, row.name
+	return m.queueRemote(request), true
+}
+
+// remoteQuickSpawn starts the bar's spawn in a remote group, with the
+// tool, model, effort and profile it shows.
+func (m *Model) remoteQuickSpawn(spawned spawn.Request) (tea.Cmd, bool) {
+	row, taken, refused := m.remoteQuickRow()
+	if !taken || refused {
+		return nil, taken
 	}
-	request := remoteRequest{host: row.host, text: text, draft: q.input.Value(), composerGen: q.gen, closeAfterSend: q.closeAfterSend}
-	if row.kind == uirail.SessionRow {
-		if row.terminal {
-			m.reportErr(shellPromptHint(row.name))
-			return nil, true
-		}
-		request.op, request.ref, request.name, request.from = remoteSend, row.ref, row.name, m.ssh.from
-		return m.queueRemote(request), true
-	}
-	if strings.HasPrefix(text, "-") {
+	if strings.HasPrefix(spawned.Prompt, "-") {
 		m.reportErr(`prompt cannot start with "-": the tool would read it as a flag`)
 		return nil, true
 	}
 	group := row.group
+	request := m.quickRemoteRequest(row.host, spawned.Prompt)
 	request.op = remoteSpawn
-	request.spawn = sessioncmd.CreateSessionOptions{Tool: q.Tool(), Group: &group, Prompt: text}
-	if q.WorktreeTouched() {
-		worktree := q.Worktree()
+	request.spawn = sessioncmd.CreateSessionOptions{Tool: spawned.Tool, Group: &group, Prompt: spawned.Prompt}
+	withRemoteChoice(&request.spawn, config.Choice(spawned.Pick))
+	if spawned.WorktreeSet {
+		worktree := spawned.Worktree
 		request.spawn.Worktree = &worktree
 	}
 	return m.queueRemote(request), true
+}
+
+func (m *Model) quickRemoteRequest(host, text string) remoteRequest {
+	q := &m.quick
+	return remoteRequest{host: host, text: text, draft: q.input.Value(), composerGen: q.gen, closeAfterSend: q.closeAfterSend}
+}
+
+// withRemoteChoice passes the choice as the host's spawn takes it: the
+// model by its key, which names the provider where the CLI picks per
+// provider.
+func withRemoteChoice(opts *sessioncmd.CreateSessionOptions, choice config.Choice) {
+	if choice.Model != "" {
+		opts.Model = catalog.Model{ID: choice.Model, Provider: choice.Provider}.Key()
+	}
+	opts.Effort, opts.Profile = choice.Effort, choice.Profile
 }
 
 // quickAimLost refuses an enter whose target a refresh moved when either
@@ -308,8 +361,8 @@ func (m *Model) remoteFormSpawn(req spawnRequest) tea.Cmd {
 	target := m.form.remote
 	opts := sessioncmd.CreateSessionOptions{
 		Tool: req.toolName, Group: &target.group, Directory: strings.TrimSpace(req.rawDir), Prompt: req.prompt,
-		Model: req.choice.Model, Effort: req.choice.Effort, Profile: req.choice.Profile,
 	}
+	withRemoteChoice(&opts, req.choice)
 	if !req.autoNamed {
 		opts.Name = req.name
 	}

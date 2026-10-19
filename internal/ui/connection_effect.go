@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
@@ -80,7 +79,7 @@ func (m *Model) applyConnectionEffect(request connectionRequest, result connecti
 type remoteOp uint8
 
 const (
-	remoteSend remoteOp = iota + 1
+	remoteType remoteOp = iota + 1
 	remoteSpawn
 	remoteNewTerminal
 	remoteKill
@@ -99,7 +98,6 @@ type remoteRequest struct {
 	ref      remote.Ref
 	name     string
 	text     string
-	from     string
 	spawn    sessioncmd.CreateSessionOptions
 	terminal sessioncmd.CreateTerminalOptions
 	// groupDir is the directory a new group on the host defaults to; name
@@ -116,7 +114,6 @@ type remoteRequest struct {
 func (remoteRequest) effectRequest() {}
 
 type remoteEffectResult struct {
-	sent    sessioncmd.SendResult
 	session sessioncmd.Session
 }
 
@@ -127,8 +124,8 @@ func (s effectServices) runRemote(request remoteRequest) (effectResult, error) {
 	var result remoteEffectResult
 	var err error
 	switch request.op {
-	case remoteSend:
-		result.sent, err = s.remote.Send(ctx, request.ref, request.text, request.from)
+	case remoteType:
+		result.session, err = s.remote.Type(ctx, request.ref, request.text)
 	case remoteSpawn:
 		result.session, err = s.remote.Spawn(ctx, request.host, request.spawn)
 	case remoteNewTerminal:
@@ -156,13 +153,9 @@ func (m *Model) applyRemoteEffect(request remoteRequest, result remoteEffectResu
 	}
 	on := " on " + request.host
 	switch request.op {
-	case remoteSend:
+	case remoteType:
 		m.quick.clearAccepted(quickSendRequest{composerGen: request.composerGen, draft: request.draft, closeAfterSend: request.closeAfterSend})
-		if result.sent.ManagerAwake {
-			m.reportDone("sent to " + request.name + on)
-		} else {
-			m.reportWarn(fmt.Sprintf("queued for %s%s; it arrives once a manager runs there", request.name, on))
-		}
+		m.reportDone("sent to " + request.name + on)
 	case remoteSpawn:
 		if request.fromForm {
 			if m.mode == modeForm && m.form.prompt.gen == request.composerGen {

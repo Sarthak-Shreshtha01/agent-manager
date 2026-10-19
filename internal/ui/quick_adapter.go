@@ -55,6 +55,9 @@ func (h quickBarHost) Prompt() spawn.Prompt {
 }
 
 func (h quickBarHost) Target() (uiquick.Target, bool) {
+	if row, ok := h.m.remoteQuickTarget(); ok {
+		return uiquick.Target{Group: row.group, IsGroup: row.kind != uirail.SessionRow}, true
+	}
 	entry, ok := h.m.selectedRow()
 	if !ok {
 		return uiquick.Target{}, false
@@ -118,9 +121,6 @@ func (m *Model) applyCachedQuickDefaults() tea.Cmd {
 }
 
 func (m *Model) handleQuickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if cmd, taken := m.remoteQuickKey(msg); taken {
-		return m, cmd
-	}
 	cmd, request := m.quick.HandleKey(m.quickBarHost(), typedText(msg))
 	return m, tea.Batch(cmd, m.runQuickRequest(request))
 }
@@ -137,6 +137,9 @@ func (m *Model) runQuickRequest(request uiquick.Request) tea.Cmd {
 	case request.Close:
 		m.quick.active = false
 	case request.Send:
+		if cmd, taken := m.remoteQuickSend(request.Text); taken {
+			return cmd
+		}
 		entry, _ := m.selectedRow()
 		if !m.dispatchQuickSend(quickSendRequest{
 			session:        entry.sess,
@@ -151,6 +154,9 @@ func (m *Model) runQuickRequest(request uiquick.Request) tea.Cmd {
 		m.clearErr()
 		return m.nextEffectCmd()
 	case request.Spawn != nil:
+		if cmd, taken := m.remoteQuickSpawn(*request.Spawn); taken {
+			return cmd
+		}
 		return m.dispatchQuickSpawn(m.quickSpawnRequest(*request.Spawn), systemDirectoryPreflight{git: m.services.gitDrv})
 	case request.LoadSaved:
 		return savedPromptsLoadCmd(m.services.store, savedForQuick, uint64(m.quick.gen), 0)
@@ -246,6 +252,9 @@ func (m *Model) toggleQuickWorktree() tea.Cmd {
 }
 
 func (m *Model) quickWorktreeOn() bool {
+	if _, remote := m.remoteTarget(); remote {
+		return false
+	}
 	capable, known := m.cachedWorktreeCapability(m.quickTargetDir())
 	if !known || !capable {
 		return false

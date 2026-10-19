@@ -1,12 +1,8 @@
 package ui
 
 import (
-	"os"
 	"slices"
-	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
@@ -27,39 +23,12 @@ type connectionsFeature struct {
 	polling map[string]bool
 	preview remotePreview
 	dialog  connectionDialog
-	// from names the user on this machine to the agent a remote send
-	// reaches.
-	from string
 }
-
-// maxSenderBytes is what send --from accepts on the remote host.
-const maxSenderBytes = 64
 
 func newConnections(client *remote.Client, stored []store.Connection) connectionsFeature {
-	hostname, _ := os.Hostname()
-	c := connectionsFeature{client: client, from: senderName(hostname)}
+	c := connectionsFeature{client: client}
 	c.setList(stored)
 	return c
-}
-
-// senderName is "<short hostname>: you", cut to what send --from takes.
-func senderName(hostname string) string {
-	short, _, _ := strings.Cut(hostname, ".")
-	short = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || r == utf8.RuneError {
-			return -1
-		}
-		return r
-	}, short)
-	const suffix = ": you"
-	if short == "" {
-		return "you"
-	}
-	for len(short)+len(suffix) > maxSenderBytes {
-		_, size := utf8.DecodeLastRuneInString(short)
-		short = short[:len(short)-size]
-	}
-	return short + suffix
 }
 
 // setList adopts the stored connections and hands them to the client; a

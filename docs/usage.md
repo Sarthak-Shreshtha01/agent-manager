@@ -327,6 +327,8 @@ agent-manager spawn --tool claude --group "Sprint Manager" --worktree \
 
 `send <session-id> "<message>" --from <name>` queues a message from a sender with no session on this machine, such as an agent on another machine sending over SSH. The name is up to 64 bytes with no control characters, and `--from` is refused from inside a session, which sends as itself. The delivered message names the sender as being on another machine and says a reply cannot reach it.
 
+`type <session-id> "<prompt>"` submits a prompt in an agent's pane at once, as you, the way quick prompt mode does: no envelope, no queue, no wait for the agent to be at rest. It is how another machine's quick prompt mode answers an agent here over SSH, and it is refused from inside a session, which sends instead.
+
 `terminal create`, `send`, `read` and `close` run with no caller too. There a new terminal hangs under no session, in the group `--group` names or the root, and only terminals opened that way can be driven: a terminal nested under a session stays that session's, and one you opened in the manager or a session opened stays out of reach.
 
 The commands that run with no caller are a convenience for a manager reaching this machine over SSH and for scripts, not an isolation boundary. Anything running as your user can call them, and an agent that drops its session environment is treated as a caller with no session. What they keep is a guardrail: such a caller cannot drive a terminal it did not open, and every `send --from` counts against one shared set of message limits, whatever name it gives.
@@ -390,7 +392,7 @@ The connection sits in the list after your own groups, in its own color with an 
 
 On a connection's rows:
 - `enter` and `A` attach over SSH in this terminal; detaching returns to the manager. A remote pane is never embedded.
-- Quick prompt mode sends to a remote agent as `<this machine's short hostname>: you`, or starts a new agent when a connection or remote group is selected. `n` starts one there too; the directory and the worktree default are the other machine's unless you set them.
+- Quick prompt mode types into a remote agent's pane as you, the way it does on this machine, or starts a new agent on the CLI, model, effort and profile the bar shows when a connection or remote group is selected. `n` starts one there too; the directory and the worktree default are the other machine's unless you set them.
 - `T` opens a terminal there and `g` creates a group there, under the selected one; `x` kills an agent or closes a terminal, `v` revives, `a` and `u` archive and restore.
 - On the connection row itself, `r` edits it and `d` removes it. Removing asks first; its sessions keep running on that host.
 

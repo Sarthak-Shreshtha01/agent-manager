@@ -10,6 +10,7 @@ import (
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // runRemoteCmd runs what an action returned and every effect it queued.
@@ -181,7 +182,7 @@ func TestQuickBarSendsToARemoteAgent(t *testing.T) {
 	m.quick.input.SetValue("hello there")
 	_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.runRemoteCmd(t, cmd)
-	want := []string{"send", "--from=" + m.ssh.from, "--json", "--", "s1", "hello there"}
+	want := []string{"type", "--json", "--", "s1", "hello there"}
 	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], want) {
 		t.Fatalf("calls = %q, want %q", calls, want)
 	}
@@ -328,7 +329,150 @@ func TestQuickBarFollowsAMoveTheUserMakes(t *testing.T) {
 	}
 	_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.runRemoteCmd(t, cmd)
-	if calls := fake.taken(); len(calls) != 1 || calls[0][0] != "send" || !slices.Contains(calls[0], "s2") {
-		t.Fatalf("calls = %q, want a send to s2", calls)
+	if calls := fake.taken(); len(calls) != 1 || calls[0][0] != "type" || !slices.Contains(calls[0], "s2") {
+		t.Fatalf("calls = %q, want a prompt typed into s2", calls)
+	}
+}
+
+// An answer to a remote agent is typed into its pane as the user, the way
+// the local quick bar types one, so the same answer twice goes in twice.
+func TestQuickBarTypesTheSameAnswerTwiceIntoARemoteAgent(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	m.rail.Focus(boxSession("s1"))
+	m.openQuickMode()
+	for range 2 {
+		m.quick.input.SetValue("yes")
+		_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+		m.runRemoteCmd(t, cmd)
+		if m.errBar.text != "sent to api on box" {
+			t.Fatalf("status = %q", m.errBar.text)
+		}
+	}
+	var typed int
+	for _, call := range fake.taken() {
+		if slices.Equal(call, []string{"type", "--json", "--", "s1", "yes"}) {
+			typed++
+		}
+	}
+	if typed != 2 {
+		t.Fatalf("calls = %q, want the answer typed twice", fake.taken())
+	}
+}
+
+// A remote group takes the model, effort and profile keys the way a local
+// one does, and the spawn carries what the bar shows.
+func TestQuickBarChoiceReachesARemoteSpawn(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	answered(m, claudeLike, claudeAnswer)
+	m.rail.Focus(boxGroup)
+	m.openQuickMode()
+	setQuickTool(m, slices.Index(quickTools(m), "claude"))
+	m.quick.RestartChoice(m.spawnHost())
+	ctrl := func(key tea.KeyType) { m.handleQuickKey(tea.KeyMsg{Type: key}) }
+	ctrl(tea.KeyCtrlL)
+	if m.quick.Picking() != uiquick.PickModel {
+		t.Fatalf("ctrl+l on a remote group: picking %d, status %q", m.quick.Picking(), m.errBar.text)
+	}
+	if sheet := ansi.Strip(m.viewQuickBar(120, quickBarMaxRows)); !strings.Contains(sheet, "model for web on box") {
+		t.Fatalf("the model list is not painted:\n%s", sheet)
+	}
+	for _, r := range "opu" {
+		m.handleQuickKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	ctrl(tea.KeyEnter)
+	ctrl(tea.KeyCtrlX)
+	ctrl(tea.KeyCtrlX)
+	if target := strings.Split(ansi.Strip(m.viewQuickBar(120, quickBarMaxRows)), "\n")[0]; !strings.Contains(target, "claude · opus · medium") {
+		t.Fatalf("target row: %s", target)
+	}
+	ctrl(tea.KeyCtrlY)
+	if m.errBar.text != "profile: claude has none" {
+		t.Fatalf("ctrl+y status = %q, want the local answer", m.errBar.text)
+	}
+	m.quick.input.SetValue("build it")
+	_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m.runRemoteCmd(t, cmd)
+	want := []string{"spawn", "--json", "--prompt=build it", "--tool=claude", "--model=opus", "--effort=medium", "--group=web"}
+	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], want) {
+		t.Fatalf("calls = %q, want %q", calls, want)
+	}
+}
+
+// Enter in the saved prompts list inserts the pick before anything is
+// sent, as it does on a local target.
+func TestQuickBarSavedPromptsTakeEnterOnARemoteTarget(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	savePrompt(t, m, "Role", "instruct")
+	m.rail.Focus(boxSession("s1"))
+	m.openQuickMode()
+	_, load := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyCtrlO})
+	m.runBatch(t, load)
+	_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd != nil || !m.remoteIdle() || len(fake.taken()) != 0 || m.errBar.text != "" {
+		t.Fatalf("enter in the list sent %q, status %q", fake.taken(), m.errBar.text)
+	}
+	if got := m.quick.input.Value(); got != savedToken("Role")+" " {
+		t.Fatalf("chip landed as %q", got)
+	}
+	_, cmd = m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m.runRemoteCmd(t, cmd)
+	if calls := fake.taken(); len(calls) == 0 || !slices.Equal(calls[0], []string{"type", "--json", "--", "s1", "instruct"}) {
+		t.Fatalf("calls = %q, want the saved prompt typed", calls)
+	}
+}
+
+// A second enter while the first call is on its way is refused with the
+// words the local lanes use, rather than reaching the host twice.
+func TestRemoteSendAndSpawnRefuseASecondEnterInFlight(t *testing.T) {
+	cases := []struct {
+		name   string
+		target uirail.Selection
+		submit func(m *Model) tea.Cmd
+		op     string
+		want   string
+	}{
+		{"quick bar answer", boxSession("s1"), func(m *Model) tea.Cmd {
+			_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+			return cmd
+		}, "type", "this prompt is already being sent"},
+		{"quick bar spawn", boxGroup, func(m *Model) tea.Cmd {
+			_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+			return cmd
+		}, "spawn", "this spawn is already in progress"},
+		{"New Session form", boxGroup, func(m *Model) tea.Cmd {
+			_, cmd := m.submitForm()
+			return cmd
+		}, "spawn", "this spawn is already in progress"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeSSH{}
+			m := connectedModel(t, fake)
+			m.rail.Focus(tc.target)
+			if tc.name == "New Session form" {
+				m.openForm()
+				m.form.SetName("job")
+			} else {
+				m.openQuickMode()
+				m.quick.input.SetValue("go on")
+			}
+			first := tc.submit(m)
+			if second := tc.submit(m); second != nil || m.errBar.text != tc.want {
+				t.Fatalf("second enter: cmd %v, status %q, want %q", second != nil, m.errBar.text, tc.want)
+			}
+			m.runRemoteCmd(t, first)
+			var calls int
+			for _, call := range fake.taken() {
+				if call[0] == tc.op {
+					calls++
+				}
+			}
+			if calls != 1 {
+				t.Fatalf("calls = %q, want one %s", fake.taken(), tc.op)
+			}
+		})
 	}
 }
