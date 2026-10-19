@@ -715,7 +715,7 @@ func TestClickOnRailLastColumnSelectsRow(t *testing.T) {
 
 // A click past the divider, in the content column, must not steal the
 // selection: the rail is what click-to-select owns.
-func TestClickInContentColumnDoesNotSelect(t *testing.T) {
+func TestClickInContentColumnFocusesTheSelectedSession(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
 	createSession(t, m, "alpha", t.TempDir(), "")
@@ -725,13 +725,16 @@ func TestClickInContentColumnDoesNotSelect(t *testing.T) {
 
 	preparedView(m)
 	y0, _ := m.bodyYRange()
-	updated, cmd := m.handleMouse(tea.MouseMsg{
+	updated, _ := m.handleMouse(tea.MouseMsg{
 		X: m.dividerX() + 5, Y: y0, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft,
 	})
 	m = updated.(*Model)
 	m.drainEffects(t)
-	if m.rail.Cursor() != before || cmd != nil {
+	if m.rail.Cursor() != before {
 		t.Fatal("a click in the content column should not move the cursor")
+	}
+	if sess, ok := m.selected(); m.mode != modeFocus || !ok || sess.Name != "beta" {
+		t.Fatalf("a click in the content column should focus beta, mode = %v", m.mode)
 	}
 }
 
@@ -1417,6 +1420,79 @@ func leftPress(m *Model, x, y int) *Model {
 	return updated.(*Model)
 }
 
+// wheel turns the wheel one notch over x, y.
+func wheel(m *Model, button tea.MouseButton, x, y int) *Model {
+	updated, _ := m.handleMouse(tea.MouseMsg{X: x, Y: y, Action: tea.MouseActionPress, Button: button})
+	return updated.(*Model)
+}
+
+// wheelOnCard turns the wheel one notch over the middle of the open card.
+func wheelOnCard(m *Model, button tea.MouseButton) *Model {
+	preparedView(m)
+	card := m.layout.card
+	return wheel(m, button, (card.left+card.right)/2, (card.top+card.bottom)/2)
+}
+
+// paintedAt is where text starts on the frame row that paints it, the
+// lowest such row when fromBottom.
+func paintedAt(m *Model, text string, fromBottom bool) (x, y int, ok bool) {
+	rows := strings.Split(ansi.Strip(preparedView(m)), "\n")
+	for i := range rows {
+		row := i
+		if fromBottom {
+			row = len(rows) - 1 - i
+		}
+		if col := strings.Index(rows[row], text); col >= 0 {
+			return ansi.StringWidth(rows[row][:col]), row, true
+		}
+	}
+	return 0, 0, false
+}
+
+// paintedCell is where label starts on the lowest frame row that paints
+// it, which is a footer or a card's foot before any body row.
+func paintedCell(t *testing.T, m *Model, label string) (x, y int) {
+	t.Helper()
+	x, y, ok := paintedAt(m, label, true)
+	if !ok {
+		t.Fatalf("test setup: the frame painted no %q:\n%s", label, ansi.Strip(m.View()))
+	}
+	return x, y
+}
+
+// bodyCell is where text starts on the highest frame row that paints it,
+// which is a card's body before its foot.
+func bodyCell(t *testing.T, m *Model, text string) (x, y int) {
+	t.Helper()
+	x, y, ok := paintedAt(m, text, false)
+	if !ok {
+		t.Fatalf("test setup: the frame painted no %q:\n%s", text, ansi.Strip(m.View()))
+	}
+	return x, y
+}
+
+func paints(m *Model, text string) bool {
+	_, _, ok := paintedAt(m, text, false)
+	return ok
+}
+
+// clickLabel clicks a key a footer or a card's foot painted.
+func clickLabel(t *testing.T, m *Model, label string) *Model {
+	t.Helper()
+	x, y := paintedCell(t, m, label)
+	m = leftPress(m, x, y)
+	m.drainEffects(t)
+	return m
+}
+
+// clickBody clicks where a card's body painted text.
+func clickBody(t *testing.T, m *Model, text string) (*Model, tea.Cmd) {
+	t.Helper()
+	x, y := bodyCell(t, m, text)
+	updated, cmd := m.handleMouse(tea.MouseMsg{X: x, Y: y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	return updated.(*Model), cmd
+}
+
 func TestClickOnMessagesCardOpensNotices(t *testing.T) {
 	t.Parallel()
 	m := buildModel(t)
@@ -1437,8 +1513,8 @@ func TestMessagesLegendOpensNoticesByMouseAndKey(t *testing.T) {
 				m.prefs.hideStats = true
 				m.services.listKeys = m.services.listKeys.With(keybind.Messages, bindingOf(t, binding))
 				x, y := messagesCell(t, m)
-				if !m.notices.noticeHit.contains(x, y) {
-					t.Fatalf("full=%v width=%d binding=%s: painted messages entry misses its hit box %+v", full, width, binding, m.notices.noticeHit)
+				if _, ok := m.layout.keyHits.at(x, y); !ok {
+					t.Fatalf("full=%v width=%d binding=%s: painted messages entry misses its hit box %+v", full, width, binding, m.layout.keyHits)
 				}
 				if m = leftPress(m, x, y); m.mode != modeNotices {
 					t.Fatalf("click on messages should open notices, mode=%v", m.mode)

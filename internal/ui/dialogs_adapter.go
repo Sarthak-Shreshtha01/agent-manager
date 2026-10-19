@@ -227,6 +227,18 @@ func (m *Model) handleMoveKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleMoveClick moves the picker's cursor to the target a click landed on,
+// and moves the row there on a click on the target already under it.
+func (m *Model) handleMoveClick(line int) (tea.Model, tea.Cmd) {
+	switch {
+	case line < 0 || line >= len(m.form.groups):
+		return m, nil
+	case line != m.form.groupIndex:
+		return m, m.moveGroupCursor(line - m.form.groupIndex)
+	}
+	return m.handleMoveKey(tea.KeyMsg{Type: tea.KeyEnter})
+}
+
 func (m *Model) viewMove() string {
 	return m.card(uidialogs.MoveTitle, m.viewGroupPicker(), uidialogs.MoveHints())
 }
