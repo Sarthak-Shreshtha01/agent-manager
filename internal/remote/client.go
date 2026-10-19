@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/YoanWai/agent-manager/internal/remote/value"
 )
 
 const (
@@ -165,7 +167,7 @@ func (c *Client) call(ctx context.Context, host string, timeout time.Duration, a
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	argv := c.sshArgv(conn.Destination, false, remoteCommand(conn.program(), args))
+	argv := c.sshArgv(conn.Destination, false, remoteCommand(program(conn), args))
 	stdout, stderr, err := c.run(ctx, argv)
 	out, marked := answer(stdout)
 	if err != nil {
@@ -184,22 +186,15 @@ type Error struct {
 	trouble Trouble
 }
 
-// Trouble is the kind of failure that kept a call from a host's manager, so
-// a row can say it in a word or two.
-type Trouble uint8
+// Trouble is the kind of failure that kept a call from a host's manager.
+type Trouble = value.Trouble
 
 const (
-	// TroubleFailed is any other failure, such as the command refusing.
-	TroubleFailed Trouble = iota
-	// TroubleUnreachable is ssh's own failure, or a host that did not
-	// answer in time.
-	TroubleUnreachable
-	// TroubleMissing is no agent-manager where the call looked for it.
-	TroubleMissing
-	// TroubleOutdated is an agent-manager there too old for this one.
-	TroubleOutdated
-	// TroubleNewer is an agent-manager there newer than this one.
-	TroubleNewer
+	TroubleFailed      = value.TroubleFailed
+	TroubleUnreachable = value.TroubleUnreachable
+	TroubleMissing     = value.TroubleMissing
+	TroubleOutdated    = value.TroubleOutdated
+	TroubleNewer       = value.TroubleNewer
 )
 
 func TroubleOf(err error) Trouble {

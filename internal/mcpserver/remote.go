@@ -400,53 +400,18 @@ func (h *remoteHosts) createTerminal(ctx context.Context, host string, opts sess
 	if _, err := h.ready(); err != nil {
 		return sessioncmd.Terminal{}, err
 	}
-	created, err := h.client.CreateTerminal(ctx, host, opts)
+	created, err := h.remoteTerminals().Open(ctx, host, h.sessionID, opts)
 	if err != nil {
-		return qualifyTerminal(host, created), err
-	}
-	err = h.withStore(func(st *store.Store) error {
-		return st.SetRemoteTerminalOpener(host, created.ID, h.sessionID)
-	})
-	if err != nil {
-		// Nobody could drive it but the user, so it is closed rather than
-		// left running on the host.
-		ref := remote.Ref{Host: host, ID: created.ID}
-		if closeErr := h.client.TerminalClose(ctx, ref); closeErr != nil {
-			return sessioncmd.Terminal{}, fmt.Errorf("opened terminal %s, but recording this session as its opener failed (%w), and closing it failed too: %v", ref, err, closeErr)
-		}
-		return sessioncmd.Terminal{}, fmt.Errorf("recording this session as the opener of terminal %s failed, so it was closed again: %w", ref, err)
+		return sessioncmd.Terminal{}, err
 	}
 	return qualifyTerminal(host, created), nil
-}
-
-// opened refuses a terminal this session did not open, the way a session
-// here drives only the terminals nested under it. The host sees every SSH
-// call as one caller with no session, so it cannot tell agents apart, nor
-// an agent from the user's own T on the connection row.
-func (h *remoteHosts) opened(ref remote.Ref) error {
-	var opener string
-	err := h.withStore(func(st *store.Store) error {
-		var err error
-		opener, err = st.RemoteTerminalOpener(ref.Host, ref.ID)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	if opener != h.sessionID {
-		return fmt.Errorf("terminal %s was not opened by this session; a session drives only the terminals it opened on %s with create_terminal", ref, ref.Host)
-	}
-	return nil
 }
 
 func (h *remoteHosts) sendTerminal(ctx context.Context, ref remote.Ref, command string, keys []string) (sessioncmd.TerminalInput, error) {
 	if _, err := h.ready(); err != nil {
 		return sessioncmd.TerminalInput{}, err
 	}
-	if err := h.opened(ref); err != nil {
-		return sessioncmd.TerminalInput{}, err
-	}
-	sent, err := h.client.TerminalSend(ctx, ref, command, keys)
+	sent, err := h.remoteTerminals().Send(ctx, ref, h.sessionID, command, keys)
 	sent.TerminalID = ref.String()
 	return sent, err
 }
@@ -455,19 +420,31 @@ func (h *remoteHosts) closeTerminal(ctx context.Context, ref remote.Ref) error {
 	if _, err := h.ready(); err != nil {
 		return err
 	}
-	if err := h.opened(ref); err != nil {
+	return h.remoteTerminals().Close(ctx, ref, h.sessionID)
+}
+
+func (h *remoteHosts) remoteTerminals() remote.Terminals {
+	return h.client.Terminals(storeOpeners(h.withStore))
+}
+
+// storeOpeners opens the store for each record, as the server does for
+// every other call.
+type storeOpeners func(func(*store.Store) error) error
+
+func (w storeOpeners) SetRemoteTerminalOpener(host, terminalID, sessionID string) error {
+	return w(func(st *store.Store) error { return st.SetRemoteTerminalOpener(host, terminalID, sessionID) })
+}
+
+func (w storeOpeners) RemoteTerminalOpener(host, terminalID string) (opener string, err error) {
+	err = w(func(st *store.Store) error {
+		opener, err = st.RemoteTerminalOpener(host, terminalID)
 		return err
-	}
-	if err := h.client.TerminalClose(ctx, ref); err != nil {
-		return err
-	}
-	err := h.withStore(func(st *store.Store) error {
-		return st.DeleteRemoteTerminal(ref.Host, ref.ID)
 	})
-	if err != nil {
-		return fmt.Errorf("closed terminal %s, but forgetting its opener failed: %w", ref, err)
-	}
-	return nil
+	return opener, err
+}
+
+func (w storeOpeners) DeleteRemoteTerminal(host, terminalID string) error {
+	return w(func(st *store.Store) error { return st.DeleteRemoteTerminal(host, terminalID) })
 }
 
 func (h *remoteHosts) createGroup(ctx context.Context, host, path, directory string) (sessioncmd.Group, error) {

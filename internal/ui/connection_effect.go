@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
@@ -100,8 +99,7 @@ const (
 	remoteCreateGroup
 )
 
-// remoteRequest is one call to a connection's CLI. The local store only
-// forgets the opener of a terminal it closes.
+// remoteRequest is one call to a connection's CLI.
 type remoteRequest struct {
 	op       remoteOp
 	host     string
@@ -145,12 +143,7 @@ func (s effectServices) runRemote(request remoteRequest) (effectResult, error) {
 	case remoteKill:
 		result.session, err = s.remote.Kill(ctx, request.ref)
 	case remoteCloseTerminal:
-		err = s.remote.TerminalClose(ctx, request.ref)
-		if err == nil {
-			if forget := s.store.DeleteRemoteTerminal(request.ref.Host, request.ref.ID); forget != nil {
-				err = fmt.Errorf("closed terminal %s, but forgetting which session opened it failed: %w", request.ref, forget)
-			}
-		}
+		err = s.remote.Terminals(s.store).CloseForUser(ctx, request.ref)
 	case remoteRevive:
 		result.session, err = s.remote.Revive(ctx, request.ref)
 	case remoteArchive, remoteRestore:

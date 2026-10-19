@@ -108,7 +108,7 @@ func TestRemoteCommandRoundTripsThroughLoginShell(t *testing.T) {
 	for _, shell := range shells {
 		for label, conn := range programs {
 			t.Run(filepath.Base(shell)+"/"+label, func(t *testing.T) {
-				command := remoteCommand(conn.program(), awkwardArgs)
+				command := remoteCommand(program(conn), awkwardArgs)
 				cmd := exec.Command(shell, "-c", command)
 				cmd.Env = []string{"HOME=" + home, "PATH=/usr/bin:/bin", "SHELL=" + shell, fakeArgvEnv + "=1"}
 				stdout, err := cmd.Output()

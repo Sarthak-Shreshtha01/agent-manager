@@ -21,7 +21,7 @@ var (
 	reviewBoundary   = boundary{"Review", "/internal/ui/review", []string{"/internal/ui/review", "/internal/diff/model", "/internal/git/value", "/internal/ui/presentation"}}
 	focusBoundary    = boundary{"Focus", "/internal/ui/focus", []string{"/internal/ui/focus"}}
 	watchBoundary    = boundary{"Focus watch", "/internal/ui/focus/watch", []string{"/internal/ui/focus/watch", "/internal/tmux", "/internal/deps", "/internal/keybind", "/internal/proctree", "/internal/pwsh"}}
-	railBoundary     = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/ui/presentation", "/internal/ui/theme"}}
+	railBoundary     = boundary{"Rail", "/internal/ui/rail", []string{"/internal/ui/rail", "/internal/keybind", "/internal/remote/value", "/internal/ui/presentation", "/internal/ui/theme"}}
 	settingsBoundary = boundary{"Settings", "/internal/ui/settings", []string{"/internal/ui/settings", "/internal/keybind", "/internal/ui/presentation", "/internal/ui/theme"}}
 	themeBoundary    = boundary{"Theme", "/internal/ui/theme", []string{"/internal/ui/theme"}}
 	spawnBoundary    = boundary{"Spawn", "/internal/ui/spawn", []string{"/internal/ui/spawn", "/internal/catalog/value", "/internal/ui/presentation"}}
@@ -31,10 +31,11 @@ var (
 	valueBoundary    = boundary{"Git values", "/internal/git/value", []string{"/internal/git/value"}}
 	catalogBoundary  = boundary{"Catalog values", "/internal/catalog/value", []string{"/internal/catalog/value"}}
 	presentBoundary  = boundary{"Presentation", "/internal/ui/presentation", []string{"/internal/ui/presentation"}}
+	remoteBoundary   = boundary{"Remote values", "/internal/remote/value", []string{"/internal/remote/value"}}
 )
 
 func main() {
-	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, watchBoundary, railBoundary, settingsBoundary, themeBoundary, spawnBoundary, quickBoundary, dialogsBoundary, noticesBoundary, diffBoundary, valueBoundary, catalogBoundary, presentBoundary} {
+	for _, feature := range []boundary{helpBoundary, reviewBoundary, focusBoundary, watchBoundary, railBoundary, settingsBoundary, themeBoundary, spawnBoundary, quickBoundary, dialogsBoundary, noticesBoundary, diffBoundary, valueBoundary, catalogBoundary, presentBoundary, remoteBoundary} {
 		if err := checkBoundary(feature); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

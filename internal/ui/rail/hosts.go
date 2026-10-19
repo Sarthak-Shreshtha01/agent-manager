@@ -31,10 +31,6 @@ type Host struct {
 	Sessions       []Session
 }
 
-// hostSeparator joins a connection to a remote id in row keys. A connection
-// name cannot hold it or end with ":", so the first one ends the name.
-const hostSeparator = "::"
-
 // HostFold is a folded row on a connection: the connection's own row when
 // Path is empty, otherwise one of its groups. Folds on connections are kept
 // apart from local ones, since a local group path can hold any text,

@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	remote "github.com/YoanWai/agent-manager/internal/remote/value"
 )
 
 // Session is the copied subset of a workspace session that Rail uses for
@@ -79,12 +81,12 @@ func (s Selection) key() string {
 		return "c:" + s.Host
 	case GroupRow:
 		if s.Host != "" {
-			return "rg:" + s.Host + hostSeparator + s.Group
+			return "rg:" + remote.Ref{Host: s.Host, ID: s.Group}.String()
 		}
 		return "g:" + s.Group
 	}
 	if s.Host != "" {
-		return "rs:" + s.Host + hostSeparator + s.SessionID
+		return "rs:" + remote.Ref{Host: s.Host, ID: s.SessionID}.String()
 	}
 	return "s:" + s.SessionID
 }
