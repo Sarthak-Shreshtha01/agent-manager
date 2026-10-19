@@ -109,6 +109,43 @@ func (s *Sessions) SendFrom(sessionID, senderName, targetID, message string) (Se
 	})
 }
 
+// Type submits a prompt in an agent's pane now, as the user, the way the
+// quick bar does: no envelope, no queue, no wait for the agent to be at
+// rest. It is the quick bar of a manager on another machine, so it serves
+// only a caller with no session here; a session sends, which waits.
+func (s *Sessions) Type(sessionID, targetID, prompt string) (Session, error) {
+	if sessionID != "" {
+		return Session{}, fmt.Errorf("typing a prompt is for the user's quick bar on another machine; session %s sends with %s, which waits until the agent is at rest", sessionID, s.words.Send)
+	}
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return Session{}, errors.New("prompt cannot be empty")
+	}
+	runtime, err := s.open()
+	if err != nil {
+		return Session{}, err
+	}
+	defer runtime.Close()
+	target, err := runtime.agent(targetID)
+	if err != nil {
+		return Session{}, err
+	}
+	if !runtime.driver.Exists(target.ID) {
+		return Session{}, fmt.Errorf("session %s is not running; revive it with %s first", target.ID, runtime.words.Revive)
+	}
+	sent, err := runtime.driver.SendTextResult(target.ID, prompt)
+	if err != nil {
+		if sent.PasteMayHaveStarted() {
+			return Session{}, fmt.Errorf("prompt may have reached %s and was not sent again: %w", target.Name, err)
+		}
+		return Session{}, fmt.Errorf("prompt was not sent to %s: %w", target.Name, err)
+	}
+	if err := runtime.store.RecordQuickSendForLaunch(target, prompt); err != nil {
+		return Session{}, fmt.Errorf("prompt sent, but recording it for the row failed: %w", err)
+	}
+	return runtime.sessionInfo(target, true, false), nil
+}
+
 func validSenderName(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return errors.New("sender name is empty")

@@ -53,6 +53,10 @@ func TestOperationArgv(t *testing.T) {
 			_, err := c.Send(ctx, ref, text, "laptop agent")
 			return err
 		}, []string{"send", "--from=laptop agent", "--json", "--", "a1b2c3d4", text}},
+		{"type", func(ctx context.Context, c *Client) error {
+			_, err := c.Type(ctx, ref, text)
+			return err
+		}, []string{"type", "--json", "--", "a1b2c3d4", text}},
 		{"spawn bare", func(ctx context.Context, c *Client) error {
 			_, err := c.Spawn(ctx, "gpu", sessioncmd.CreateSessionOptions{})
 			return err
@@ -141,6 +145,8 @@ func TestUnsafeIDsNeverReachSSH(t *testing.T) {
 	_, err = c.ReadTerminal(ctx, bad)
 	errs = append(errs, err)
 	_, err = c.Send(ctx, bad, "hi", "me")
+	errs = append(errs, err)
+	_, err = c.Type(ctx, bad, "hi")
 	errs = append(errs, err)
 	_, err = c.TerminalSend(ctx, bad, "ls", nil)
 	errs = append(errs, err)
@@ -289,6 +295,9 @@ func TestUnknownCommandIsTooOldNotUnreadable(t *testing.T) {
 	_, err := c.TerminalSend(context.Background(), Ref{Host: "gpu", ID: "a1"}, "ls", nil)
 	if err == nil || err.Error() != "gpu: agent-manager there is too old for SSH connections; update agent-manager on that host" {
 		t.Fatalf("unknown command = %v", err)
+	}
+	if _, err := c.Type(context.Background(), Ref{Host: "gpu", ID: "a1"}, "yes"); err == nil || err.Error() != "gpu: agent-manager there is too old for SSH connections; update agent-manager on that host" {
+		t.Fatalf("type on a host that predates it = %v", err)
 	}
 	c = newTestClient(t, func(context.Context, []string) ([]byte, []byte, error) {
 		return []byte("closed terminal a1\n"), nil, nil

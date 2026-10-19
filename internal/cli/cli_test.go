@@ -81,6 +81,12 @@ func (f *fakeSessions) SendFrom(sessionID, senderName, targetID, message string)
 	return sessioncmd.SendResult{MessageID: 8, QueuePosition: 2}, f.failWith
 }
 
+func (f *fakeSessions) Type(sessionID, targetID, prompt string) (sessioncmd.Session, error) {
+	f.callerID, f.targetID, f.message = sessionID, targetID, prompt
+	f.callCount++
+	return f.session, f.failWith
+}
+
 func (f *fakeSessions) ExpandSaved(name, text string) (string, error) {
 	text = strings.TrimSpace(text)
 	if strings.TrimSpace(name) == "" {
@@ -261,6 +267,7 @@ func TestALayerFailureReachesTheCaller(t *testing.T) {
 		{"spawn", nil, func(out io.Writer, args []string) error { return runSpawn(out, sessions, args, "cafe0001") }},
 		{"send", []string{"beef1234", "ship it"}, func(out io.Writer, args []string) error { return runSend(out, sessions, args, "cafe0001") }},
 		{"send --from", []string{"beef1234", "ship it", "--from", "laptop-agent"}, func(out io.Writer, args []string) error { return runSend(out, sessions, args, "") }},
+		{"type", []string{"beef1234", "ship it"}, func(out io.Writer, args []string) error { return runType(out, sessions, args, "") }},
 		{"read", []string{"beef1234"}, func(out io.Writer, args []string) error { return runRead(out, sessions, args, "cafe0001") }},
 		{"wait", []string{"beef1234"}, func(out io.Writer, args []string) error { return runWait(out, sessions, args, "cafe0001") }},
 		{"message-status", []string{"7"}, func(out io.Writer, args []string) error { return runMessageStatus(out, sessions, args, "cafe0001") }},
@@ -528,7 +535,7 @@ func TestCommandsThatActAsNoSessionNeverResolveACaller(t *testing.T) {
 func TestCommandsAndHelpCoverEverySection(t *testing.T) {
 	table := Commands("dev", sampleSpecs)
 	registered := []string{
-		"sessions", "snapshot", "spawn", "send", "read", "wait", "message-status", "kill", "revive", "archive", "archive-self", "kill-self", "prompts",
+		"sessions", "snapshot", "spawn", "send", "type", "read", "wait", "message-status", "kill", "revive", "archive", "archive-self", "kill-self", "prompts",
 		"groups", "create-group", "delete-group", "task", "reserve", "release-files", "reservations", "terminal",
 		"rename", "review-repo", "review-base", "review-mode", "review-comment", "issue", "feature", "settings", "update",
 	}

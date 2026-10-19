@@ -42,6 +42,9 @@ func (q *Bar) View(h Host, facts Facts, width, maxRows int) string {
 	if facts.Remote != "" {
 		target = label("answer") + facts.Remote
 		if facts.RemoteSpawn {
+			if q.picking != PickNone {
+				return q.viewSheet(h, facts, width, maxRows, facts.Remote)
+			}
 			target = q.statusRow(h, facts, label("new")+facts.Remote, width, 0)
 		}
 	} else if selected, ok := h.Target(); ok {

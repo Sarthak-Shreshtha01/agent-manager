@@ -54,6 +54,7 @@ The protocol is the remote host's own CLI, run over SSH as
 | Start the manager | `serve --background` |
 | Read a screen | `read <id> --json`, `terminal read <id> --json` |
 | Message an agent | `send --from=<sender> --json -- <id> <text>` |
+| Answer an agent from the quick bar | `type --json -- <id> <text>` |
 | Spawn | `spawn --json ...`, `terminal create --json ...` |
 | Lifecycle | `kill`, `revive`, `archive [--restore]`, `terminal close` |
 | Groups | `create-group`, `delete-group` |
@@ -83,6 +84,8 @@ run without one:
 - `send --from` names the sender, at most 64 bytes. The delivered message says
   it came from another of the user's machines and that a reply cannot reach
   it. Every `--from` sender shares one rate limit per target.
+- `type` submits the user's quick bar prompt in an agent's pane at once, as
+  the local quick bar does. It is refused from inside a session.
 
 Tasks, file reservations, rename and review still need a calling session.
 
