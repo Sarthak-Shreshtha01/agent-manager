@@ -400,6 +400,34 @@ func TestQuickBarChoiceReachesARemoteSpawn(t *testing.T) {
 	}
 }
 
+// The kept choice is this machine's: a remote spawn starts on the host's
+// defaults, and what the user picks for the host is not kept here.
+func TestRemoteSpawnLeavesThisMachinesChoiceAlone(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	answered(m, claudeLike, claudeAnswer)
+	const kept = `{"model":"opus","effort":"high"}`
+	m.settings.cache.applyValues([]settingValue{{Key: "choice.claude", Value: kept}})
+	m.rail.Focus(boxGroup)
+	m.openQuickMode()
+	setQuickTool(m, slices.Index(quickTools(m), "claude"))
+	if target := strings.Split(ansi.Strip(m.viewQuickBar(120, quickBarMaxRows)), "\n")[0]; strings.Contains(target, "opus") {
+		t.Fatalf("a remote bar starts on this machine's choice: %s", target)
+	}
+	m.handleQuickKey(tea.KeyMsg{Type: tea.KeyCtrlX})
+	if got := m.settings.cache.value("choice.claude"); got != kept {
+		t.Fatalf("a pick for the host was kept as this machine's: %s", got)
+	}
+	m.quick.RestartChoice(m.spawnHost())
+	m.quick.input.SetValue("build it")
+	_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m.runRemoteCmd(t, cmd)
+	want := []string{"spawn", "--json", "--prompt=build it", "--tool=claude", "--group=web"}
+	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], want) {
+		t.Fatalf("calls = %q, want %q", calls, want)
+	}
+}
+
 // Enter in the saved prompts list inserts the pick before anything is
 // sent, as it does on a local target.
 func TestQuickBarSavedPromptsTakeEnterOnARemoteTarget(t *testing.T) {

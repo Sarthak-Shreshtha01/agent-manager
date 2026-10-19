@@ -96,8 +96,10 @@ func (m *Model) openQuickModeWithReader(reader settingsValueReader) tea.Cmd {
 		active:         true,
 		composer:       composer{input: input, maxRows: quickBarMaxRows, gen: m.nextComposerGen()},
 		closeAfterSend: m.settings.cache.value(uisettings.QuickCloseSetting) == "close",
-		Bar:            uiquick.NewBar(m.spawnHost(), names, index, m.cachedSpawnWorktreeDefault(m.quickTargetGroup())),
 	}
+	// The bar is active before its choice starts, so a bar aimed at a
+	// connection starts on the host's defaults.
+	m.quick.Bar = uiquick.NewBar(m.spawnHost(), names, index, m.cachedSpawnWorktreeDefault(m.quickTargetGroup()))
 	catalog := m.ensureCatalog(names[index])
 	if m.settings.pending > 0 {
 		return tea.Batch(m.quickWorktreeProbeCmd(false), catalog)

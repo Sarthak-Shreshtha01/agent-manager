@@ -247,6 +247,9 @@ func (m *Model) openFormWithReader(reader settingsValueReader) tea.Cmd {
 		m.form.aimRemote(target)
 	}
 	m.mode = modeForm
+	if m.form.remote.on() {
+		m.form.RestartChoice(m.spawnHost())
+	}
 	catalog := m.ensureCatalog(tools[toolIndex])
 	saved := savedPromptsLoadCmd(m.services.store, savedForForm, uint64(m.form.prompt.gen), 0)
 	if m.settings.pending > 0 {
