@@ -166,6 +166,8 @@ func TestErrors(t *testing.T) {
 			"gpu: agent-manager is not on the login shell's PATH there; install it, add it to PATH in the login profile, or set the connection's path", false},
 		{"remote refused", "agent-manager: session a1 is not running\n", exitStatus(1), "gpu: session a1 is not running", false},
 		{"remote silent", "", exitStatus(1), "gpu: exit status 1", false},
+		{"tcsh login shell", "Unknown option: `-lc'\nUsage: tcsh [ -bcdefilmnqstvVxX ] [ argument ... ].\n", exitStatus(1),
+			"gpu: the login shell there is csh or tcsh; SSH connections need a POSIX login shell such as sh, bash or zsh", false},
 		{"ssh not installed", "", errors.New(`exec: "ssh": executable file not found in $PATH`), `gpu: exec: "ssh": executable file not found in $PATH`, false},
 	}
 	for _, tc := range cases {

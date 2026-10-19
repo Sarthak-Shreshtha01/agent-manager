@@ -26,6 +26,10 @@ const (
 
 var errOverflow = errors.New("output past its cap")
 
+// errTooLong is an answer cut at maxStdout. What arrived is not JSON, but
+// it says nothing about the host's version.
+var errTooLong = fmt.Errorf("answered with more than %d MiB", maxStdout>>20)
+
 func runSSH(ctx context.Context, argv []string) ([]byte, []byte, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	stdout, stderr := &cappedBuffer{max: maxStdout}, &cappedBuffer{max: maxStderr}
@@ -35,7 +39,7 @@ func runSSH(ctx context.Context, argv []string) ([]byte, []byte, error) {
 	err := cmd.Run()
 	switch {
 	case stdout.over:
-		err = fmt.Errorf("answered with more than %d MiB", maxStdout>>20)
+		err = errTooLong
 	case stderr.over:
 		err = fmt.Errorf("printed more than %d KiB of errors", maxStderr>>10)
 	// ssh exited cleanly and its answer is whole; only a helper outside its

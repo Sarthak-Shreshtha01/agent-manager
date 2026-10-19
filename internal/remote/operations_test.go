@@ -218,6 +218,7 @@ func TestSnapshot(t *testing.T) {
 		{"interactive manager instead", "\x1b[?1007l\x1b]10;#ffffff\x07", "agent-manager: could not open a new TTY: open /dev/tty: device not configured\n", exitStatus(1), tooOld, TroubleOutdated},
 		{"not json", "Usage: agent-manager", "", nil, "gpu: unreadable answer to snapshot: invalid character 'U' looking for beginning of value", TroubleFailed},
 		{"remote failure", "", "agent-manager: database is locked\n", exitStatus(1), "gpu: database is locked", TroubleFailed},
+		{"cut at the cap", `{"version":1,"sessions":[{"id":"a1","name":"`, "", errTooLong, "gpu: answered with more than 8 MiB", TroubleFailed},
 		{"missing", "", "sh: agent-manager: not found\n", exitStatus(127), "gpu: agent-manager is not on the login shell's PATH there; install it, add it to PATH in the login profile, or set the connection's path", TroubleMissing},
 		{"unreachable", "", "ssh: Could not resolve hostname gpu\n", exitStatus(255), "gpu: unreachable over SSH: ssh: Could not resolve hostname gpu", TroubleUnreachable},
 	}

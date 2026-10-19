@@ -254,6 +254,10 @@ func classify(ctx context.Context, conn Connection, stderr []byte, err error) er
 		}
 		return &Error{Host: host, Err: errors.New("agent-manager is not on the login shell's PATH there; install it, add it to PATH in the login profile, or set the connection's path"), trouble: TroubleMissing}
 	}
+	if bytes.Contains(stderr, []byte("Unknown option: `-lc'")) {
+		// csh and tcsh take -l only on its own, and say so with their usage.
+		return &Error{Host: host, Err: errors.New("the login shell there is csh or tcsh; SSH connections need a POSIX login shell such as sh, bash or zsh")}
+	}
 	if text == "" {
 		return &Error{Host: host, Err: err}
 	}
@@ -273,7 +277,7 @@ func (c *Client) decode(ctx context.Context, host string, timeout time.Duration,
 		// A command an older agent-manager does not know falls through to
 		// its interactive manager, which fails without a terminal after
 		// printing escape sequences instead of JSON.
-		if !Unreachable(err) && len(bytes.TrimSpace(out)) > 0 && !json.Valid(out) {
+		if !Unreachable(err) && !errors.Is(err, errTooLong) && len(bytes.TrimSpace(out)) > 0 && !json.Valid(out) {
 			return outdated(host)
 		}
 		return err

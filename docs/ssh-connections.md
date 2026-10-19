@@ -122,7 +122,7 @@ stays down.
 ## Platforms
 
 The local machine can be Linux, macOS or Windows. The remote host must be Linux or macOS, since the remote command runs in a
-POSIX login shell. A Windows remote is not supported.
+POSIX login shell. A host whose login shell is csh or tcsh fails every call with an error that says so. A Windows remote is not supported.
 
 ## Not in scope
 
