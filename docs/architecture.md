@@ -69,12 +69,7 @@ Each check runs in `.github/workflows/ci.yml` or in `go test ./...`.
   `git.Driver`. A feature that needs more returns a typed request that a root
   adapter runs.
 
-- **Mouse coverage.** `go test ./internal/ui -run TestEveryModeAnswersTheMouse`
-  (`internal/ui/mouse_coverage_test.go`). Every `mode` has a case in
-  `clickCard` and in `wheelCard`, or an entry in that file's exemptions
-  saying why it does without, such as a card with nothing to scroll. A new
-  mode fails until it does one or the other, so a screen cannot ship
-  keyboard-only.
+- **Mouse coverage.** `go test ./internal/ui -run TestEveryModeAnswersTheMouse` (`internal/ui/mouse_coverage_test.go`). Every `mode` has a case in `clickCard` and in `wheelCard`, or an entry in that file's exemptions saying why it does without, such as a card with nothing to scroll. A new mode fails until it does one or the other, so a screen cannot ship keyboard-only.
 
 Not in CI: `go run ./tools/architecture/check-ui-moves BASE TARGET` (TARGET may
 be `WORKTREE`) confirms a move or split within a package kept every declaration
