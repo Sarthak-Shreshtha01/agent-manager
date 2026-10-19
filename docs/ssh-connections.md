@@ -60,9 +60,11 @@ The remote command runs in the user's login shell (`exec "$SHELL" -lc ...`), so 
 | Connection store | `internal/store/connections.go` | The `connections` table and its CRUD |
 | Snapshot and `send --from` | `internal/sessioncmd`, `internal/cli` | The envelope type, `snapshot --json`, sending from outside the host |
 | Headless manager | `internal/app`, `main.go` (`serve`) | Running the poller and after-turn work without a TUI; `--background` detaches one when none is awake |
-| SSH client | `internal/remote` | Refs, validation, the SSH command, snapshot, routed operations, starting the remote manager |
-| UI | `internal/ui/connection_*.go` | The connection dialog, connection rows, remote rows, routing actions to `internal/remote` on the effect lane |
-| MCP | `internal/mcpserver/remote*.go`, `internal/store/remote_terminals.go` | Listing every connection with qualified ids, routing qualified ids, which session opened a remote terminal |
+| Connection values | `internal/remote/value` | A connection and its validation, `<connection>::<id>` refs, failure kinds and the retry wait, with no SSH, so the UI packages can use them |
+| SSH client | `internal/remote` | The SSH command, snapshot, routed operations, starting the remote manager, and the rule that a session drives only the remote terminals it opened |
+| UI | `internal/ui/connections`, `internal/ui/connections_adapter*.go`, `internal/ui/connections_effect.go` | The package: the list, each host's last refresh, remote rows, the selected row's screen and the connection dialog. The root adapters: the client, refreshes, rail and content painting, routing actions to `internal/remote` on the effect lane |
+| MCP | `internal/mcpserver/remote.go` | Listing every connection with qualified ids and routing qualified ids to `internal/remote` |
+| Opener records | `internal/store/remote_terminals.go` | Which local session opened each remote terminal |
 
 ## Platforms
 

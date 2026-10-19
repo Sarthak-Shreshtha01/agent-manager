@@ -59,7 +59,7 @@ func (m *Model) renderFrame() string {
 	case modeGroupForm:
 		frame = m.viewGroupForm()
 	case modeConnection:
-		frame = m.ssh.dialog.view(m)
+		frame = m.viewConnectionDialog()
 	case modeDiff:
 		frame = m.viewDiffFull()
 	case modeNotices:

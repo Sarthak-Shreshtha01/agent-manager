@@ -15,6 +15,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/remote/remotetest"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 	"github.com/YoanWai/agent-manager/internal/store"
+	uiconnections "github.com/YoanWai/agent-manager/internal/ui/connections"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 )
 
@@ -98,16 +99,34 @@ func boxSnapshot() sessioncmd.Snapshot {
 	}
 }
 
-// connectedModel lists one connection, box, as its last refresh left it,
-// with every call going to fake.
-func connectedModel(t *testing.T, fake *fakeSSH) *Model {
+// listedModel lists one connection, box, not refreshed yet, with every
+// call going to fake.
+func listedModel(t *testing.T, fake *fakeSSH) *Model {
 	t.Helper()
 	m := buildModel(t)
 	fake.snapshot = boxSnapshot()
 	m.ssh = newConnections(testRemoteClient(t, remote.WithRunner(fake.run)), []store.Connection{{Name: "box", Destination: "me@box"}})
-	m.ssh.hosts["box"] = remote.HostState{OK: true, Snapshot: fake.snapshot}
 	m.rebuildRows()
 	return m
+}
+
+// connectedModel is listedModel with box as its last refresh left it.
+func connectedModel(t *testing.T, fake *fakeSSH) *Model {
+	t.Helper()
+	m := listedModel(t, fake)
+	setHost(m, "box", hostFacts(remote.HostState{OK: true, Snapshot: fake.snapshot}))
+	return m
+}
+
+// setHost lands state as host's latest refresh.
+func setHost(m *Model, host string, state uiconnections.Host) {
+	m.ssh.Refreshed(host, m.ssh.Gen(), state)
+	m.rebuildRows()
+}
+
+func hostState(m *Model, host string) uiconnections.Host {
+	state, _ := m.ssh.Host(host)
+	return state
 }
 
 // testRemoteClient makes a client on a throwaway profile and removes the
@@ -138,12 +157,10 @@ func railNames(m *Model) []string {
 
 func TestPollRefreshesEachHostOnceAtATimeOffTheUpdatePath(t *testing.T) {
 	fake := &fakeSSH{}
-	m := connectedModel(t, fake)
-	delete(m.ssh.hosts, "box")
-	m.rebuildRows()
+	m := listedModel(t, fake)
 
 	cmd := m.pollConnection("box")
-	if cmd == nil || !m.ssh.polling["box"] {
+	if cmd == nil {
 		t.Fatal("no refresh started")
 	}
 	if len(fake.taken()) != 0 {
@@ -156,8 +173,8 @@ func TestPollRefreshesEachHostOnceAtATimeOffTheUpdatePath(t *testing.T) {
 	if calls := fake.taken(); len(calls) != 1 || calls[0][0] != "snapshot" {
 		t.Fatalf("calls = %q, want one snapshot", calls)
 	}
-	if m.ssh.polling["box"] || !m.ssh.hosts["box"].OK {
-		t.Fatalf("polling %v state %+v after the refresh landed", m.ssh.polling, m.ssh.hosts["box"])
+	if state := hostState(m, "box"); !state.OK {
+		t.Fatalf("state %+v after the refresh landed", state)
 	}
 	if names := railNames(m); !slices.Contains(names, "api") || !slices.Contains(names, "box") {
 		t.Fatalf("rows = %q, want box and its agents", names)
@@ -173,8 +190,8 @@ func TestOfflineHostKeepsItsLastRows(t *testing.T) {
 	fake.mu.Unlock()
 	m.applyTestMsg(t, m.pollConnection("box")())
 
-	state := m.ssh.hosts["box"]
-	if state.OK || state.Failures != 1 || !strings.Contains(state.Err.Error(), "Connection refused") {
+	state := hostState(m, "box")
+	if state.OK || state.Failures != 1 || !strings.Contains(state.Err, "Connection refused") {
 		t.Fatalf("state = %+v", state)
 	}
 	if names := railNames(m); !slices.Contains(names, "api") || !slices.Contains(names, "sh") {
@@ -223,27 +240,26 @@ func TestUnreachableHostRestsBetweenRetries(t *testing.T) {
 	if m.pollConnection("box") != nil {
 		t.Fatal("a host that just failed was dialled again at once")
 	}
-	state := m.ssh.hosts["box"]
+	state := hostState(m, "box")
 	state.Attempted = time.Now().Add(-remote.RetryWait(state.Failures))
-	m.ssh.hosts["box"] = state
+	setHost(m, "box", state)
 	cmd := m.pollConnection("box")
 	if cmd == nil {
 		t.Fatal("a host past its wait was not dialled")
 	}
 	m.applyTestMsg(t, cmd())
-	if got := m.ssh.hosts["box"].Failures; got != 2 {
+	if got := hostState(m, "box").Failures; got != 2 {
 		t.Fatalf("failures = %d, want 2", got)
 	}
 }
 
 func TestRefreshOfAReplacedListIsDropped(t *testing.T) {
 	fake := &fakeSSH{}
-	m := connectedModel(t, fake)
-	delete(m.ssh.hosts, "box")
+	m := listedModel(t, fake)
 	stale := m.pollConnection("box")
 	m.ssh.setList([]store.Connection{{Name: "box", Destination: "me@other"}})
 	m.applyTestMsg(t, stale())
-	if _, seen := m.ssh.hosts["box"]; seen {
+	if _, seen := m.ssh.Host("box"); seen {
 		t.Fatal("a refresh of the old destination landed on the new one")
 	}
 }

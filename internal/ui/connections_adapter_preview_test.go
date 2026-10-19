@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
+	uiconnections "github.com/YoanWai/agent-manager/internal/ui/connections"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	"github.com/charmbracelet/x/ansi"
@@ -58,8 +60,8 @@ func TestRemotePreviewDropsAReadForAnEarlierSelection(t *testing.T) {
 	m.rail.Focus(boxSession("s2"))
 	m.syncRemotePreview()
 	m.applyTestMsg(t, stale())
-	if m.ssh.preview.text != "" || m.ssh.preview.ref.ID != "s2" {
-		t.Fatalf("preview = %+v, want the s1 read dropped", m.ssh.preview)
+	if text := contentText(m); strings.Contains(text, "old screen") || !strings.Contains(text, "reading the screen over SSH") {
+		t.Fatalf("content = %q, want the s1 read dropped while s2 reads", text)
 	}
 }
 
@@ -96,10 +98,7 @@ func TestHostTextCannotDriveTheTerminal(t *testing.T) {
 	m.applyTestMsg(t, m.pollConnection("box")())
 	// internal/remote already cleans what a host answers; the UI escapes on
 	// its own too, so this test hands it the host's raw rows.
-	state := m.ssh.hosts["box"]
-	state.Snapshot = raw
-	m.ssh.hosts["box"] = state
-	m.rebuildRows()
+	setHost(m, "box", hostFacts(remote.HostState{OK: true, Snapshot: raw}))
 
 	frame := func(surface string) {
 		t.Helper()
@@ -142,15 +141,12 @@ func TestHostTextCannotDriveTheTerminal(t *testing.T) {
 	fake.mu.Lock()
 	fake.stderr, fake.code = "denied"+hostile, 1
 	fake.mu.Unlock()
-	m.ssh.preview = remotePreview{}
+	m.ssh.Preview = uiconnections.Preview{}
 	m.applyTestMsg(t, m.syncRemotePreview()())
 	frame("a failed read")
 
 	m.applyTestMsg(t, m.pollConnection("box")())
-	state = m.ssh.hosts["box"]
-	state.Snapshot, state.Err = raw, errors.New("box: denied"+hostile)
-	m.ssh.hosts["box"] = state
-	m.rebuildRows()
+	setHost(m, "box", hostFacts(remote.HostState{Snapshot: raw, Failures: 1, Err: errors.New("box: denied" + hostile)}))
 	m.rail.Focus(boxRow)
 	frame("an offline host")
 }

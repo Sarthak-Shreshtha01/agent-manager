@@ -1,10 +1,10 @@
 package ui
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
@@ -147,9 +147,9 @@ func TestRemoteCallReportsTheHostsError(t *testing.T) {
 func TestOfflineHostRefusesCallsWithItsError(t *testing.T) {
 	fake := &fakeSSH{}
 	m := connectedModel(t, fake)
-	state := m.ssh.hosts["box"]
-	state.OK, state.Err = false, fmt.Errorf("box: unreachable over SSH: connection refused")
-	m.ssh.hosts["box"] = state
+	state := hostState(m, "box")
+	state.OK, state.Failures, state.Attempted, state.Err = false, 1, time.Now(), "box: unreachable over SSH: connection refused"
+	setHost(m, "box", state)
 	_, cmd := m.runRailIntent(uirail.Intent{Kind: uirail.Kill, Target: boxSession("s1")})
 	if cmd != nil || !m.remoteIdle() || len(fake.taken()) != 0 {
 		t.Fatal("a call to an offline host went out")

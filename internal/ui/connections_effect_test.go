@@ -8,6 +8,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// typeConnection types a name and a destination into the open dialog.
+func typeConnection(m *Model, name, destination string) {
+	m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(name)})
+	m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyTab})
+	m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(destination)})
+}
+
 func TestNewConnectionKeyOpensTheDialogAndSavesToTheStore(t *testing.T) {
 	m := buildModel(t)
 	m.ssh = newConnections(testRemoteClient(t), nil)
@@ -15,8 +22,7 @@ func TestNewConnectionKeyOpensTheDialogAndSavesToTheStore(t *testing.T) {
 	if m.mode != modeConnection {
 		t.Fatalf("C left mode %v", m.mode)
 	}
-	m.ssh.dialog.name.SetValue("box")
-	m.ssh.dialog.destination.SetValue("me@box")
+	typeConnection(m, "box", "me@box")
 	_, cmd := m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyTestMsg(t, cmd())
 	m.drainEffects(t)
@@ -24,8 +30,8 @@ func TestNewConnectionKeyOpensTheDialogAndSavesToTheStore(t *testing.T) {
 	if err != nil || len(stored) != 1 || stored[0] != (store.Connection{Name: "box", Destination: "me@box"}) {
 		t.Fatalf("stored = %+v, %v", stored, err)
 	}
-	if m.mode != modeList || len(m.ssh.list) != 1 {
-		t.Fatalf("mode %v list %+v", m.mode, m.ssh.list)
+	if m.mode != modeList || len(m.ssh.List()) != 1 {
+		t.Fatalf("mode %v list %+v", m.mode, m.ssh.List())
 	}
 	if selection, _ := m.rail.Selected(); selection != (uirail.Selection{Kind: uirail.ConnectionRow, Host: "box"}) {
 		t.Fatalf("selection = %+v, want the new connection", selection)
@@ -38,8 +44,8 @@ func TestNewConnectionKeyOpensTheDialogAndSavesToTheStore(t *testing.T) {
 	_, cmd = m.handleConfirmKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
 	m.applyTestMsg(t, cmd())
 	m.drainEffects(t)
-	if stored, _ := m.services.store.Connections(); len(stored) != 0 || len(m.ssh.list) != 0 {
-		t.Fatalf("stored %+v list %+v after removal", stored, m.ssh.list)
+	if stored, _ := m.services.store.Connections(); len(stored) != 0 || len(m.ssh.List()) != 0 {
+		t.Fatalf("stored %+v list %+v after removal", stored, m.ssh.List())
 	}
 }
 
@@ -50,15 +56,15 @@ func TestAFailedConnectionSaveTakesEnterAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.applyTestMsg(t, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
-	m.ssh.dialog.name.SetValue("box")
-	m.ssh.dialog.destination.SetValue("me@box")
+	typeConnection(m, "box", "me@box")
 	_, cmd := m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyEnter})
 	m.applyTestMsg(t, cmd())
 	m.drainEffects(t)
-	if m.mode != modeConnection || m.ssh.dialog.saving {
-		t.Fatalf("after a refused save: mode %v, saving %v", m.mode, m.ssh.dialog.saving)
+	if m.mode != modeConnection {
+		t.Fatalf("after a refused save: mode %v", m.mode)
 	}
-	m.ssh.dialog.name.SetValue("box2")
+	m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyShiftTab})
+	m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
 	_, cmd = m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
 		t.Fatal("enter after a refused save did nothing")

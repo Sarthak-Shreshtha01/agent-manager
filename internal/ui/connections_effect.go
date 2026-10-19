@@ -55,10 +55,10 @@ func (s effectServices) runConnection(request connectionRequest) (effectResult, 
 }
 
 func (m *Model) applyConnectionEffect(request connectionRequest, result connectionEffectResult, err error) tea.Cmd {
-	dialogOpen := m.mode == modeConnection && m.ssh.dialog.gen == request.gen
+	dialogOpen := m.mode == modeConnection && m.ssh.Dialog.Gen() == request.gen
 	if err != nil {
 		if dialogOpen {
-			m.ssh.dialog.saving = false
+			m.ssh.Dialog.SaveFailed(request.gen)
 		}
 		m.reportErr("connection not saved: " + err.Error())
 		return nil

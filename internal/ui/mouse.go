@@ -160,7 +160,7 @@ func (m *Model) clickCard(col, line int) (tea.Model, tea.Cmd) {
 	case modeGroupForm:
 		return m.handleGroupFormClick(line)
 	case modeConnection:
-		m.ssh.dialog.click(line)
+		m.ssh.Dialog.Click(line)
 	case modeSettings:
 		return m.applySettingsResult(m.settings.dialog.Click(col, line, m.settingsContext()))
 	case modeHelp:

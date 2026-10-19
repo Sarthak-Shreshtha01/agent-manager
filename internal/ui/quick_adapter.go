@@ -5,6 +5,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/clipboard"
 	"github.com/YoanWai/agent-manager/internal/config"
+	uiconnections "github.com/YoanWai/agent-manager/internal/ui/connections"
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
 	uirail "github.com/YoanWai/agent-manager/internal/ui/rail"
 	uisettings "github.com/YoanWai/agent-manager/internal/ui/settings"
@@ -56,7 +57,7 @@ func (h quickBarHost) Prompt() spawn.Prompt {
 
 func (h quickBarHost) Target() (uiquick.Target, bool) {
 	if row, ok := h.m.remoteQuickTarget(); ok {
-		return uiquick.Target{Group: row.group, IsGroup: row.kind != uirail.SessionRow}, true
+		return uiquick.Target{Group: row.Group, IsGroup: row.Kind != uiconnections.SessionRow}, true
 	}
 	entry, ok := h.m.selectedRow()
 	if !ok {
