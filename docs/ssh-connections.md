@@ -13,18 +13,12 @@ this manager's list. This is the shape agreed on #552.
   `ssh` label. Under it are the remote host's groups and sessions, in the
   remote host's order. There can be any number of connections.
 - **Each host owns its sessions.** Remote rows come from the remote manager's
-<<<<<<< HEAD
-  `snapshot --json` and live only in memory. Nothing remote is written to the
-  local store. A host whose refresh failed keeps its last rows and refuses
-  actions. Its row says why: `unreachable` when ssh failed or timed out,
-  `agent-manager missing`, `agent-manager too old` or `agent-manager newer`
-  when ssh got through, and `error` for anything else, with the full message
-  in the detail pane.
-=======
   `snapshot --json` and live only in memory. The local store keeps only which
-  local session opened a remote terminal through MCP. An unreachable host
-  keeps its last rows, marked offline, and refuses actions.
->>>>>>> fix/813-terminals
+  local session opened a remote terminal through MCP. A host whose refresh
+  failed keeps its last rows and refuses actions. Its row says why:
+  `unreachable` when ssh failed or timed out, `agent-manager missing`,
+  `agent-manager too old` or `agent-manager newer` when ssh got through, and
+  `error` for anything else, with the full message in the detail pane.
 - **Control flows outward.** The local machine holds the SSH keys and drives
   the remote one through the remote CLI. A remote host never connects back.
   On a remote host the MCP server sees and drives that host's sessions only.
