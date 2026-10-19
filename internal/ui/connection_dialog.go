@@ -101,11 +101,23 @@ func (d *connectionDialog) field(index int) *textinput.Model {
 }
 
 func (d *connectionDialog) focusStep(delta int) {
-	d.focus = (d.focus + delta + cfCount) % cfCount
+	d.focusOn((d.focus + delta + cfCount) % cfCount)
+}
+
+func (d *connectionDialog) focusOn(index int) {
+	d.focus = index
 	for index := range cfCount {
 		d.field(index).Blur()
 	}
 	d.field(d.focus).Focus()
+}
+
+// click focuses the field painted on the body's line; each field takes
+// one line, in field order, and the note under them takes none.
+func (d *connectionDialog) click(line int) {
+	if line >= 0 && line < cfCount {
+		d.focusOn(line)
+	}
 }
 
 // submit validates the connection against the others it would sit beside.

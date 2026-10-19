@@ -152,3 +152,24 @@ func TestConnectionDialogReopenMovesItsGeneration(t *testing.T) {
 		t.Fatal("a reopened dialog kept the generation a late save would close")
 	}
 }
+
+func TestClicksOnTheConnectionDialog(t *testing.T) {
+	m := buildModel(t)
+	m.layout.width, m.layout.height = 120, 40
+	m.ssh = newConnections(testRemoteClient(t), nil)
+	m.openConnectionDialog(remote.Connection{})
+	for _, tc := range []struct {
+		label string
+		field int
+	}{{"binary ", cfBinary}, {"ssh to ", cfDestination}, {"name ", cfName}} {
+		x, y := bodyCell(t, m, tc.label)
+		m = leftPress(m, x, y)
+		if m.mode != modeConnection || m.ssh.dialog.focus != tc.field {
+			t.Fatalf("a click on %q: mode %v, focus %d", tc.label, m.mode, m.ssh.dialog.focus)
+		}
+	}
+	x, y := paintedCell(t, m, "esc")
+	if m = leftPress(m, x, y); m.mode != modeList {
+		t.Fatalf("a click on the esc hint left mode %v", m.mode)
+	}
+}
