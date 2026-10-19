@@ -35,6 +35,13 @@ func TestValidateConnection(t *testing.T) {
 		{"space", Connection{Name: "gpu", Destination: "me@gpu box"}, "an SSH destination holds only letters, digits and _ . @ : -, and starts with a letter, digit or _"},
 		{"url", Connection{Name: "gpu", Destination: "ssh://gpu"}, "an SSH destination holds only letters, digits and _ . @ : -, and starts with a letter, digit or _"},
 		{"long destination", Connection{Name: "gpu", Destination: strings.Repeat("a", 256)}, "an SSH destination can be at most 255 bytes long"},
+		{"absolute path", Connection{Name: "gpu", Destination: "gpu", Binary: "/opt/am/agent-manager"}, ""},
+		{"home path", Connection{Name: "gpu", Destination: "gpu", Binary: "~/.local/bin/agent-manager"}, ""},
+		{"relative path", Connection{Name: "gpu", Destination: "gpu", Binary: "bin/agent-manager"}, "an agent-manager path starts with / or ~/"},
+		{"bare tilde", Connection{Name: "gpu", Destination: "gpu", Binary: "~agent/am"}, "an agent-manager path starts with / or ~/"},
+		{"directory path", Connection{Name: "gpu", Destination: "gpu", Binary: "/opt/am/"}, "an agent-manager path names the binary, not its directory"},
+		{"control in path", Connection{Name: "gpu", Destination: "gpu", Binary: "/opt/a\nm"}, "an agent-manager path cannot contain control characters"},
+		{"long path", Connection{Name: "gpu", Destination: "gpu", Binary: "/" + strings.Repeat("a", 1024)}, "an agent-manager path can be at most 1024 bytes long"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

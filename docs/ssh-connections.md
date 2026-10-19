@@ -14,8 +14,11 @@ this manager's list. This is the shape agreed on #552.
   remote host's order. There can be any number of connections.
 - **Each host owns its sessions.** Remote rows come from the remote manager's
   `snapshot --json` and live only in memory. Nothing remote is written to the
-  local store. An unreachable host keeps its last rows, marked offline, and
-  refuses actions.
+  local store. A host whose refresh failed keeps its last rows and refuses
+  actions. Its row says why: `unreachable` when ssh failed or timed out,
+  `agent-manager missing`, `agent-manager too old` or `agent-manager newer`
+  when ssh got through, and `error` for anything else, with the full message
+  in the detail pane.
 - **Control flows outward.** The local machine holds the SSH keys and drives
   the remote one through the remote CLI. A remote host never connects back.
   On a remote host the MCP server sees and drives that host's sessions only.
@@ -50,9 +53,10 @@ The protocol is the remote host's own CLI, run over SSH as
 | Groups | `create-group`, `delete-group` |
 | Attach | `ssh -t <dest> tmux -L agentmgr attach-session -t <session>` |
 
-The snapshot envelope carries `version`. A remote that answers with an
-unknown version, or does not know `snapshot`, is shown offline with the
-message to update agent-manager on that host.
+The snapshot envelope carries `version`. A remote that does not know
+`snapshot`, or answers with an older version, says to update agent-manager
+on that host. One that answers with a newer version says to update it on
+this machine.
 
 Flags are written as `--flag=value` and operands follow a bare `--`, so a
 message that looks like a flag stays a message.
@@ -85,7 +89,9 @@ Every call runs `ssh` with:
 
 The remote command runs in the user's login shell (`exec "$SHELL" -lc ...`),
 so the `PATH` the user set up there finds the binary, wherever it was
-installed. Every argument is single-quoted. The command prints a marker once the login profile has run, and the client reads only what follows it, so a profile that prints to stdout does not break the answer. The client strips control characters and escape sequences from every string a host answers with, drops rows whose ids are malformed, caps output at 8 MiB, and kills ssh's whole process group at the deadline. A stored connection is validated again before any call uses it. Each call has a deadline, and
+installed. A connection can name the binary instead, as an absolute path or
+one under `~/`, which skips the `PATH` lookup; `~/` expands against the
+remote `$HOME`. Every argument is single-quoted. The command prints a marker once the login profile has run, and the client reads only what follows it, so a profile that prints to stdout does not break the answer. The client strips control characters and escape sequences from every string a host answers with, drops rows whose ids are malformed, caps output at 8 MiB, and kills ssh's whole process group at the deadline. A stored connection is validated again before any call uses it. Each call has a deadline, and
 each host has one call in flight at a time. A host whose refresh failed is
 tried again after a wait that doubles from two seconds to thirty while it
 stays down.

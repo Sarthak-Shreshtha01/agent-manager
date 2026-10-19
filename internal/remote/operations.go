@@ -2,7 +2,6 @@ package remote
 
 import (
 	"context"
-	"errors"
 	"strconv"
 
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
@@ -22,7 +21,7 @@ func (c *Client) Snapshot(ctx context.Context, host string) (sessioncmd.Snapshot
 	case snapshot.Version < sessioncmd.SnapshotVersion:
 		return sessioncmd.Snapshot{}, outdated(host)
 	case snapshot.Version > sessioncmd.SnapshotVersion:
-		return sessioncmd.Snapshot{}, &Error{Host: host, Err: errors.New("agent-manager there is newer than this one; update agent-manager on this machine")}
+		return sessioncmd.Snapshot{}, newer(host)
 	}
 	return cleanSnapshot(snapshot), nil
 }

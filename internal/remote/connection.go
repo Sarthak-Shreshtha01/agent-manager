@@ -12,6 +12,7 @@ import (
 const (
 	maxNameBytes        = 40
 	maxDestinationBytes = 255
+	maxBinaryBytes      = 1024
 	refSeparator        = "::"
 )
 
@@ -23,10 +24,13 @@ var (
 )
 
 // Connection is another machine's agent-manager, reached as an SSH
-// destination: user@host or an alias from ~/.ssh/config.
+// destination: user@host or an alias from ~/.ssh/config. Binary is where
+// agent-manager is installed there, an absolute path or one under ~/;
+// empty finds it on the login shell's PATH.
 type Connection struct {
 	Name        string
 	Destination string
+	Binary      string
 }
 
 // ValidateConnection checks next against the connections it would sit
@@ -65,7 +69,31 @@ func ValidateConnection(next Connection, others []Connection) error {
 	case !destinationPattern.MatchString(destination):
 		return errors.New("an SSH destination holds only letters, digits and _ . @ : -, and starts with a letter, digit or _")
 	}
+	binary := next.Binary
+	switch {
+	case binary == "":
+	case len(binary) > maxBinaryBytes:
+		return fmt.Errorf("an agent-manager path can be at most %d bytes long", maxBinaryBytes)
+	case !utf8.ValidString(binary) || strings.IndexFunc(binary, unicode.IsControl) >= 0:
+		return errors.New("an agent-manager path cannot contain control characters")
+	case !strings.HasPrefix(binary, "/") && !strings.HasPrefix(binary, "~/"):
+		return errors.New("an agent-manager path starts with / or ~/")
+	case strings.HasSuffix(binary, "/"):
+		return errors.New("an agent-manager path names the binary, not its directory")
+	}
 	return nil
+}
+
+// program is how the remote command names agent-manager: a path under ~/
+// expands against $HOME there, and the rest is quoted as is.
+func (c Connection) program() string {
+	switch {
+	case c.Binary == "":
+		return quote("agent-manager")
+	case strings.HasPrefix(c.Binary, "~/"):
+		return `"$HOME"/` + quote(strings.TrimPrefix(c.Binary, "~/"))
+	}
+	return quote(c.Binary)
 }
 
 // Ref addresses a row on a connection, written <connection>::<id>.

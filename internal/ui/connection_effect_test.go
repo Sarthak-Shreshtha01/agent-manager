@@ -42,3 +42,25 @@ func TestNewConnectionKeyOpensTheDialogAndSavesToTheStore(t *testing.T) {
 		t.Fatalf("stored %+v list %+v after removal", stored, m.ssh.list)
 	}
 }
+
+func TestAFailedConnectionSaveTakesEnterAgain(t *testing.T) {
+	m := buildModel(t)
+	m.ssh = newConnections(testRemoteClient(t), nil)
+	if err := m.services.store.AddConnection(store.Connection{Name: "box", Destination: "me@elsewhere"}); err != nil {
+		t.Fatal(err)
+	}
+	m.applyTestMsg(t, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
+	m.ssh.dialog.name.SetValue("box")
+	m.ssh.dialog.destination.SetValue("me@box")
+	_, cmd := m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyEnter})
+	m.applyTestMsg(t, cmd())
+	m.drainEffects(t)
+	if m.mode != modeConnection || m.ssh.dialog.saving {
+		t.Fatalf("after a refused save: mode %v, saving %v", m.mode, m.ssh.dialog.saving)
+	}
+	m.ssh.dialog.name.SetValue("box2")
+	_, cmd = m.handleConnectionKey(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("enter after a refused save did nothing")
+	}
+}

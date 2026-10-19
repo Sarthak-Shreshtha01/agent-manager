@@ -146,7 +146,7 @@ func TestOfflineHostRefusesCallsWithItsError(t *testing.T) {
 	if cmd != nil || !m.remoteIdle() || len(fake.taken()) != 0 {
 		t.Fatal("a call to an offline host went out")
 	}
-	if m.errBar.text != "box is offline: box: unreachable over SSH: connection refused" {
+	if m.errBar.text != "box: unreachable over SSH: connection refused" {
 		t.Fatalf("status = %q", m.errBar.text)
 	}
 }

@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS settings (
 			created_at  INTEGER NOT NULL
 		)`,
 		`ALTER TABLE sessions ADD COLUMN opened_without_session INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE connections ADD COLUMN binary TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, migration := range migrations {
 		if _, err := s.db.Exec(migration); err != nil {

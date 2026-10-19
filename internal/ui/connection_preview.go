@@ -139,11 +139,14 @@ func (m *Model) connectionDetail(host string, width int) []string {
 	case seen && state.OK:
 		reading = lipgloss.NewStyle().Foreground(colorFinished()).Render("online")
 	case seen:
-		reading = errStyle().Render(fmt.Sprintf("offline · %d failed", state.Failures))
+		reading = errStyle().Render(fmt.Sprintf("%s · %d failed", troubleLabel(state.Err), state.Failures))
 	}
 	lines := []string{
 		fitColumns([]string{title}, []string{reading}, width),
 		factRow("ssh to", trimmedValue(conn.Destination), "", width),
+	}
+	if conn.Binary != "" {
+		lines = append(lines, factRow("binary", trimmedValue(conn.Binary), "", width))
 	}
 	if seen && state.OK {
 		manager := "manager awake"

@@ -70,7 +70,7 @@ func (c *connectionsFeature) setList(stored []store.Connection) {
 	c.list = make([]remote.Connection, len(stored))
 	kept := map[string]remote.HostState{}
 	for i, conn := range stored {
-		c.list[i] = remote.Connection{Name: conn.Name, Destination: conn.Destination}
+		c.list[i] = remote.Connection(conn)
 		if state, ok := c.hosts[conn.Name]; ok && slices.Contains(previous, c.list[i]) {
 			kept[conn.Name] = state
 		}
@@ -102,6 +102,7 @@ func (c *connectionsFeature) railHosts() []uirail.Host {
 			host.State = uirail.HostOnline
 		default:
 			host.State = uirail.HostOffline
+			host.Trouble = troubleLabel(state.Err)
 		}
 		if state.Err != nil {
 			host.Err = state.Err.Error()
@@ -185,12 +186,29 @@ func (c *connectionsFeature) resting(host string, now time.Time) bool {
 	return seen && !state.OK && now.Sub(state.Attempted) < remote.RetryWait(state.Failures)
 }
 
-// offline is the refusal for a call to a host the last refresh could not
-// reach; a host never reached yet is still tried.
+// offline is the refusal for a call to a host whose last refresh failed; a
+// host never reached yet is still tried.
 func (c *connectionsFeature) offline(host string) (string, bool) {
 	state, seen := c.hosts[host]
 	if !seen || state.OK {
 		return "", false
 	}
-	return host + " is offline: " + state.Err.Error(), true
+	return state.Err.Error(), true
+}
+
+// troubleLabel names a failed refresh in a few words for the connection's
+// row, telling a host ssh cannot reach from one it reaches where
+// agent-manager is missing or on another version.
+func troubleLabel(err error) string {
+	switch remote.TroubleOf(err) {
+	case remote.TroubleUnreachable:
+		return "unreachable"
+	case remote.TroubleMissing:
+		return "agent-manager missing"
+	case remote.TroubleOutdated:
+		return "agent-manager too old"
+	case remote.TroubleNewer:
+		return "agent-manager newer"
+	}
+	return "error"
 }

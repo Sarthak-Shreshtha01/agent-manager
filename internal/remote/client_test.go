@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -162,7 +163,7 @@ func TestErrors(t *testing.T) {
 			"gpu: unreachable over SSH: ssh: connect to host gpu port 22: Connection refused", true},
 		{"ssh failed silently", "", exitStatus(255), "gpu: unreachable over SSH: exit status 255", true},
 		{"binary missing", "sh: agent-manager: not found\n", exitStatus(127),
-			"gpu: agent-manager is not on the login shell's PATH there; install it or add it to PATH in the login profile", false},
+			"gpu: agent-manager is not on the login shell's PATH there; install it, add it to PATH in the login profile, or set the connection's path", false},
 		{"remote refused", "agent-manager: session a1 is not running\n", exitStatus(1), "gpu: session a1 is not running", false},
 		{"remote silent", "", exitStatus(1), "gpu: exit status 1", false},
 		{"ssh not installed", "", errors.New(`exec: "ssh": executable file not found in $PATH`), `gpu: exec: "ssh": executable file not found in $PATH`, false},
@@ -184,6 +185,27 @@ func TestErrors(t *testing.T) {
 				t.Fatalf("error %v does not name its host", err)
 			}
 		})
+	}
+}
+
+func TestConnectionPathRunsAndNamesTheBinary(t *testing.T) {
+	var argv []string
+	c := newTestClient(t, func(_ context.Context, got []string) ([]byte, []byte, error) {
+		argv = got
+		return nil, []byte("sh: /opt/am/bin/agent-manager: not found\n"), exitStatus(127)
+	})
+	c.SetConnections([]Connection{{Name: "gpu", Destination: "me@gpu", Binary: "/opt/am/bin/agent-manager"}})
+	_, err := c.Kill(context.Background(), Ref{Host: "gpu", ID: "a1"})
+	if err == nil || err.Error() != "gpu: agent-manager is not at /opt/am/bin/agent-manager there; install it there or fix the connection's path" || TroubleOf(err) != TroubleMissing {
+		t.Fatalf("error = %v", err)
+	}
+	if command := argv[len(argv)-1]; !strings.Contains(command, "exec '\\''/opt/am/bin/agent-manager'\\'' '\\''kill'\\''") {
+		t.Fatalf("remote command does not run the connection's path: %s", command)
+	}
+	c.SetConnections([]Connection{{Name: "gpu", Destination: "me@gpu", Binary: "~/bin/am"}})
+	c.Kill(context.Background(), Ref{Host: "gpu", ID: "a1"})
+	if command := argv[len(argv)-1]; !strings.Contains(command, `exec "$HOME"/'\''bin/am'\'' `) {
+		t.Fatalf("a path under ~/ does not expand against $HOME: %s", command)
 	}
 }
 

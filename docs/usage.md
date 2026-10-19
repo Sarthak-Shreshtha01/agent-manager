@@ -333,7 +333,7 @@ The commands that run with no caller are a convenience for a manager reaching th
 
 Queued messages, status and after-turn archives and kills move only while a manager runs. `agent-manager serve` runs one with no screen, on a machine where nobody keeps the TUI open, until it is interrupted or sent SIGTERM. `serve --background` starts that manager detached, with its output appended to `serve.log` in the profile directory, unless one is already running, and prints `{"started":true,"pid":N}` or `{"started":false}`. A serve holds a lock on `serve.lock` in the profile directory while it runs, so a second `serve` exits at once with a note that one is already running, and `serve --background` answers `{"started":false}` even before the first one has polled. It runs on macOS and Linux.
 
-The MCP tools always act as the session that runs them, and refuse every call, `report_issue` and `host::id` targets included, from a server with no session, since several CLIs keep the server registered for their runs outside Agent Manager too.
+The MCP tools always act as the session that runs them, and refuse every call, `host::id` targets included, from a server with no session, since several CLIs keep the server registered for their runs outside Agent Manager too. `report_issue` is the exception: it touches no session, so it stays open there.
 
 ### Bugs and ideas
 
@@ -384,9 +384,9 @@ Groups are paths (`backend/api/auth`) forming a tree of unlimited depth. Session
 
 ## SSH connections
 
-`C` adds an SSH connection: a name and a destination, `user@host` or an alias from `~/.ssh/config`. The other machine needs agent-manager on its login shell's `PATH` and a key this machine's `ssh` can use without a prompt; the manager never asks for a password and never touches your SSH config. Connect once by hand first (`ssh user@host`) so the host key is already known: the manager's `ssh` runs in batch mode and shows a host it has never seen as offline with "Host key verification failed".
+`C` adds an SSH connection: a name, a destination, `user@host` or an alias from `~/.ssh/config`, and optionally the path of agent-manager there. The other machine needs agent-manager on its login shell's `PATH`, or at that path (absolute or under `~/`), and a key this machine's `ssh` can use without a prompt; the manager never asks for a password and never touches your SSH config. Connect once by hand first (`ssh user@host`) so the host key is already known: the manager's `ssh` runs in batch mode and shows a host it has never seen as `unreachable` with "Host key verification failed".
 
-The connection sits in the list after your own groups, in its own color with an `ssh` label, and the other machine's groups, agents and terminals nest under it. It folds like a group. Each poll refreshes every connection in the background, one call per host at a time, and a host that stops answering keeps its last rows with an `offline` note and the error in the detail pane, and is tried again after a pause that grows from two seconds to half a minute while it stays down. The first refresh starts a headless manager there (`agent-manager serve --background`) when none is running, so messages sent to its agents get delivered.
+The connection sits in the list after your own groups, in its own color with an `ssh` label, and the other machine's groups, agents and terminals nest under it. It folds like a group. Each poll refreshes every connection in the background, one call per host at a time, and a host whose refresh fails keeps its last rows with a note saying why (`unreachable`, `agent-manager missing`, `agent-manager too old` or `agent-manager newer`, otherwise `error`) and the full message in the detail pane, and is tried again after a pause that grows from two seconds to half a minute while it stays down. The first refresh starts a headless manager there (`agent-manager serve --background`) when none is running, so messages sent to its agents get delivered.
 
 On a connection's rows:
 - `enter` and `A` attach over SSH in this terminal; detaching returns to the manager. A remote pane is never embedded.

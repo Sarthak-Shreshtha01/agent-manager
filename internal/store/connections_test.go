@@ -24,7 +24,7 @@ func TestConnectionsListInTheOrderAdded(t *testing.T) {
 	st := newTestStore(t)
 	for _, c := range []Connection{
 		{Name: "zeta", Destination: "me@zeta"},
-		{Name: "alpha", Destination: "alpha-alias"},
+		{Name: "alpha", Destination: "alpha-alias", Binary: "/opt/am/agent-manager"},
 		{Name: "mid", Destination: "me@mid"},
 	} {
 		if err := st.AddConnection(c); err != nil {
@@ -37,7 +37,7 @@ func TestConnectionsListInTheOrderAdded(t *testing.T) {
 	}
 	want := []Connection{
 		{Name: "zeta", Destination: "me@zeta"},
-		{Name: "alpha", Destination: "alpha-alias"},
+		{Name: "alpha", Destination: "alpha-alias", Binary: "/opt/am/agent-manager"},
 		{Name: "mid", Destination: "me@mid"},
 	}
 	if !slices.Equal(got, want) {
@@ -71,14 +71,14 @@ func TestUpdateConnectionKeepsItsPlace(t *testing.T) {
 		t.Fatalf("update: %v", err)
 	}
 	got, _ := st.Connections()
-	want := []Connection{{"a", "a-host"}, {"renamed", "new-host"}, {"c", "c-host"}}
+	want := []Connection{{"a", "a-host", ""}, {"renamed", "new-host", ""}, {"c", "c-host", ""}}
 	if !slices.Equal(got, want) {
 		t.Fatalf("connections = %v, want %v", got, want)
 	}
-	if err := st.UpdateConnection("renamed", Connection{Name: "renamed", Destination: "other"}); err != nil {
-		t.Fatalf("update destination only: %v", err)
+	if err := st.UpdateConnection("renamed", Connection{Name: "renamed", Destination: "other", Binary: "~/bin/am"}); err != nil {
+		t.Fatalf("update destination and path: %v", err)
 	}
-	if got, _ := st.Connections(); got[1] != (Connection{"renamed", "other"}) {
+	if got, _ := st.Connections(); got[1] != (Connection{"renamed", "other", "~/bin/am"}) {
 		t.Fatalf("after destination change = %v", got)
 	}
 }
@@ -92,7 +92,7 @@ func TestUpdateConnectionRefusesRenameOntoATakenName(t *testing.T) {
 		t.Fatalf("rename onto taken err = %v, want ErrConnectionTaken", err)
 	}
 	got, _ := st.Connections()
-	want := []Connection{{"a", "a-host"}, {"b", "b-host"}}
+	want := []Connection{{"a", "a-host", ""}, {"b", "b-host", ""}}
 	if !slices.Equal(got, want) {
 		t.Fatalf("connections = %v, want %v", got, want)
 	}

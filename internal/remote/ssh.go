@@ -121,10 +121,10 @@ func (c *Client) sshArgv(destination string, tty bool, command string) []string 
 // skipped. JSON escapes control bytes, so no answer can hold it.
 const outputMarker = "\x1eagent-manager\x1e"
 
-// remoteCommand runs words through the user's login shell after the
-// marker.
-func remoteCommand(words []string) string {
-	return loginShell("printf %s " + quote(outputMarker) + "; exec " + quoteWords(words))
+// remoteCommand runs program, already quoted for the shell, with words
+// through the user's login shell after the marker.
+func remoteCommand(program string, words []string) string {
+	return loginShell("printf %s " + quote(outputMarker) + "; exec " + program + " " + quoteWords(words))
 }
 
 // loginShell runs script through the user's login shell, so the PATH set up

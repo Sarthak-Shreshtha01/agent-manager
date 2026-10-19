@@ -69,7 +69,7 @@ func New(profileDir string, opts ...Option) *Client {
 }
 
 // SetConnections replaces the connection list. A connection that is gone,
-// or now points at another destination, loses its cached state. Each one is
+// or now points at another destination or path, loses its cached state. Each one is
 // validated again, since the store can be edited by hand: one that fails
 // stays listed but every call to it fails with the reason, before ssh
 // could read its destination as an option.
@@ -82,7 +82,7 @@ func (c *Client) SetConnections(connections []Connection) {
 		c.invalid[i] = ValidateConnection(conn, c.connections[:i])
 	}
 	for name, record := range c.states {
-		if !c.unchanged(name, record.destination) {
+		if !c.unchanged(name, record.conn) {
 			delete(c.states, name)
 			delete(c.starts, name)
 		}
@@ -117,11 +117,12 @@ func (c *Client) find(host string) (Connection, error) {
 
 var errUnknownConnection = errors.New("no connection has that name")
 
-// unchanged reports whether host still names destination; c.mu is held.
-func (c *Client) unchanged(host, destination string) bool {
+// unchanged reports whether host still names the same connection; c.mu is
+// held.
+func (c *Client) unchanged(host string, was Connection) bool {
 	for _, conn := range c.connections {
 		if conn.Name == host {
-			return conn.Destination == destination
+			return conn == was
 		}
 	}
 	return false
@@ -164,11 +165,11 @@ func (c *Client) call(ctx context.Context, host string, timeout time.Duration, a
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	argv := c.sshArgv(conn.Destination, false, remoteCommand(append([]string{"agent-manager"}, args...)))
+	argv := c.sshArgv(conn.Destination, false, remoteCommand(conn.program(), args))
 	stdout, stderr, err := c.run(ctx, argv)
 	out, marked := answer(stdout)
 	if err != nil {
-		return out, classify(ctx, host, stderr, err)
+		return out, classify(ctx, conn, stderr, err)
 	}
 	if !marked {
 		return nil, &Error{Host: host, Err: errors.New("the login shell there exited before it ran agent-manager")}
@@ -178,11 +179,38 @@ func (c *Client) call(ctx context.Context, host string, timeout time.Duration, a
 
 // Error is a failed call to one connection.
 type Error struct {
-	Host string
-	Err  error
-	// sshFailed marks ssh's own exit status, as opposed to the remote
-	// command's.
-	sshFailed bool
+	Host    string
+	Err     error
+	trouble Trouble
+}
+
+// Trouble is the kind of failure that kept a call from a host's manager, so
+// a row can say it in a word or two.
+type Trouble uint8
+
+const (
+	// TroubleFailed is any other failure, such as the command refusing.
+	TroubleFailed Trouble = iota
+	// TroubleUnreachable is ssh's own failure, or a host that did not
+	// answer in time.
+	TroubleUnreachable
+	// TroubleMissing is no agent-manager where the call looked for it.
+	TroubleMissing
+	// TroubleOutdated is an agent-manager there too old for this one.
+	TroubleOutdated
+	// TroubleNewer is an agent-manager there newer than this one.
+	TroubleNewer
+)
+
+func TroubleOf(err error) Trouble {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return TroubleUnreachable
+	}
+	var remote *Error
+	if errors.As(err, &remote) {
+		return remote.trouble
+	}
+	return TroubleFailed
 }
 
 // Error cleans the host's name too: one read back from the store or passed
@@ -198,11 +226,11 @@ func (e *Error) Unwrap() error {
 // Unreachable reports a failure of the connection itself rather than of the
 // remote command: ssh failed, or the host did not answer in time.
 func Unreachable(err error) bool {
-	var remote *Error
-	return errors.As(err, &remote) && remote.sshFailed || errors.Is(err, context.DeadlineExceeded)
+	return TroubleOf(err) == TroubleUnreachable
 }
 
-func classify(ctx context.Context, host string, stderr []byte, err error) error {
+func classify(ctx context.Context, conn Connection, stderr []byte, err error) error {
+	host := conn.Name
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return &Error{Host: host, Err: fmt.Errorf("did not answer in time: %w", context.DeadlineExceeded)}
 	}
@@ -219,9 +247,12 @@ func classify(ctx context.Context, host string, stderr []byte, err error) error 
 		if text == "" {
 			text = err.Error()
 		}
-		return &Error{Host: host, Err: errors.New("unreachable over SSH: " + text), sshFailed: true}
+		return &Error{Host: host, Err: errors.New("unreachable over SSH: " + text), trouble: TroubleUnreachable}
 	case exitNotFound:
-		return &Error{Host: host, Err: errors.New("agent-manager is not on the login shell's PATH there; install it or add it to PATH in the login profile")}
+		if conn.Binary != "" {
+			return &Error{Host: host, Err: fmt.Errorf("agent-manager is not at %s there; install it there or fix the connection's path", conn.Binary), trouble: TroubleMissing}
+		}
+		return &Error{Host: host, Err: errors.New("agent-manager is not on the login shell's PATH there; install it, add it to PATH in the login profile, or set the connection's path"), trouble: TroubleMissing}
 	}
 	if text == "" {
 		return &Error{Host: host, Err: err}
@@ -251,7 +282,11 @@ func (c *Client) decode(ctx context.Context, host string, timeout time.Duration,
 }
 
 func outdated(host string) error {
-	return &Error{Host: host, Err: errors.New("agent-manager there is too old for SSH connections; update agent-manager on that host")}
+	return &Error{Host: host, Err: errors.New("agent-manager there is too old for SSH connections; update agent-manager on that host"), trouble: TroubleOutdated}
+}
+
+func newer(host string) error {
+	return &Error{Host: host, Err: errors.New("agent-manager there is newer than this one; update agent-manager on this machine"), trouble: TroubleNewer}
 }
 
 func unreadable(host, command string, err error) error {

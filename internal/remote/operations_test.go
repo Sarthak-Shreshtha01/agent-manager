@@ -205,19 +205,21 @@ func TestOperationsDecodeTheRemoteJSON(t *testing.T) {
 func TestSnapshot(t *testing.T) {
 	const tooOld = "gpu: agent-manager there is too old for SSH connections; update agent-manager on that host"
 	cases := []struct {
-		name   string
-		stdout string
-		stderr string
-		err    error
-		want   string
+		name    string
+		stdout  string
+		stderr  string
+		err     error
+		want    string
+		trouble Trouble
 	}{
-		{"current", `{"version":1,"manager_awake":true,"sessions":[{"id":"a1","name":"fix"}],"terminals":[],"groups":[{"path":"team"}]}`, "", nil, ""},
-		{"no version", `{"sessions":[]}`, "", nil, tooOld},
-		{"newer", `{"version":2}`, "", nil, "gpu: agent-manager there is newer than this one; update agent-manager on this machine"},
-		{"interactive manager instead", "\x1b[?1007l\x1b]10;#ffffff\x07", "agent-manager: could not open a new TTY: open /dev/tty: device not configured\n", exitStatus(1), tooOld},
-		{"not json", "Usage: agent-manager", "", nil, "gpu: unreadable answer to snapshot: invalid character 'U' looking for beginning of value"},
-		{"remote failure", "", "agent-manager: database is locked\n", exitStatus(1), "gpu: database is locked"},
-		{"unreachable", "", "ssh: Could not resolve hostname gpu\n", exitStatus(255), "gpu: unreachable over SSH: ssh: Could not resolve hostname gpu"},
+		{"current", `{"version":1,"manager_awake":true,"sessions":[{"id":"a1","name":"fix"}],"terminals":[],"groups":[{"path":"team"}]}`, "", nil, "", TroubleFailed},
+		{"no version", `{"sessions":[]}`, "", nil, tooOld, TroubleOutdated},
+		{"newer", `{"version":2}`, "", nil, "gpu: agent-manager there is newer than this one; update agent-manager on this machine", TroubleNewer},
+		{"interactive manager instead", "\x1b[?1007l\x1b]10;#ffffff\x07", "agent-manager: could not open a new TTY: open /dev/tty: device not configured\n", exitStatus(1), tooOld, TroubleOutdated},
+		{"not json", "Usage: agent-manager", "", nil, "gpu: unreadable answer to snapshot: invalid character 'U' looking for beginning of value", TroubleFailed},
+		{"remote failure", "", "agent-manager: database is locked\n", exitStatus(1), "gpu: database is locked", TroubleFailed},
+		{"missing", "", "sh: agent-manager: not found\n", exitStatus(127), "gpu: agent-manager is not on the login shell's PATH there; install it, add it to PATH in the login profile, or set the connection's path", TroubleMissing},
+		{"unreachable", "", "ssh: Could not resolve hostname gpu\n", exitStatus(255), "gpu: unreachable over SSH: ssh: Could not resolve hostname gpu", TroubleUnreachable},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -231,6 +233,9 @@ func TestSnapshot(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Fatalf("Snapshot error = %q, want %q", got, tc.want)
+			}
+			if trouble := TroubleOf(err); err != nil && trouble != tc.trouble {
+				t.Fatalf("TroubleOf = %d, want %d", trouble, tc.trouble)
 			}
 			if tc.want == "" && (!snapshot.ManagerAwake || len(snapshot.Sessions) != 1 || snapshot.Sessions[0].ID != "a1" || snapshot.Groups[0].Path != "team") {
 				t.Fatalf("Snapshot = %+v", snapshot)

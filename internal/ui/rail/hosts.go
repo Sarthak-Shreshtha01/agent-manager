@@ -14,7 +14,8 @@ const (
 	// HostConnecting has no answer from the host yet.
 	HostConnecting HostState = iota
 	HostOnline
-	// HostOffline failed its last refresh and keeps the rows it had.
+	// HostOffline failed its last refresh and keeps the rows it had; its
+	// Trouble says why in a few words.
 	HostOffline
 )
 
@@ -24,6 +25,7 @@ type Host struct {
 	Name           string
 	State          HostState
 	Err            string
+	Trouble        string
 	Groups         []string
 	ArchivedGroups map[string]bool
 	Sessions       []Session
@@ -156,7 +158,7 @@ func (r renderer) renderConnection(row treeRow, selected bool, width int, pad, b
 	case HostConnecting:
 		meta = r.palette.subtle.Render("connecting…")
 	case HostOffline:
-		meta = r.palette.muted.Render("offline")
+		meta = r.palette.muted.Render(cmp.Or(host.Trouble, "offline"))
 	default:
 		meta = r.groupStatusGlyphs(row.host, "", true)
 		if meta == "" {

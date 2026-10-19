@@ -180,8 +180,34 @@ func TestOfflineHostKeepsItsLastRows(t *testing.T) {
 	if names := railNames(m); !slices.Contains(names, "api") || !slices.Contains(names, "sh") {
 		t.Fatalf("rows = %q, want the last snapshot kept", names)
 	}
-	if host := m.ssh.railHosts()[0]; host.State != uirail.HostOffline {
-		t.Fatalf("rail host = %+v, want offline", host)
+	if host := m.ssh.railHosts()[0]; host.State != uirail.HostOffline || host.Trouble != "unreachable" {
+		t.Fatalf("rail host = %+v, want offline and unreachable", host)
+	}
+}
+
+// A host ssh reaches says what is wrong with agent-manager there rather
+// than reading as down.
+func TestFailedHostNamesItsTrouble(t *testing.T) {
+	for _, tc := range []struct {
+		version int
+		stderr  string
+		code    int
+		want    string
+	}{
+		{sessioncmd.SnapshotVersion, "sh: agent-manager: not found", 127, "agent-manager missing"},
+		{sessioncmd.SnapshotVersion - 1, "", 0, "agent-manager too old"},
+		{sessioncmd.SnapshotVersion + 1, "", 0, "agent-manager newer"},
+		{sessioncmd.SnapshotVersion, "agent-manager: database is locked", 1, "error"},
+	} {
+		fake := &fakeSSH{}
+		m := connectedModel(t, fake)
+		fake.mu.Lock()
+		fake.snapshot.Version, fake.stderr, fake.code = tc.version, tc.stderr, tc.code
+		fake.mu.Unlock()
+		m.applyTestMsg(t, m.pollConnection("box")())
+		if host := m.ssh.railHosts()[0]; host.Trouble != tc.want {
+			t.Errorf("version %d, %q: trouble %q, want %q", tc.version, tc.stderr, host.Trouble, tc.want)
+		}
 	}
 }
 

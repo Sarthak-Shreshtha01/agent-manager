@@ -189,11 +189,13 @@ func TestConnectionRowRendersItsLabelAndState(t *testing.T) {
 		want  string
 	}{
 		{HostConnecting, "connecting…"},
-		{HostOffline, "offline"},
+		{HostOffline, "unreachable"},
 		{HostOnline, "◐ 1  ◆ 1"},
 	} {
 		model := New(nil)
-		model.Reconcile(hostsSnapshot(tc.state))
+		snapshot := hostsSnapshot(tc.state)
+		snapshot.Hosts[0].Trouble = "unreachable"
+		model.Reconcile(snapshot)
 		frame := model.Render(hostsContext(48, 14), Frame{})
 		var line string
 		for _, painted := range frame.Lines {

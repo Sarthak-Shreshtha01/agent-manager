@@ -54,6 +54,36 @@ func TestConnectionDialogAddsAValidConnection(t *testing.T) {
 	}
 }
 
+func TestConnectionDialogSavesTheBinaryPathOnce(t *testing.T) {
+	h := &fakeConnectionHost{mode: modeList}
+	var d connectionDialog
+	d.open(h, remote.Connection{Name: "box", Destination: "me@box", Binary: "/opt/am/agent-manager"})
+	if d.binary.Value() != "/opt/am/agent-manager" {
+		t.Fatalf("edit did not fill the path: %q", d.binary.Value())
+	}
+	d.binary.SetValue("")
+	d.handleKey(h, tea.KeyMsg{Type: tea.KeyShiftTab})
+	if d.focus != cfBinary {
+		t.Fatalf("focus = %v, want the path field last", d.focus)
+	}
+	typeConnection(&d, h, "~/bin/am")
+	_, request := d.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter})
+	if request == nil || request.next.Binary != "~/bin/am" {
+		t.Fatalf("request = %+v; status %q", request, h.err)
+	}
+	if _, again := d.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter}); again != nil || h.err != "this connection is already being saved" {
+		t.Fatalf("second enter = %+v, status %q", again, h.err)
+	}
+	d.binary.SetValue("bin/am")
+	d.saving = false
+	if _, refused := d.handleKey(h, tea.KeyMsg{Type: tea.KeyEnter}); refused != nil || h.err != "an agent-manager path starts with / or ~/" {
+		t.Fatalf("relative path = %+v, status %q", refused, h.err)
+	}
+	if d.saving {
+		t.Fatal("a refused enter left the dialog saving")
+	}
+}
+
 func TestConnectionDialogTypesANameThatSpellsAKey(t *testing.T) {
 	h := &fakeConnectionHost{mode: modeList}
 	var d connectionDialog

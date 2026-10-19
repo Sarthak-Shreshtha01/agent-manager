@@ -13,14 +13,15 @@ var ErrConnectionTaken = errors.New("connection name is taken")
 var ErrConnectionNotFound = errors.New("connection does not exist")
 
 // Connection is an SSH destination whose manager's sessions show in this
-// one's list. internal/remote validates both fields; the store keeps them.
+// one's list. internal/remote validates its fields; the store keeps them.
 type Connection struct {
 	Name        string
 	Destination string
+	Binary      string
 }
 
 func (s *Store) Connections() ([]Connection, error) {
-	rows, err := s.db.Query(`SELECT name, destination FROM connections ORDER BY position, name`)
+	rows, err := s.db.Query(`SELECT name, destination, binary FROM connections ORDER BY position, name`)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,7 @@ func (s *Store) Connections() ([]Connection, error) {
 	var connections []Connection
 	for rows.Next() {
 		var c Connection
-		if err := rows.Scan(&c.Name, &c.Destination); err != nil {
+		if err := rows.Scan(&c.Name, &c.Destination, &c.Binary); err != nil {
 			return nil, err
 		}
 		connections = append(connections, c)
@@ -39,9 +40,9 @@ func (s *Store) Connections() ([]Connection, error) {
 // AddConnection appends a connection after every existing one.
 func (s *Store) AddConnection(c Connection) error {
 	res, err := s.db.Exec(
-		`INSERT INTO connections (name, destination, position, created_at)
-		 VALUES (?, ?, (SELECT COALESCE(MAX(position)+1, 0) FROM connections), ?)
-		 ON CONFLICT(name) DO NOTHING`, c.Name, c.Destination, encodeTime(time.Now()))
+		`INSERT INTO connections (name, destination, binary, position, created_at)
+		 VALUES (?, ?, ?, (SELECT COALESCE(MAX(position)+1, 0) FROM connections), ?)
+		 ON CONFLICT(name) DO NOTHING`, c.Name, c.Destination, c.Binary, encodeTime(time.Now()))
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func (s *Store) AddConnection(c Connection) error {
 }
 
 // UpdateConnection renames a connection and/or points it at a new
-// destination, keeping its place in the list.
+// destination or path, keeping its place in the list.
 func (s *Store) UpdateConnection(name string, next Connection) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -72,8 +73,8 @@ func (s *Store) UpdateConnection(name string, next Connection) error {
 			return fmt.Errorf("connection %q: %w", next.Name, ErrConnectionTaken)
 		}
 	}
-	res, err := tx.Exec(`UPDATE connections SET name = ?, destination = ? WHERE name = ?`,
-		next.Name, next.Destination, name)
+	res, err := tx.Exec(`UPDATE connections SET name = ?, destination = ?, binary = ? WHERE name = ?`,
+		next.Name, next.Destination, next.Binary, name)
 	if err != nil {
 		return err
 	}

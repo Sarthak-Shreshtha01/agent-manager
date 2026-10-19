@@ -44,8 +44,8 @@ type HostState struct {
 }
 
 type hostRecord struct {
-	state       HostState
-	destination string
+	state HostState
+	conn  Connection
 }
 
 // Refresh takes a snapshot of host and caches the outcome for State.
@@ -87,8 +87,8 @@ func (c *Client) State(host string) HostState {
 func (c *Client) record(conn Connection, state HostState) HostState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.unchanged(conn.Name, conn.Destination) {
-		c.states[conn.Name] = hostRecord{state: state, destination: conn.Destination}
+	if c.unchanged(conn.Name, conn) {
+		c.states[conn.Name] = hostRecord{state: state, conn: conn}
 	}
 	return state
 }

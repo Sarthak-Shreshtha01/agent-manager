@@ -66,7 +66,7 @@ func TestRunSSHStopsWaitingForAPipeAfterSSHExits(t *testing.T) {
 
 func TestSSHArgv(t *testing.T) {
 	c := New("/profile")
-	got := c.sshArgv("me@gpu", false, remoteCommand([]string{"agent-manager", "snapshot", "--json"}))
+	got := c.sshArgv("me@gpu", false, remoteCommand(Connection{}.program(), []string{"snapshot", "--json"}))
 	want := []string{
 		"ssh",
 		"-o", "BatchMode=yes",
