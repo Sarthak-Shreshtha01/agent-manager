@@ -13,12 +13,18 @@ this manager's list. This is the shape agreed on #552.
   `ssh` label. Under it are the remote host's groups and sessions, in the
   remote host's order. There can be any number of connections.
 - **Each host owns its sessions.** Remote rows come from the remote manager's
+<<<<<<< HEAD
   `snapshot --json` and live only in memory. Nothing remote is written to the
   local store. A host whose refresh failed keeps its last rows and refuses
   actions. Its row says why: `unreachable` when ssh failed or timed out,
   `agent-manager missing`, `agent-manager too old` or `agent-manager newer`
   when ssh got through, and `error` for anything else, with the full message
   in the detail pane.
+=======
+  `snapshot --json` and live only in memory. The local store keeps only which
+  local session opened a remote terminal through MCP. An unreachable host
+  keeps its last rows, marked offline, and refuses actions.
+>>>>>>> fix/813-terminals
 - **Control flows outward.** The local machine holds the SSH keys and drives
   the remote one through the remote CLI. A remote host never connects back.
   On a remote host the MCP server sees and drives that host's sessions only.
@@ -68,6 +74,12 @@ run without one:
 - `terminal create` opens a terminal that belongs to no session.
   `terminal send`, `read` and `close` drive only such terminals. A terminal
   nested under a session stays that session's.
+- Every SSH call is the same caller there, so the local MCP server tells
+  them apart: it records which session's `create_terminal` opened a remote
+  terminal, and `send_terminal` and `close_terminal` on a `host::id` refuse
+  any other session before calling ssh. A terminal opened with `T` on the
+  connection row has no such record, so only the user drives it. The record
+  goes when the terminal is closed through MCP or its session is deleted.
 - `send --from` names the sender, at most 64 bytes. The delivered message says
   it came from another of the user's machines and that a reply cannot reach
   it. Every `--from` sender shares one rate limit per target.
@@ -105,7 +117,7 @@ stays down.
 | Headless manager | `internal/app`, `main.go` (`serve`) | Running the poller and after-turn work without a TUI; `--background` detaches one when none is awake |
 | SSH client | `internal/remote` | Refs, validation, the SSH command, snapshot, routed operations, starting the remote manager |
 | UI | `internal/ui/connection_*.go` | The connection dialog, connection rows, remote rows, routing actions to `internal/remote` on the effect lane |
-| MCP | `internal/mcpserver/remote*.go` | Listing every connection with qualified ids, routing qualified ids |
+| MCP | `internal/mcpserver/remote*.go`, `internal/store/remote_terminals.go` | Listing every connection with qualified ids, routing qualified ids, which session opened a remote terminal |
 
 ## Platforms
 

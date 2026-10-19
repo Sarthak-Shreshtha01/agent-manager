@@ -143,3 +143,25 @@ func TestConnectionsSurviveReopen(t *testing.T) {
 		t.Fatalf("names after reopen = %v", got)
 	}
 }
+
+func TestConnectionRenameKeepsAndRemovalDropsTerminalOpeners(t *testing.T) {
+	st := newTestStore(t)
+	if err := st.AddConnection(Connection{Name: "box", Destination: "me@box"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetRemoteTerminalOpener("box", "t1", "cafe"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateConnection("box", Connection{Name: "lab", Destination: "me@box"}); err != nil {
+		t.Fatal(err)
+	}
+	if opener, err := st.RemoteTerminalOpener("lab", "t1"); err != nil || opener != "cafe" {
+		t.Fatalf("opener after rename = %q, %v", opener, err)
+	}
+	if err := st.DeleteConnection("lab"); err != nil {
+		t.Fatal(err)
+	}
+	if opener, err := st.RemoteTerminalOpener("lab", "t1"); err != nil || opener != "" {
+		t.Fatalf("opener after removal = %q, %v", opener, err)
+	}
+}

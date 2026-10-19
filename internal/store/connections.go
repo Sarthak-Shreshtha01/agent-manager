@@ -85,11 +85,22 @@ func (s *Store) UpdateConnection(name string, next Connection) error {
 	if affected == 0 {
 		return fmt.Errorf("connection %q: %w", name, ErrConnectionNotFound)
 	}
+	// The sessions that opened terminals there keep them under the new name.
+	if _, err := tx.Exec(`UPDATE remote_terminals SET host = ? WHERE host = ?`, next.Name, name); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
+// DeleteConnection drops the connection and who opened its terminals, so a
+// later connection by that name starts with none.
 func (s *Store) DeleteConnection(name string) error {
-	res, err := s.db.Exec(`DELETE FROM connections WHERE name = ?`, name)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`DELETE FROM connections WHERE name = ?`, name)
 	if err != nil {
 		return err
 	}
@@ -100,5 +111,8 @@ func (s *Store) DeleteConnection(name string) error {
 	if affected == 0 {
 		return fmt.Errorf("connection %q: %w", name, ErrConnectionNotFound)
 	}
-	return nil
+	if _, err := tx.Exec(`DELETE FROM remote_terminals WHERE host = ?`, name); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
