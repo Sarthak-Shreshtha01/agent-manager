@@ -23,7 +23,6 @@
               │   e                hide / show empty groups                                              │
               │   F                fold / unfold every group                                             │
               │   |                resize the split (←→ or hl, or drag; ↵ commits, esc cancels)          │
-              │   s                settings (also in the root row menu)                                  │
               │   ↓ more below…                                                                          │
               │                                                                                          │
               ├──────────────────────────────────────────────────────────────────────────────────────────┤
