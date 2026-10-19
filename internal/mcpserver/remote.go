@@ -105,7 +105,9 @@ func (h *remoteHosts) ready() ([]remote.Connection, error) {
 }
 
 // refresh snapshots every connection at once, so a listing waits for its
-// slowest host rather than for all of them in turn.
+// slowest host rather than for all of them in turn. A host that just failed
+// answers from its last refresh until its retry wait is over, so one that
+// is down does not add its connect timeout to every listing.
 func (h *remoteHosts) refresh(ctx context.Context) ([]hostRows, error) {
 	connections, err := h.ready()
 	if err != nil {
@@ -117,6 +119,10 @@ func (h *remoteHosts) refresh(ctx context.Context) ([]hostRows, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if h.client.Resting(conn.Name) {
+				hosts[i] = hostRows{name: conn.Name, state: h.client.State(conn.Name)}
+				return
+			}
 			hosts[i] = hostRows{name: conn.Name, state: h.client.Refresh(ctx, conn.Name)}
 		}()
 	}

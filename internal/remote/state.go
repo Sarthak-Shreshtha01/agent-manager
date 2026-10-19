@@ -71,6 +71,13 @@ func (c *Client) Refresh(ctx context.Context, host string) HostState {
 	return c.record(conn, state)
 }
 
+// Resting reports whether host failed its last refresh less than
+// RetryWait ago, so a caller reads State rather than dialling it again.
+func (c *Client) Resting(host string) bool {
+	state := c.State(host)
+	return !state.OK && state.Failures > 0 && c.now().Sub(state.Attempted) < RetryWait(state.Failures)
+}
+
 // State returns the cached outcome of host's refreshes without any I/O, or
 // why the stored connection is invalid.
 func (c *Client) State(host string) HostState {

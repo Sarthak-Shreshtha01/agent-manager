@@ -239,6 +239,15 @@ func TestAnUnreachableHostKeepsItsLastRowsMarkedStale(t *testing.T) {
 	if text := resultText(result); !strings.Contains(text, "these are the rows it last reported") {
 		t.Fatalf("text does not say the rows are old:\n%s", text)
 	}
+	f.hosts.reset()
+	result = callTool(t, f.session, "list_sessions", map[string]any{})
+	if calls := f.hosts.recorded(); len(calls) != 0 {
+		t.Fatalf("a host inside its retry wait was dialled again: %+v", calls)
+	}
+	structured(t, result, &sessions)
+	if len(sessions.Sessions) != 2 || !sessions.Sessions[1].Stale || len(sessions.ConnectionErrors) != 1 {
+		t.Fatalf("resting host listing = %+v", sessions)
+	}
 }
 
 func TestListingsPickUpAConnectionAddedWhileServing(t *testing.T) {
