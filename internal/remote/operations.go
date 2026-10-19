@@ -78,6 +78,20 @@ func (c *Client) Send(ctx context.Context, ref Ref, text, from string) (sessionc
 	return result, err
 }
 
+// Type submits prompt in the pane of the agent at ref now, as the user's
+// quick bar does there.
+func (c *Client) Type(ctx context.Context, ref Ref, prompt string) (sessioncmd.Session, error) {
+	var typed sessioncmd.Session
+	if err := validRef(ref); err != nil {
+		return typed, err
+	}
+	if err := c.decode(ctx, ref.Host, callTimeout, &typed, "type", "--json", "--", ref.ID, prompt); err != nil {
+		return typed, err
+	}
+	typed, err := cleanSession(typed)
+	return typed, unreadable(ref.Host, "type", err)
+}
+
 func (c *Client) Spawn(ctx context.Context, host string, opts sessioncmd.CreateSessionOptions) (sessioncmd.Session, error) {
 	args := []string{"spawn", "--json"}
 	for _, flag := range []struct{ name, value string }{
