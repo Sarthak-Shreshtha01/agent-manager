@@ -22,6 +22,8 @@ func TestValidateConnection(t *testing.T) {
 		{"leading space", Connection{Name: " gpu", Destination: "gpu"}, "a connection name cannot start or end with a space"},
 		{"trailing tab", Connection{Name: "gpu\t", Destination: "gpu"}, "a connection name cannot start or end with a space"},
 		{"ref separator", Connection{Name: "a::b", Destination: "gpu"}, `a connection name cannot contain "::"`},
+		{"trailing colon", Connection{Name: "box:", Destination: "gpu"}, `a connection name cannot end with ":"`},
+		{"inner colon", Connection{Name: "a:b", Destination: "gpu"}, ""},
 		{"slash", Connection{Name: "a/b", Destination: "gpu"}, "a connection name cannot contain /"},
 		{"control character", Connection{Name: "a\x1bb", Destination: "gpu"}, "a connection name cannot contain control characters"},
 		{"invalid utf-8", Connection{Name: "a\xffb", Destination: "gpu"}, "a connection name cannot contain control characters"},

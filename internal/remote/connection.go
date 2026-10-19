@@ -40,6 +40,10 @@ func ValidateConnection(next Connection, others []Connection) error {
 		return errors.New("a connection name cannot start or end with a space")
 	case strings.Contains(name, refSeparator):
 		return errors.New(`a connection name cannot contain "::"`)
+	case strings.HasSuffix(name, ":"):
+		// <name>::<id> splits at the first "::", so a trailing ":" would
+		// move into every id.
+		return errors.New(`a connection name cannot end with ":"`)
 	case strings.Contains(name, "/"):
 		return errors.New("a connection name cannot contain /")
 	case !utf8.ValidString(name) || strings.IndexFunc(name, unicode.IsControl) >= 0:

@@ -106,6 +106,7 @@ func (c *Client) sshArgv(destination string, tty bool, command string) []string 
 		"ssh",
 		"-o", "BatchMode=yes",
 		"-o", "ForwardAgent=no",
+		"-o", "ForwardX11=no",
 		"-o", "ClearAllForwardings=yes",
 		"-o", "ConnectTimeout=5",
 		"-o", "ServerAliveInterval=15",

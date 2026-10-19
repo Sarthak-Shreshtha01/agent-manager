@@ -239,7 +239,7 @@ func newView(deps Dependencies, version string) (*Model, error) {
 			engine:      engine,
 			setSnapshot: st.SetSnapshot,
 		},
-		rail:     uirail.New(loadCollapsed(st)),
+		rail:     loadRail(st),
 		ssh:      newConnections(remote.New(deps.ProfileDir), connections),
 		settings: settingsFeature{cache: loadSettingsCache(st, choiceSettingKeys(slices.Sorted(maps.Keys(cfg.Tools))))},
 		focus: focusState{runtime: focusRuntimeState{

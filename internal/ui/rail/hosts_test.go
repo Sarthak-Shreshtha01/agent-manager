@@ -61,7 +61,7 @@ func TestConnectionRowsNestUnderTheConnectionAfterTheLocalTree(t *testing.T) {
 	model.Reconcile(hostsSnapshot(HostOnline))
 	want := []string{
 		"g:", "s:local", "g:work", " s:near",
-		"c:box", " s:box::far", " g:box::ops", "  s:box::deep", "   s:box::shell",
+		"c:box", " rs:box::far", " rg:box::ops", "  rs:box::deep", "   rs:box::shell",
 	}
 	if got := rowKeys(model); !slices.Equal(got, want) {
 		t.Fatalf("rows =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -104,7 +104,7 @@ func TestConnectionRowFoldsLikeAGroup(t *testing.T) {
 	model.Focus(Selection{Kind: ConnectionRow, Host: "box"})
 	ctx := KeyContext{ListKeys: keybind.DefaultList()}
 	decision := model.Key(tea.KeyMsg{Type: tea.KeyEnter}, Frame{}, ctx)
-	if len(decision.Mutations) != 1 || !slices.Contains(decision.Mutations[0].Collapsed, "box::") {
+	if len(decision.Mutations) != 1 || !slices.Contains(decision.Mutations[0].HostCollapsed, HostFold{Host: "box"}) || len(decision.Mutations[0].Collapsed) != 0 {
 		t.Fatalf("fold decision = %+v", decision)
 	}
 	if got := rowKeys(model); got[len(got)-1] != "c:box" {
@@ -116,8 +116,39 @@ func TestConnectionRowFoldsLikeAGroup(t *testing.T) {
 	model.Key(tea.KeyMsg{Type: tea.KeyEnter}, Frame{}, ctx)
 	model.Focus(Selection{Kind: GroupRow, Group: "ops", Host: "box"})
 	model.Key(tea.KeyMsg{Type: tea.KeyEnter}, Frame{}, ctx)
-	if model.collapsed["ops"] || !model.collapsed["box::ops"] {
+	if model.collapsed["ops"] || !model.hostFolds[HostFold{Host: "box", Path: "ops"}] {
 		t.Errorf("remote group fold landed on %v", model.Collapsed())
+	}
+}
+
+func TestLocalGroupNamedLikeARemotePathFoldsAlone(t *testing.T) {
+	snapshot := hostsSnapshot(HostOnline)
+	snapshot.Groups = append(snapshot.Groups, "box::ops")
+	snapshot.Sessions = append(snapshot.Sessions, Session{ID: "twin", Name: "twin", Group: "box::ops", Status: "idle", CreatedAt: time.Now()})
+	model := New(nil)
+	model.Reconcile(snapshot)
+	ctx := KeyContext{ListKeys: keybind.DefaultList()}
+	model.Focus(Selection{Kind: GroupRow, Group: "ops", Host: "box"})
+	model.Key(tea.KeyMsg{Type: tea.KeyEnter}, Frame{}, ctx)
+	if model.SelectionCollapsed(Selection{Kind: GroupRow, Group: "box::ops"}) {
+		t.Error("folding the remote group folded the local one")
+	}
+	if !model.SelectionCollapsed(Selection{Kind: GroupRow, Group: "ops", Host: "box"}) {
+		t.Error("remote group did not fold")
+	}
+	model.Reconcile(snapshot)
+	if selected, _ := model.Selected(); selected.Host != "box" || selected.Group != "ops" {
+		t.Errorf("refresh moved the cursor to %+v", selected)
+	}
+	model.Focus(Selection{Kind: GroupRow, Group: "box::ops"})
+	decision := model.Key(tea.KeyMsg{Type: tea.KeyEnter}, Frame{}, ctx)
+	if !slices.Equal(decision.Mutations[0].Collapsed, []string{"box::ops"}) || !slices.Equal(decision.Mutations[0].HostCollapsed, []HostFold{{Host: "box", Path: "ops"}}) {
+		t.Errorf("saved folds = %+v", decision.Mutations[0])
+	}
+	restored := New(decision.Mutations[0].Collapsed)
+	restored.RestoreHostFolds(decision.Mutations[0].HostCollapsed)
+	if !restored.folded("", "box::ops") || !restored.folded("box", "ops") || restored.folded("box", "") {
+		t.Errorf("restored folds: local %v, remote %v", restored.Collapsed(), restored.HostCollapsed())
 	}
 }
 
@@ -176,7 +207,7 @@ func TestConnectionRowRendersItsLabelAndState(t *testing.T) {
 		if _, grip := frame.Handles["c:box"]; grip {
 			t.Error("a connection row offers a reorder grip")
 		}
-		if _, grip := frame.Handles["s:box::far"]; grip {
+		if _, grip := frame.Handles["rs:box::far"]; grip {
 			t.Error("a remote session row offers a reorder grip")
 		}
 	}

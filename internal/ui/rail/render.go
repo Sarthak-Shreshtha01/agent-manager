@@ -606,7 +606,7 @@ func (r renderer) groupGlyph(row treeRow) string {
 	if row.isRoot() {
 		return " "
 	}
-	if r.model.collapsed[row.foldKey()] {
+	if r.model.rowFolded(row) {
 		return r.glyphs().GroupClosedGlyph
 	}
 	return r.glyphs().GroupOpenGlyph

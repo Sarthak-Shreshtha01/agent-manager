@@ -76,7 +76,7 @@ Every call runs `ssh` with:
 - `BatchMode=yes`, so it never prompts. A host key ssh has not seen fails
   with "Host key verification failed", so the user connects once by hand
   before adding the host.
-- `ForwardAgent=no` and `ClearAllForwardings=yes`.
+- `ForwardAgent=no`, `ForwardX11=no` and `ClearAllForwardings=yes`.
 - `ConnectTimeout=5` and server-alive limits.
 - A per-profile `ControlMaster`/`ControlPersist` socket under a short private
   directory, so a poll does not open a new connection each time. Not on
