@@ -79,7 +79,12 @@ run without one:
   it came from another of the user's machines and that a reply cannot reach
   it. Every `--from` sender shares one rate limit per target.
 - `type` submits the user's quick bar prompt in an agent's pane at once, as
-  the local quick bar does. It is refused from inside a session.
+  the local quick bar does. It is refused from inside a session. It carries
+  no envelope and no rate limit, so it sits outside the guardrail the other
+  commands keep: anything that escapes caller detection can type into any
+  agent as the user. Each pane's send holds a lock file beside the tmux
+  socket, so a typed prompt and the host manager's own delivery never
+  interleave.
 
 Tasks, file reservations, rename and review still need a calling session.
 

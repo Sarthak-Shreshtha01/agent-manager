@@ -61,11 +61,18 @@ func TestRemoteActionsBuildTheirRemoteCall(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := &fakeSSH{}
 			m := connectedModel(t, fake)
+			if err := m.services.store.SetRemoteTerminalOpener("box", "t1", "cafe"); err != nil {
+				t.Fatal(err)
+			}
 			m.rail.Focus(tc.target)
 			_, cmd := m.runRailIntent(uirail.Intent{Kind: tc.kind, Target: tc.target})
 			m.runRemoteCmd(t, m.answerRemote(t, fake, cmd, "y"))
 			if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], tc.want) {
 				t.Fatalf("calls = %q, want one %q", calls, tc.want)
+			}
+			opener, err := m.services.store.RemoteTerminalOpener("box", "t1")
+			if closed := tc.target == boxSession("t1"); err != nil || (opener == "") != closed {
+				t.Fatalf("opener of t1 after %s = %q, %v", tc.name, opener, err)
 			}
 			if m.errBar.text != tc.status {
 				t.Fatalf("status = %q, want %q", m.errBar.text, tc.status)

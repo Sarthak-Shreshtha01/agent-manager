@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
@@ -68,6 +69,12 @@ func (m *Model) applyConnectionEffect(request connectionRequest, result connecti
 	}
 	m.ssh.setList(result.connections)
 	m.rebuildRows()
+	switch {
+	case request.op == connectionUpdate && request.name != request.next.Name:
+		m.applyRailStateDecision(m.rail.RenameHost(request.name, request.next.Name))
+	case request.op == connectionRemove:
+		m.applyRailStateDecision(m.rail.ForgetHost(request.name))
+	}
 	switch request.op {
 	case connectionAdd, connectionUpdate:
 		m.rail.Focus(uirail.Selection{Kind: uirail.ConnectionRow, Host: request.next.Name})
@@ -93,8 +100,8 @@ const (
 	remoteCreateGroup
 )
 
-// remoteRequest is one call to a connection's CLI. Nothing it does is
-// written to the local store.
+// remoteRequest is one call to a connection's CLI. The local store only
+// forgets the opener of a terminal it closes.
 type remoteRequest struct {
 	op       remoteOp
 	host     string
@@ -139,6 +146,11 @@ func (s effectServices) runRemote(request remoteRequest) (effectResult, error) {
 		result.session, err = s.remote.Kill(ctx, request.ref)
 	case remoteCloseTerminal:
 		err = s.remote.TerminalClose(ctx, request.ref)
+		if err == nil {
+			if forget := s.store.DeleteRemoteTerminal(request.ref.Host, request.ref.ID); forget != nil {
+				err = fmt.Errorf("closed terminal %s, but forgetting which session opened it failed: %w", request.ref, forget)
+			}
+		}
 	case remoteRevive:
 		result.session, err = s.remote.Revive(ctx, request.ref)
 	case remoteArchive, remoteRestore:

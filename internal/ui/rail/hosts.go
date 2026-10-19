@@ -120,6 +120,30 @@ func (m Model) HostCollapsed() []HostFold {
 	return folds
 }
 
+// RenameHost carries a renamed connection's folds to its new name.
+func (m *Model) RenameHost(old, next string) Decision {
+	for fold, folded := range m.hostFolds {
+		if fold.Host == old {
+			delete(m.hostFolds, fold)
+			m.hostFolds[HostFold{Host: next, Path: fold.Path}] = folded
+		}
+	}
+	m.rebuildRows()
+	return m.collapsedDecision()
+}
+
+// ForgetHost drops a removed connection's folds, so a later connection by
+// that name starts open.
+func (m *Model) ForgetHost(name string) Decision {
+	for fold := range m.hostFolds {
+		if fold.Host == name {
+			delete(m.hostFolds, fold)
+		}
+	}
+	m.rebuildRows()
+	return m.collapsedDecision()
+}
+
 // RestoreHostFolds folds the connection rows a previous run saved.
 func (m *Model) RestoreHostFolds(folds []HostFold) {
 	for _, fold := range folds {

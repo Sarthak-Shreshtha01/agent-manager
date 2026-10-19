@@ -408,7 +408,13 @@ func (h *remoteHosts) createTerminal(ctx context.Context, host string, opts sess
 		return st.SetRemoteTerminalOpener(host, created.ID, h.sessionID)
 	})
 	if err != nil {
-		return sessioncmd.Terminal{}, fmt.Errorf("opened terminal %s, but no session can drive it: recording this one as its opener failed: %w", remote.Ref{Host: host, ID: created.ID}, err)
+		// Nobody could drive it but the user, so it is closed rather than
+		// left running on the host.
+		ref := remote.Ref{Host: host, ID: created.ID}
+		if closeErr := h.client.TerminalClose(ctx, ref); closeErr != nil {
+			return sessioncmd.Terminal{}, fmt.Errorf("opened terminal %s, but recording this session as its opener failed (%w), and closing it failed too: %v", ref, err, closeErr)
+		}
+		return sessioncmd.Terminal{}, fmt.Errorf("recording this session as the opener of terminal %s failed, so it was closed again: %w", ref, err)
 	}
 	return qualifyTerminal(host, created), nil
 }

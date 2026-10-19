@@ -244,3 +244,20 @@ func TestConnectionMenusOfferOnlyRemoteActions(t *testing.T) {
 		t.Errorf("root menu = %v, want New connection", got)
 	}
 }
+
+func TestHostFoldsFollowTheirConnection(t *testing.T) {
+	model := New([]string{"work"})
+	model.RestoreHostFolds([]HostFold{{Host: "box"}, {Host: "box", Path: "ops"}, {Host: "lab", Path: "ops"}})
+	decision := model.RenameHost("box", "gpu")
+	want := []HostFold{{Host: "gpu"}, {Host: "gpu", Path: "ops"}, {Host: "lab", Path: "ops"}}
+	if got := decision.Mutations[0].HostCollapsed; !slices.Equal(got, want) {
+		t.Fatalf("after rename: %+v, want %+v", got, want)
+	}
+	decision = model.ForgetHost("gpu")
+	if got := decision.Mutations[0].HostCollapsed; !slices.Equal(got, []HostFold{{Host: "lab", Path: "ops"}}) {
+		t.Fatalf("after removal: %+v", got)
+	}
+	if got := decision.Mutations[0].Collapsed; !slices.Equal(got, []string{"work"}) {
+		t.Fatalf("local folds changed: %v", got)
+	}
+}

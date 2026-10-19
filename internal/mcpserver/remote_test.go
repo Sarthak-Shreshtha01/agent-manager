@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"reflect"
 	"slices"
@@ -558,5 +559,34 @@ func TestSenderNameFitsTheRemoteLimit(t *testing.T) {
 		if got != tc.want || len(got) > maxSenderBytes {
 			t.Errorf("senderName(%q, %q) = %q, want %q", tc.name, tc.host, got, tc.want)
 		}
+	}
+}
+
+// A terminal no session could drive is closed again rather than left
+// running on the host.
+func TestARemoteTerminalWhoseOpenerIsNotRecordedIsClosed(t *testing.T) {
+	f := newRemoteFixture(t, "cafe", func(_ string, words []string) ([]byte, []byte, error) {
+		switch strings.Join(words[:2], " ") {
+		case "terminal create":
+			return mustJSON(t, sessioncmd.Terminal{ID: "t9", Name: "shell"}), nil, nil
+		case "terminal close":
+			return []byte("closed terminal t9\n"), nil, nil
+		}
+		t.Errorf("unexpected remote call %q", words)
+		return nil, nil, nil
+	})
+	f.withStore = func(func(*store.Store) error) error { return errors.New("disk I/O error") }
+	session := f.connect(t, "cafe")
+	f.hosts.reset()
+	text, isError := callText(t, session, "create_terminal", map[string]any{"host": "gpu"})
+	if !isError || !strings.Contains(text, "so it was closed again: disk I/O error") {
+		t.Fatalf("create_terminal = %q", text)
+	}
+	var words []string
+	for _, call := range f.hosts.recorded() {
+		words = append(words, strings.Join(call.words[:2], " "))
+	}
+	if !slices.Equal(words, []string{"terminal create", "terminal close"}) {
+		t.Fatalf("calls = %q, want the terminal created and closed", words)
 	}
 }
