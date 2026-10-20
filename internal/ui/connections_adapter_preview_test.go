@@ -34,7 +34,7 @@ func TestRemotePreviewReadsTheSelectedScreenOffTheUpdatePath(t *testing.T) {
 		t.Fatalf("content before the read:\n%s", text)
 	}
 	m.applyTestMsg(t, cmd())
-	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], []string{"read", "--json", "--", "s1"}) {
+	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], []string{"read", "--styled", "--json", "--", "s1"}) {
 		t.Fatalf("calls = %q", calls)
 	}
 	if text := contentText(m); !strings.Contains(text, "building api") || strings.Contains(text, "\x1b") {
@@ -47,7 +47,7 @@ func TestRemotePreviewReadsATerminalAsOne(t *testing.T) {
 	m := connectedModel(t, fake)
 	m.rail.Focus(boxSession("t1"))
 	m.applyTestMsg(t, m.syncRemotePreview()())
-	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], []string{"terminal", "read", "--json", "--", "t1"}) {
+	if calls := fake.taken(); len(calls) != 1 || !slices.Equal(calls[0], []string{"terminal", "read", "--styled", "--json", "--", "t1"}) {
 		t.Fatalf("calls = %q", calls)
 	}
 }

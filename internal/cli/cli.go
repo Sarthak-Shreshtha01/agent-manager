@@ -201,6 +201,12 @@ func jsonFlag(set *flag.FlagSet) *bool {
 	return set.Bool("json", false, "print the raw result as JSON instead of a sentence")
 }
 
+// styledFlag keeps a screen's escape sequences, which another manager
+// reading it over SSH paints in its colors.
+func styledFlag(set *flag.FlagSet) *bool {
+	return set.Bool("styled", false, "keep the screen's color escape sequences")
+}
+
 func usageError(usage string) error {
 	return fmt.Errorf("usage: agent-manager %s", usage)
 }

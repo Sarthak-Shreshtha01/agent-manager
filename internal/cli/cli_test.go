@@ -103,6 +103,11 @@ func (f *fakeSessions) Read(sessionID, targetID string) (sessioncmd.SessionScree
 	return sessioncmd.SessionScreen{Session: f.session, Output: "screen text"}, f.failWith
 }
 
+func (f *fakeSessions) ReadStyled(sessionID, targetID string) (sessioncmd.SessionScreen, error) {
+	f.callerID, f.targetID = sessionID, targetID
+	return sessioncmd.SessionScreen{Session: f.session, Output: "\x1b[32mscreen text\x1b[0m"}, f.failWith
+}
+
 func (f *fakeSessions) Wait(ctx context.Context, sessionID, targetID string, until []string, timeout time.Duration) (sessioncmd.WaitResult, error) {
 	f.callerID, f.targetID, f.until, f.timeout = sessionID, targetID, until, timeout
 	return f.wait, f.failWith
@@ -241,6 +246,11 @@ func (f *fakeTerminals) Send(sessionID, terminalID, command string, keys []strin
 func (f *fakeTerminals) Read(sessionID, terminalID string) (sessioncmd.TerminalScreen, error) {
 	f.callerID, f.terminalID = sessionID, terminalID
 	return sessioncmd.TerminalScreen{Output: "build passed"}, f.failWith
+}
+
+func (f *fakeTerminals) ReadStyled(sessionID, terminalID string) (sessioncmd.TerminalScreen, error) {
+	f.callerID, f.terminalID = sessionID, terminalID
+	return sessioncmd.TerminalScreen{Output: "\x1b[32mbuild passed\x1b[0m"}, f.failWith
 }
 
 func sampleSession() sessioncmd.Session {

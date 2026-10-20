@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -188,11 +189,47 @@ func (c *Client) AttachCommand(ref Ref) (*exec.Cmd, error) {
 	if err := prepareSharing(c.controlDir); err != nil {
 		return nil, &Error{Host: ref.Host, Err: err}
 	}
-	words := []string{"tmux", "-u", "-L", "agentmgr", "attach-session", "-t", "am_" + ref.ID}
-	argv := c.sshArgv(conn.Destination, true, loginShell(quoteWords(words)))
+	argv := c.sshArgv(conn.Destination, true, loginShell(attachScript(ref.ID)))
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = withoutTMUX(os.Environ())
 	return cmd, nil
+}
+
+// The exit statuses attachScript reports the host's review and editor keys
+// with, above any tmux itself exits with.
+const (
+	exitAttachReview = 120
+	exitAttachEditor = 121
+)
+
+// attachScript attaches to the session on the host's tmux server. The host's
+// in-session review and editor keys leave their request on that server and
+// detach, and the host's own manager would carry it out the next time one
+// of its attaches ends there, so the script takes it back and reports it in
+// its exit status instead.
+func attachScript(id string) string {
+	tmux := []string{"tmux", "-u", "-L", "agentmgr"}
+	attach := quoteWords(append(tmux, "attach-session", "-t", "am_"+id))
+	show := quoteWords(append(tmux, "show-options", "-gqv", "@am_request"))
+	unset := quoteWords(append(tmux, "set-option", "-gu", "@am_request"))
+	return attach + `; s=$?; r=$(` + show + ` 2>/dev/null); [ -n "$r" ] && ` + unset + ` 2>/dev/null; ` +
+		`case "$r" in review) exit ` + strconv.Itoa(exitAttachReview) + `;; editor) exit ` + strconv.Itoa(exitAttachEditor) + `;; esac; exit $s`
+}
+
+// AttachKey reports the host's review or editor key ending an attach, which
+// this manager cannot carry out for a session on another machine. The error
+// is nil then; otherwise it is err as it was.
+func AttachKey(err error) (string, error) {
+	var exited interface{ ExitCode() int }
+	if errors.As(err, &exited) {
+		switch exited.ExitCode() {
+		case exitAttachReview:
+			return "review", nil
+		case exitAttachEditor:
+			return "editor", nil
+		}
+	}
+	return "", err
 }
 
 func withoutTMUX(environ []string) []string {

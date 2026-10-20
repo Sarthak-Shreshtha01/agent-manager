@@ -1,6 +1,7 @@
 package connections
 
 import (
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -97,14 +98,35 @@ func (p *Preview) Screen(width, height int, view ScreenView) []string {
 	}
 	for i, line := range lines {
 		lines[i] = ansi.Truncate(view.ExpandTabs(line, width), width, "")
+		// A color the host left set ends with its row, as it does there.
+		if strings.Contains(lines[i], "\x1b[") {
+			lines[i] += "\x1b[m"
+		}
 	}
 	return lines
 }
 
-// ScreenText is a remote screen as plain text: escape sequences stripped,
-// and every control but a newline or tab dropped, since a bare \r or \b
-// moves the cursor of the terminal the frame paints into.
+// sgr is one Select Graphic Rendition sequence: colors and text attributes,
+// which move no cursor and reach no other terminal feature.
+var sgr = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
+
+// ScreenText is a remote screen as the preview paints it: its colors kept,
+// every other escape sequence stripped, and every control but a newline or
+// tab dropped, since a bare \r or \b moves the cursor of the terminal the
+// frame paints into.
 func ScreenText(text string) string {
+	var out strings.Builder
+	last := 0
+	for _, at := range sgr.FindAllStringIndex(text, -1) {
+		out.WriteString(plainText(text[last:at[0]]))
+		out.WriteString(text[at[0]:at[1]])
+		last = at[1]
+	}
+	out.WriteString(plainText(text[last:]))
+	return out.String()
+}
+
+func plainText(text string) string {
 	return strings.Map(func(r rune) rune {
 		if r == '\n' || r == '\t' {
 			return r

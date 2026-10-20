@@ -70,8 +70,23 @@ func TestPreviewShowsAFailedRead(t *testing.T) {
 	}
 }
 
-func TestScreenTextKeepsOnlyNewlinesAndTabs(t *testing.T) {
-	if got := ScreenText("\x1b[1mbuild\x1b[0m\r\b\x07ing\tok\n$ "); got != "building\tok\n$ " {
+func TestScreenTextKeepsColorsNewlinesAndTabs(t *testing.T) {
+	in := "\x1b[1;38;5;208mbuild\x1b[0m\r\b\x07\x1b]8;;http://x\x07ing\x1b[2J\tok\u009b31m\n$ "
+	if got := ScreenText(in); got != "\x1b[1;38;5;208mbuild\x1b[0ming\tok31m\n$ " {
 		t.Fatalf("ScreenText = %q", got)
+	}
+}
+
+// A remote screen paints in its colors, and a color still set at the end of
+// a row ends there rather than bleeding into the frame beside it.
+func TestPreviewPaintsColors(t *testing.T) {
+	var c Connections
+	c.SetList([]remote.Connection{{Name: "box", Destination: "me@box"}})
+	c.Preview.Follow(agentRow("s1"), true)
+	read, _ := c.StartRead()
+	c.Preview.Apply(read, "\x1b[32mok\x1b[0m done\n\x1b[31mfailed", nil)
+	got := c.Preview.Screen(80, 5, plainScreen)
+	if len(got) != 2 || got[0] != "\x1b[32mok\x1b[0m done\x1b[m" || got[1] != "\x1b[31mfailed\x1b[m" {
+		t.Fatalf("screen = %q", got)
 	}
 }

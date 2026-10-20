@@ -19,7 +19,7 @@ const (
 	usageSpawn         = "spawn [--name <name>] [--prompt <text>] [--saved <name>] [--tool <cli>] [--model <model>] [--effort <level>] [--profile <name>] [--group <path>] [--directory <path>] [--worktree] [--json]"
 	usageSend          = `send <session-id> ["<message>"] [--saved <name>] [--from <name>] [--json]`
 	usageType          = `type <session-id> "<prompt>" [--json]`
-	usageRead          = "read <session-id> [--json]"
+	usageRead          = "read <session-id> [--styled] [--json]"
 	usageWait          = "wait <session-id> [--until <state>] [--timeout <duration>] [--json]"
 	usageMessageStatus = "message-status <message-id> [--json]"
 	usageKill          = "kill <session-id> [--json]"
@@ -41,6 +41,7 @@ type sessionCommands interface {
 	Type(sessionID, targetID, prompt string) (sessioncmd.Session, error)
 	ExpandSaved(name, text string) (string, error)
 	Read(sessionID, targetID string) (sessioncmd.SessionScreen, error)
+	ReadStyled(sessionID, targetID string) (sessioncmd.SessionScreen, error)
 	Wait(ctx context.Context, sessionID, targetID string, until []string, timeout time.Duration) (sessioncmd.WaitResult, error)
 	MessageStatus(sessionID string, messageID int64) (sessioncmd.MessageState, error)
 	Kill(sessionID, targetID string) (sessioncmd.Session, error)
@@ -207,12 +208,17 @@ func runType(out io.Writer, sessions sessionCommands, args []string, sessionID s
 
 func runRead(out io.Writer, sessions sessionCommands, args []string, sessionID string) error {
 	set := newFlagSet(usageRead)
+	styled := styledFlag(set)
 	asJSON := jsonFlag(set)
 	operands, err := parseCommand(out, set, args, 1, 1)
 	if err != nil {
 		return err
 	}
-	screen, err := sessions.Read(sessionID, operands[0])
+	read := sessions.Read
+	if *styled {
+		read = sessions.ReadStyled
+	}
+	screen, err := read(sessionID, operands[0])
 	if err != nil {
 		return err
 	}

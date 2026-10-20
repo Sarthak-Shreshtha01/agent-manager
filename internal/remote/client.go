@@ -255,7 +255,14 @@ func classify(ctx context.Context, conn Connection, stderr []byte, err error) *E
 	}
 	switch exited.ExitCode() {
 	case exitSSH:
-		if text == "" {
+		// BatchMode refuses a host key known_hosts lacks or no longer
+		// matches, where an interactive ssh would have asked.
+		switch {
+		case bytes.Contains(stderr, []byte("IDENTIFICATION HAS CHANGED")):
+			text = "the host's key no longer matches known_hosts; find out why before you trust it, then update known_hosts"
+		case bytes.Contains(stderr, []byte("Host key verification failed")):
+			text = "known_hosts has no key for this host yet; run ssh " + conn.Destination + " once in a terminal to check and accept it"
+		case text == "":
 			text = err.Error()
 		}
 		return &Error{Host: host, Err: errors.New("unreachable over SSH: " + text), trouble: TroubleUnreachable}

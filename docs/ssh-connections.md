@@ -22,13 +22,13 @@ The protocol is the remote host's own CLI, run over SSH as `agent-manager <comma
 |---|---|
 | Inventory | `snapshot --json`: sessions, terminals, groups, and whether a manager is awake |
 | Start the manager | `serve --background` |
-| Read a screen | `read <id> --json`, `terminal read <id> --json` |
+| Read a screen | `read <id> --styled --json`, `terminal read <id> --styled --json`, keeping only its color sequences on this side; a host that predates `--styled` is read again without it |
 | Message an agent | `send --from=<sender> --json -- <id> <text>` |
 | Answer an agent from the quick bar | `type --json -- <id> <text>` |
 | Spawn | `spawn --json ...`, `terminal create --json ...` |
 | Lifecycle | `kill`, `revive`, `archive [--restore]`, `terminal close` |
 | Groups | `create-group`, `delete-group` |
-| Attach | `ssh -t <dest> tmux -L agentmgr attach-session -t <session>` |
+| Attach | `ssh -t <dest>` running `tmux -L agentmgr attach-session -t <session>`, then taking back any review or editor request the host's keys left on its tmux server |
 
 The snapshot envelope carries `version`. A remote that does not know `snapshot`, or answers with an older version, says to update agent-manager on that host. One that answers with a newer version says to update it on this machine.
 
@@ -48,7 +48,7 @@ Tasks, file reservations, rename and review still need a calling session.
 ### SSH invocation
 
 Every call runs `ssh` with:
-- `BatchMode=yes`, so it never prompts. A host key ssh has not seen fails with "Host key verification failed", so the user connects once by hand before adding the host.
+- `BatchMode=yes`, so it never prompts. A host key ssh has not seen fails with "Host key verification failed", so the user connects once by hand before adding the host. The connection's error says so, and says when the key changed instead.
 - `ForwardAgent=no`, `ForwardX11=no` and `ClearAllForwardings=yes`.
 - `ConnectTimeout=5` and server-alive limits.
 - A per-profile `ControlMaster`/`ControlPersist` socket under a short private directory, so a poll does not open a new connection each time. Not on Windows: its `ssh.exe` has no connection sharing, so each call there opens its own connection.
@@ -82,4 +82,4 @@ These are refused on a remote row with a message naming the gap:
 - Kill all and revive all.
 - File reservations and tasks, which stay per host.
 
-Focus and attach on a remote row open an SSH attach in the terminal, not the embedded focus view.
+Focus and attach on a remote row open an SSH attach in the terminal, not the embedded focus view. Inside it, the host's review and editor keys detach like its back key does, and the manager says they work only for sessions on this machine. The host's own manager never sees the request, since the attach takes it back off that host's tmux server.

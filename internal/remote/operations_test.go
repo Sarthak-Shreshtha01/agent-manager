@@ -51,6 +51,14 @@ func TestOperationArgv(t *testing.T) {
 			_, err := c.ReadTerminal(ctx, ref)
 			return err
 		}, []string{"terminal", "read", "--json", "--", "a1b2c3d4"}},
+		{"styled read", func(ctx context.Context, c *Client) error {
+			_, err := c.ReadScreen(ctx, ref, false)
+			return err
+		}, []string{"read", "--styled", "--json", "--", "a1b2c3d4"}},
+		{"styled terminal read", func(ctx context.Context, c *Client) error {
+			_, err := c.ReadScreen(ctx, ref, true)
+			return err
+		}, []string{"terminal", "read", "--styled", "--json", "--", "a1b2c3d4"}},
 		{"send", func(ctx context.Context, c *Client) error {
 			_, err := c.Send(ctx, ref, text, "laptop agent")
 			return err
@@ -344,5 +352,25 @@ func TestTypeThatMayHaveReachedTheAgent(t *testing.T) {
 	defer cancel()
 	if _, err := slow.Type(ctx, ref, "hi"); !MayHaveReached(err) || !strings.Contains(err.Error(), "prompt may have reached the agent") {
 		t.Errorf("a timed-out type = %v, want one that may have reached the agent", err)
+	}
+}
+
+// A host built before reads took --styled refuses the flag; its screen is
+// read again in plain text rather than shown as an error.
+func TestReadScreenFallsBackToPlainOnAnOlderHost(t *testing.T) {
+	var calls [][]string
+	c := newTestClient(t, func(_ context.Context, argv []string) ([]byte, []byte, error) {
+		words := remoteWords(t, argv)
+		calls = append(calls, words)
+		for _, word := range words {
+			if word == "--styled" {
+				return nil, []byte("flag provided but not defined: -styled\n"), exitStatus(2)
+			}
+		}
+		return []byte(`{"session":{"id":"a1","name":"x"},"output":"\u001b[31mred\u001b[0m"}`), nil, nil
+	})
+	got, err := c.ReadScreen(context.Background(), Ref{Host: "gpu", ID: "a1"}, false)
+	if err != nil || got != "red" || len(calls) != 2 {
+		t.Fatalf("ReadScreen = %q, %v after %d calls", got, err, len(calls))
 	}
 }

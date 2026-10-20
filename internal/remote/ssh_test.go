@@ -229,9 +229,10 @@ func TestAttachCommand(t *testing.T) {
 	if got := cmd.Args[len(cmd.Args)-2]; got != "me@gpu" {
 		t.Fatalf("attach destination %s", got)
 	}
-	want := []string{"tmux", "-u", "-L", "agentmgr", "attach-session", "-t", "am_a1b2c3d4"}
-	if got := remoteWords(t, cmd.Args); !slices.Equal(got, want) {
-		t.Fatalf("attach runs %q, want %q", got, want)
+	// TestAttachScriptTakesBackTheHostsRequest runs the script itself.
+	want := quoteWords([]string{"tmux", "-u", "-L", "agentmgr", "attach-session", "-t", "am_a1b2c3d4"}) + "; "
+	if got := cmd.Args[len(cmd.Args)-1]; got != loginShell(attachScript("a1b2c3d4")) || !strings.HasPrefix(attachScript("a1b2c3d4"), want) {
+		t.Fatalf("attach runs %q, want it to start with %q", got, want)
 	}
 	for _, entry := range cmd.Env {
 		if strings.HasPrefix(entry, "TMUX=") {

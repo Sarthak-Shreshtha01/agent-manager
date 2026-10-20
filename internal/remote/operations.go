@@ -53,6 +53,35 @@ func (c *Client) ReadSession(ctx context.Context, ref Ref) (sessioncmd.SessionSc
 	return sessioncmd.SessionScreen{Session: session, Output: cleanScreen(screen.Output)}, nil
 }
 
+// ReadScreen is the screen of a session, or a terminal, in its colors, for
+// a preview to paint. A host built before reads took --styled answers in
+// plain text.
+func (c *Client) ReadScreen(ctx context.Context, ref Ref, terminal bool) (string, error) {
+	if err := validRef(ref); err != nil {
+		return "", err
+	}
+	command := []string{"read"}
+	if terminal {
+		command = []string{"terminal", "read"}
+	}
+	var screen struct {
+		Output string `json:"output"`
+	}
+	err := c.decode(ctx, ref.Host, callTimeout, &screen, append(command, "--styled", "--json", "--", ref.ID)...)
+	if err == nil {
+		return cleanStyledScreen(screen.Output), nil
+	}
+	if Unreachable(err) || ctx.Err() != nil {
+		return "", err
+	}
+	if terminal {
+		plain, err := c.ReadTerminal(ctx, ref)
+		return plain.Output, err
+	}
+	plain, err := c.ReadSession(ctx, ref)
+	return plain.Output, err
+}
+
 func (c *Client) ReadTerminal(ctx context.Context, ref Ref) (sessioncmd.TerminalScreen, error) {
 	var screen sessioncmd.TerminalScreen
 	if err := validRef(ref); err != nil {

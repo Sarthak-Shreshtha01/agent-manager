@@ -176,8 +176,14 @@ func (m *Model) routeConnectionMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case remoteAttachReadyMsg:
 		return routed(m, m.runRemoteAttach(msg))
 	case remoteAttachDoneMsg:
-		if msg.err != nil {
-			m.reportErr(msg.host + ": attach ended: " + msg.err.Error())
+		key, err := remote.AttachKey(msg.err)
+		switch {
+		case err != nil:
+			m.reportErr(msg.host + ": attach ended: " + err.Error())
+		case key == "review":
+			m.reportErr("review opens only for sessions on this machine, not yet for one on " + msg.host)
+		case key == "editor":
+			m.reportErr("the editor opens only for sessions on this machine, not yet for one on " + msg.host)
 		}
 		return routed(m, tea.Batch(m.pollConnection(msg.host), m.readRemotePreview()))
 	}
@@ -247,12 +253,7 @@ func (m *Model) readRemotePreview() tea.Cmd {
 }
 
 func readRemoteScreen(client *remote.Client, read uiconnections.Read) (string, error) {
-	if read.Terminal {
-		screen, err := client.ReadTerminal(context.Background(), read.Ref)
-		return screen.Output, err
-	}
-	screen, err := client.ReadSession(context.Background(), read.Ref)
-	return screen.Output, err
+	return client.ReadScreen(context.Background(), read.Ref, read.Terminal)
 }
 
 // remoteContentLines fills the content column for a remote selection: a
