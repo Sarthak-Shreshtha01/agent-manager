@@ -26,6 +26,16 @@ type Command func(args []string, caller func() string, configDir string) error
 // exits without an error line.
 var ErrUsageShown = errors.New("usage shown")
 
+// ExitCode is the status a failed subcommand exits with: 1, or
+// sessioncmd.ExitMayHaveReached for a prompt that may sit in the pane.
+func ExitCode(err error) int {
+	var uncertain *sessioncmd.MayHaveReachedError
+	if errors.As(err, &uncertain) {
+		return sessioncmd.ExitMayHaveReached
+	}
+	return 1
+}
+
 const anyNumber = -1
 
 type command struct {

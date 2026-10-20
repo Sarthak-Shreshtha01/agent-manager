@@ -98,7 +98,7 @@ func main() {
 					return
 				}
 				fmt.Fprintln(os.Stderr, "agent-manager:", err)
-				os.Exit(1)
+				os.Exit(cli.ExitCode(err))
 			}
 			return
 		}

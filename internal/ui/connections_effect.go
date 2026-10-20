@@ -156,6 +156,11 @@ func (s effectServices) runRemote(request remoteRequest) (effectResult, error) {
 
 func (m *Model) applyRemoteEffect(request remoteRequest, result remoteEffectResult, err error) tea.Cmd {
 	if err != nil {
+		// As on this machine, a prompt that may sit in the pane leaves the
+		// bar, so the next enter cannot type it a second time.
+		if request.op == remoteType && remote.MayHaveReached(err) {
+			m.quick.clearAccepted(quickSendRequest{composerGen: request.composerGen, draft: request.draft, closeAfterSend: request.closeAfterSend})
+		}
 		m.reportErr(err.Error())
 		return m.pollConnection(request.host)
 	}

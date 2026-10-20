@@ -136,7 +136,7 @@ func (s *Sessions) Type(sessionID, targetID, prompt string) (Session, error) {
 	sent, err := runtime.driver.SendTextResult(target.ID, prompt)
 	if err != nil {
 		if sent.PasteMayHaveStarted() {
-			return Session{}, fmt.Errorf("prompt may have reached %s and was not sent again: %w", target.Name, err)
+			return Session{}, &MayHaveReachedError{fmt.Errorf("prompt may have reached %s and was not sent again: %w", target.Name, err)}
 		}
 		return Session{}, fmt.Errorf("prompt was not sent to %s: %w", target.Name, err)
 	}
@@ -145,6 +145,18 @@ func (s *Sessions) Type(sessionID, targetID, prompt string) (Session, error) {
 	}
 	return runtime.sessionInfo(target, true, false), nil
 }
+
+// ExitMayHaveReached is the CLI's exit status for a prompt whose paste had
+// started when the send failed, so a manager on another machine knows the
+// prompt may sit in the pane and does not offer it again.
+const ExitMayHaveReached = 3
+
+// MayHaveReachedError is a send whose paste may have reached the pane.
+type MayHaveReachedError struct{ err error }
+
+func (e *MayHaveReachedError) Error() string { return e.err.Error() }
+
+func (e *MayHaveReachedError) Unwrap() error { return e.err }
 
 func validSenderName(name string) error {
 	if strings.TrimSpace(name) == "" {

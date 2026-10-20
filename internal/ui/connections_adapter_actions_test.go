@@ -198,6 +198,40 @@ func TestQuickBarSendsToARemoteAgent(t *testing.T) {
 	}
 }
 
+// A prompt that may sit in the remote pane leaves the bar, as it does on
+// this machine; one the host refused before typing stays for another try.
+func TestQuickBarClearsAPromptThatMayHaveReachedARemoteAgent(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		code   int
+		stderr string
+		kept   bool
+	}{
+		{"the host saw the paste start", 3, "agent-manager: prompt may have reached api and was not sent again: tmux: exit status 1", false},
+		{"ssh dropped after it started", 255, "Connection to box closed by remote host.", false},
+		{"the host refused it", 1, "agent-manager: prompt was not sent to api: pane is busy", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeSSH{}
+			m := connectedModel(t, fake)
+			m.rail.Focus(boxSession("s1"))
+			m.openQuickMode()
+			m.quick.input.SetValue("hello there")
+			fake.mu.Lock()
+			fake.stderr, fake.code = tc.stderr, tc.code
+			fake.mu.Unlock()
+			_, cmd := m.handleQuickKey(tea.KeyMsg{Type: tea.KeyEnter})
+			m.runRemoteCmd(t, cmd)
+			if kept := m.quick.input.Value() == "hello there"; kept != tc.kept {
+				t.Fatalf("draft %q kept %v, want %v; status %q", m.quick.input.Value(), kept, tc.kept, m.errBar.text)
+			}
+			if m.errBar.text == "" {
+				t.Fatal("the failure was not reported")
+			}
+		})
+	}
+}
+
 func TestQuickBarRefusesAShellOnAConnection(t *testing.T) {
 	fake := &fakeSSH{}
 	m := connectedModel(t, fake)

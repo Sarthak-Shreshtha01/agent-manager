@@ -2,6 +2,8 @@ package remote
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
@@ -85,10 +87,24 @@ func (c *Client) Type(ctx context.Context, ref Ref, prompt string) (sessioncmd.S
 		return typed, err
 	}
 	if err := c.decode(ctx, ref.Host, callTimeout, &typed, "type", "--json", "--", ref.ID, prompt); err != nil {
-		return typed, err
+		return typed, typeLost(err)
 	}
 	typed, err := cleanSession(typed)
 	return typed, unreadable(ref.Host, "type", err)
+}
+
+// typeLost marks a type cut off after agent-manager started on the host,
+// by the deadline or a dropped connection, as one that may have reached the
+// agent: the paste may have run before the answer was lost.
+func typeLost(err error) error {
+	var failed *Error
+	if !errors.As(err, &failed) || failed.mayHaveReached || !failed.ran {
+		return err
+	}
+	if errors.Is(failed.Err, context.DeadlineExceeded) || failed.trouble == TroubleUnreachable {
+		return &Error{Host: failed.Host, Err: fmt.Errorf("prompt may have reached the agent and was not sent again: %w", failed.Err), trouble: failed.trouble, ran: true, mayHaveReached: true}
+	}
+	return err
 }
 
 func (c *Client) Spawn(ctx context.Context, host string, opts sessioncmd.CreateSessionOptions) (sessioncmd.Session, error) {

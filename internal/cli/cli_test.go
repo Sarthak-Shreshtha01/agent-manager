@@ -651,3 +651,13 @@ func TestCommandsWithBackendServeEveryCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestExitCodeTellsAPromptThatMayHaveReachedThePane(t *testing.T) {
+	uncertain := errors.Join(errors.New("type"), &sessioncmd.MayHaveReachedError{})
+	if got := ExitCode(uncertain); got != sessioncmd.ExitMayHaveReached {
+		t.Fatalf("ExitCode(may have reached) = %d", got)
+	}
+	if got := ExitCode(errors.New("prompt was not sent")); got != 1 {
+		t.Fatalf("ExitCode(refused) = %d", got)
+	}
+}

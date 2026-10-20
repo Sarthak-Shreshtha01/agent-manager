@@ -4,7 +4,9 @@ import (
 	"context"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 )
@@ -305,5 +307,42 @@ func TestUnknownCommandIsTooOldNotUnreadable(t *testing.T) {
 	_, err = c.TerminalSend(context.Background(), Ref{Host: "gpu", ID: "a1"}, "ls", nil)
 	if err == nil || err.Error() != "gpu: unreadable answer to terminal: invalid character 'c' looking for beginning of value" {
 		t.Fatalf("an answer that is not JSON = %v", err)
+	}
+}
+
+// A type is uncertain when the host saw its paste start, or when the call
+// was cut off after agent-manager started there; a refusal, or a failure
+// before agent-manager ran, is not.
+func TestTypeThatMayHaveReachedTheAgent(t *testing.T) {
+	failing := func(code int, stderr string) Runner {
+		return func(context.Context, []string) ([]byte, []byte, error) {
+			return nil, []byte(stderr), exitStatus(code)
+		}
+	}
+	ref := Ref{Host: "gpu", ID: "a1"}
+	for _, tc := range []struct {
+		name string
+		c    *Client
+		want bool
+	}{
+		{"the host saw the paste start", newTestClient(t, failing(3, "agent-manager: prompt may have reached api and was not sent again: boom")), true},
+		{"ssh dropped after agent-manager started", newTestClient(t, failing(255, "Connection to gpu closed by remote host.")), true},
+		{"the host refused it", newTestClient(t, failing(1, "agent-manager: prompt was not sent to api: boom")), false},
+		{"ssh never reached agent-manager", newRawTestClient(t, failing(255, "ssh: connect to host gpu port 22: Connection refused")), false},
+	} {
+		_, err := tc.c.Type(context.Background(), ref, "hi")
+		if err == nil || MayHaveReached(err) != tc.want {
+			t.Errorf("%s: err %v, MayHaveReached %v, want %v", tc.name, err, MayHaveReached(err), tc.want)
+		}
+	}
+
+	slow := newTestClient(t, func(ctx context.Context, _ []string) ([]byte, []byte, error) {
+		<-ctx.Done()
+		return nil, nil, ctx.Err()
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := slow.Type(ctx, ref, "hi"); !MayHaveReached(err) || !strings.Contains(err.Error(), "prompt may have reached the agent") {
+		t.Errorf("a timed-out type = %v, want one that may have reached the agent", err)
 	}
 }

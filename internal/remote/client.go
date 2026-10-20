@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/YoanWai/agent-manager/internal/remote/value"
+	"github.com/YoanWai/agent-manager/internal/sessioncmd"
 )
 
 const (
@@ -171,7 +172,9 @@ func (c *Client) call(ctx context.Context, host string, timeout time.Duration, a
 	stdout, stderr, err := c.run(ctx, argv)
 	out, marked := answer(stdout)
 	if err != nil {
-		return out, classify(ctx, conn, stderr, err)
+		failed := classify(ctx, conn, stderr, err)
+		failed.ran = marked
+		return out, failed
 	}
 	if !marked {
 		return nil, &Error{Host: host, Err: errors.New("the login shell there exited before it ran agent-manager")}
@@ -184,6 +187,11 @@ type Error struct {
 	Host    string
 	Err     error
 	trouble Trouble
+	// ran is set once agent-manager started there, so the call may have
+	// done its work before it was cut off.
+	ran bool
+	// mayHaveReached is the host saying a prompt's paste had started.
+	mayHaveReached bool
 }
 
 // Trouble is the kind of failure that kept a call from a host's manager.
@@ -218,13 +226,21 @@ func (e *Error) Unwrap() error {
 	return e.Err
 }
 
+// MayHaveReached reports a failed Type whose prompt may sit in the pane:
+// the host said its paste had started, or the call was cut off after
+// agent-manager started there. Such a prompt is not offered again.
+func MayHaveReached(err error) bool {
+	var failed *Error
+	return errors.As(err, &failed) && failed.mayHaveReached
+}
+
 // Unreachable reports a failure of the connection itself rather than of the
 // remote command: ssh failed, or the host did not answer in time.
 func Unreachable(err error) bool {
 	return TroubleOf(err) == TroubleUnreachable
 }
 
-func classify(ctx context.Context, conn Connection, stderr []byte, err error) error {
+func classify(ctx context.Context, conn Connection, stderr []byte, err error) *Error {
 	host := conn.Name
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return &Error{Host: host, Err: fmt.Errorf("did not answer in time: %w", context.DeadlineExceeded)}
@@ -253,10 +269,11 @@ func classify(ctx context.Context, conn Connection, stderr []byte, err error) er
 		// csh and tcsh take -l only on its own, and say so with their usage.
 		return &Error{Host: host, Err: errors.New("the login shell there is csh or tcsh; SSH connections need a POSIX login shell such as sh, bash or zsh")}
 	}
-	if text == "" {
-		return &Error{Host: host, Err: err}
+	failed := &Error{Host: host, Err: err, mayHaveReached: exited.ExitCode() == sessioncmd.ExitMayHaveReached}
+	if text != "" {
+		failed.Err = errors.New(strings.TrimPrefix(text, "agent-manager: "))
 	}
-	return &Error{Host: host, Err: errors.New(strings.TrimPrefix(text, "agent-manager: "))}
+	return failed
 }
 
 // lastLine skips whatever a login profile or an ssh warning printed before
