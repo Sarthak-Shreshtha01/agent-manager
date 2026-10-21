@@ -8,6 +8,7 @@ import (
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/remote"
 	"github.com/YoanWai/agent-manager/internal/sessioncmd"
+	"github.com/YoanWai/agent-manager/internal/status"
 	uiconnections "github.com/YoanWai/agent-manager/internal/ui/connections"
 	uidialogs "github.com/YoanWai/agent-manager/internal/ui/dialogs"
 	uiquick "github.com/YoanWai/agent-manager/internal/ui/quick"
@@ -92,8 +93,19 @@ func (m *Model) connectionIntent(intent uirail.Intent) (tea.Cmd, bool) {
 func (m *Model) remoteSessionIntent(kind uirail.ActionKind, row uiconnections.Row) (tea.Cmd, bool) {
 	request := remoteRequest{host: row.Host, ref: row.Ref, name: row.Name}
 	switch {
+	case (kind == uirail.Focus || kind == uirail.Attach) && row.Status == status.Dead:
+		// Its tmux session is gone, so an attach could only fail.
+		if row.Terminal {
+			m.reportErr("terminal " + row.Name + " has exited on " + row.Host + " - x closes it")
+		} else {
+			m.reportErr(row.Name + " is dead on " + row.Host + " - press v to revive it")
+		}
+		return nil, true
 	case kind == uirail.Focus || kind == uirail.Attach:
 		return m.attachRemote(row), true
+	case row.Terminal && (kind == uirail.Revive || kind == uirail.Archive || kind == uirail.Restore):
+		m.reportErr("a terminal on " + row.Host + " is not archived or revived - x closes it")
+		return nil, true
 	case kind == uirail.Kill && row.Terminal:
 		request.op = remoteCloseTerminal
 	case kind == uirail.Kill:

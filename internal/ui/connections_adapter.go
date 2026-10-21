@@ -238,6 +238,15 @@ func (m *Model) syncRemotePreview() tea.Cmd {
 	return m.readRemotePreview()
 }
 
+// tickRemotePreview re-reads the selected remote screen, following the
+// cursor first when it has moved to another remote row since.
+func (m *Model) tickRemotePreview() tea.Cmd {
+	if cmd := m.syncRemotePreview(); cmd != nil {
+		return cmd
+	}
+	return m.readRemotePreview()
+}
+
 // readRemotePreview reads the tracked row's screen once, off the update
 // path.
 func (m *Model) readRemotePreview() tea.Cmd {

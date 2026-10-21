@@ -102,7 +102,7 @@ func TestAttachScriptTakesBackTheHostsRequest(t *testing.T) {
 		"case \"$*\" in\n" +
 		"*attach-session*) exit \"$ATTACH_STATUS\";;\n" +
 		"*show-options*) printf '%s\\n' \"$REQUEST\";;\n" +
-		"*set-option*) touch " + unset + ";;\n" +
+		"*set-option*) touch \"$UNSET\";;\n" +
 		"esac\n"
 	if err := os.WriteFile(filepath.Join(dir, "tmux"), []byte(fake), 0o755); err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestAttachScriptTakesBackTheHostsRequest(t *testing.T) {
 	} {
 		os.Remove(unset)
 		cmd := exec.Command("/bin/sh", "-c", attachScript("ab12"))
-		cmd.Env = append(os.Environ(), "PATH="+dir+":/usr/bin:/bin", "REQUEST="+tc.request, "ATTACH_STATUS="+tc.status)
+		cmd.Env = append(os.Environ(), "PATH="+dir+":/usr/bin:/bin", "REQUEST="+tc.request, "ATTACH_STATUS="+tc.status, "UNSET="+unset)
 		key, err := AttachKey(cmd.Run())
 		code := 0
 		var exited *exec.ExitError

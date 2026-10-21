@@ -101,6 +101,14 @@ func remoteMenuItems(row treeRow, create []menuItem, connection menuItem) []menu
 	if row.sess.Archived {
 		return []menuItem{{label: "Restore", action: Restore}}
 	}
+	kill := menuItem{label: "Kill", action: Kill, danger: true}
+	if row.sess.IsShell {
+		// The host archives and revives agents only.
+		if row.sess.Status == "dead" {
+			return []menuItem{kill}
+		}
+		return menuSections([]menuItem{{label: "Attach", action: Attach}}, []menuItem{kill})
+	}
 	archive := menuItem{label: "Archive", action: Archive}
 	if row.sess.Status == "dead" {
 		return menuSections([]menuItem{{label: "Revive", action: Revive}}, []menuItem{archive})
@@ -112,7 +120,7 @@ func remoteMenuItems(row treeRow, create []menuItem, connection menuItem) []menu
 	return menuSections(
 		[]menuItem{{label: "Attach", action: Attach}},
 		agent,
-		[]menuItem{archive, {label: "Kill", action: Kill, danger: true}},
+		[]menuItem{archive, kill},
 	)
 }
 

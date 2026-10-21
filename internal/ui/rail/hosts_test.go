@@ -240,6 +240,10 @@ func TestConnectionMenusOfferOnlyRemoteActions(t *testing.T) {
 	if !slices.Contains(session, "Kill") || !slices.Contains(session, "Attach") {
 		t.Errorf("remote session menu = %v", session)
 	}
+	// The host archives and revives agents only.
+	if got := labels(Selection{Kind: SessionRow, SessionID: "shell", Group: "ops", Host: "box"}); !slices.Equal(got, []string{"Attach", "Kill"}) {
+		t.Errorf("remote terminal menu = %v, want Attach and Kill", got)
+	}
 	if got := labels(Selection{Kind: GroupRow}); !slices.Contains(got, "New connection") {
 		t.Errorf("root menu = %v, want New connection", got)
 	}

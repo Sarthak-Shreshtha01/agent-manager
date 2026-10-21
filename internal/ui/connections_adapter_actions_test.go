@@ -545,3 +545,31 @@ func TestRemoteSendAndSpawnRefuseASecondEnterInFlight(t *testing.T) {
 		})
 	}
 }
+
+// A dead remote agent has no tmux session left to attach to, and the host
+// archives and revives agents only, so these are refused here with what to
+// press instead of failing on the host.
+func TestRemoteActionsTheHostCannotTakeAreRefusedHere(t *testing.T) {
+	fake := &fakeSSH{}
+	m := connectedModel(t, fake)
+	cases := []struct {
+		kind   uirail.ActionKind
+		target string
+		want   string
+	}{
+		{uirail.Attach, "s2", "old is dead on box - press v to revive it"},
+		{uirail.Focus, "s2", "old is dead on box - press v to revive it"},
+		{uirail.Archive, "t1", "a terminal on box is not archived or revived - x closes it"},
+		{uirail.Revive, "t1", "a terminal on box is not archived or revived - x closes it"},
+	}
+	for _, tc := range cases {
+		m.clearErr()
+		_, cmd := m.runRailIntent(uirail.Intent{Kind: tc.kind, Target: boxSession(tc.target)})
+		if cmd != nil || !m.remoteIdle() || m.errBar.text != tc.want {
+			t.Fatalf("%v on %s: cmd %v, status %q", tc.kind, tc.target, cmd != nil, m.errBar.text)
+		}
+	}
+	if calls := fake.taken(); len(calls) != 0 {
+		t.Fatalf("calls = %q, want none", calls)
+	}
+}
