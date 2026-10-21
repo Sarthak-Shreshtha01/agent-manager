@@ -2,6 +2,8 @@ package ui
 
 import (
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestClickOnListFooterKeysOpensTheirModals(t *testing.T) {
@@ -33,7 +35,7 @@ func TestClickOnListFooterWhileSearchingTypesNothing(t *testing.T) {
 	x, y := paintedCell(t, m, "n new")
 	m.rail.SetSearch(m.rail.Search(), true)
 	preparedView(m)
-	if m = leftPress(m, x, y); m.mode != modeList || !m.rail.Searching() || m.rail.Search() != "" {
+	if m = leftClick(m, x, y); m.mode != modeList || !m.rail.Searching() || m.rail.Search() != "" {
 		t.Fatalf("search owns the click, mode = %v searching = %v query = %q", m.mode, m.rail.Searching(), m.rail.Search())
 	}
 }
@@ -92,5 +94,48 @@ func TestClickOnFocusFootLeavesFocus(t *testing.T) {
 	}
 	if m = clickLabel(t, m, "mouse back"); m.mode != modeList {
 		t.Fatalf("the back pair in the foot should leave focus, mode = %v", m.mode)
+	}
+}
+
+// A key runs when the button comes back up over it, so whatever it opens
+// starts after the release. A press that slides off the key runs nothing.
+func TestAKeyRunsOnTheRelease(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.layout.width, m.layout.height = 200, 40
+	x, y := paintedCell(t, m, "? keys")
+	if m = leftPress(m, x, y); m.mode != modeList {
+		t.Fatalf("the press alone ran the key, mode = %v", m.mode)
+	}
+	if m = leftRelease(m, 0, y); m.mode != modeList {
+		t.Fatalf("a release off the key ran it, mode = %v", m.mode)
+	}
+	if m = leftRelease(m, x, y); m.mode != modeList {
+		t.Fatalf("a second release with no press ran the key, mode = %v", m.mode)
+	}
+	if m = leftClick(m, x, y); m.mode != modeHelp {
+		t.Fatalf("a click on the key should run it, mode = %v", m.mode)
+	}
+}
+
+// A key repainted under a held button is not the key the press chose, so
+// the release runs nothing.
+func TestARepaintedKeyDoesNotRunOnTheRelease(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+	m.layout.width, m.layout.height = 200, 40
+	x, y := paintedCell(t, m, "? keys")
+	m = leftPress(m, x, y)
+	repainted := false
+	for i, hit := range m.layout.keyHits {
+		if hit.y == y && x >= hit.x0 && x < hit.x1 {
+			m.layout.keyHits[i].key, repainted = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")}, true
+		}
+	}
+	if !repainted {
+		t.Fatal("test setup: no key painted under the press")
+	}
+	if m = leftRelease(m, x, y); m.mode != modeList {
+		t.Fatalf("the release ran the repainted key, mode = %v", m.mode)
 	}
 }

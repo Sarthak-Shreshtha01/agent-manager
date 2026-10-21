@@ -6,6 +6,7 @@ import (
 
 	"github.com/YoanWai/agent-manager/internal/config"
 	"github.com/YoanWai/agent-manager/internal/launch"
+	"github.com/YoanWai/agent-manager/internal/ui/presentation"
 	"github.com/YoanWai/agent-manager/internal/ui/spawn"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -81,7 +82,7 @@ func (h spawnHost) Prompt() spawn.Prompt {
 
 func (h spawnHost) Paths() spawn.Paths {
 	// A connection's directory is the host's: nothing here completes it.
-	return pathField{pc: &h.m.form.paths, target: pathSuggestionForm, off: h.m.form.remote.on()}
+	return pathField{mode: h.m.prefs.glyphMode, pc: &h.m.form.paths, target: pathSuggestionForm, off: h.m.form.remote.on()}
 }
 
 // promptBox lends a feature package one of the root's composers.
@@ -118,6 +119,7 @@ func (p promptBox) Message() string { return p.c.message() }
 
 // pathField lends the form the root's path completer.
 type pathField struct {
+	mode   presentation.GlyphMode
 	pc     *pathComplete
 	target pathSuggestionTarget
 	// off asks for no suggestions.
@@ -139,13 +141,14 @@ func (p pathField) Suggest(typed string) tea.Cmd {
 	return p.pc.request(p.target, typed, systemPathSuggestionReader{})
 }
 
-func (p pathField) View() string { return p.pc.view() }
+func (p pathField) View() string { return p.pc.view(p.mode) }
 
 func (p pathField) Hint() [][2]string { return pathSuggestHint(p.pc.chosen) }
 
 // spawnStyles copies the active theme for one paint.
-func spawnStyles() spawn.Styles {
+func (m *Model) spawnStyles() spawn.Styles {
 	return spawn.Styles{
+		GlyphMode:   m.prefs.glyphMode,
 		Subtle:      subtleStyle(),
 		Value:       valueStyle(),
 		Muted:       mutedStyle(),
@@ -180,8 +183,8 @@ func promptField() composer {
 	return composer{input: in, maxRows: formPromptMaxRows}
 }
 
-func formField(label, value string, focused bool) string {
-	return spawn.FormField(spawnStyles(), label, value, focused)
+func (m *Model) formField(label, value string, focused bool) string {
+	return spawn.FormField(m.spawnStyles(), label, value, focused)
 }
 
 func groupBadge(path string) string {
@@ -368,12 +371,12 @@ func (m *Model) viewForm() string {
 		Width:  m.formValueWidth(),
 		NoRepo: worktreeUnavailable,
 		Group:  escapeControlsInline(displayGroup(m.form.groups[m.form.groupIndex].path)),
-		Styles: spawnStyles(),
+		Styles: m.spawnStyles(),
 		Height: m.layout.height,
 		Chrome: m.cardChromeRows,
 	}
 	if m.form.Focused() == spawn.FieldGroup {
-		facts.GroupPicker = strings.Split(m.form.viewGroupPicker(), "\n")
+		facts.GroupPicker = strings.Split(m.form.viewGroupPicker(m.prefs.glyphMode), "\n")
 	}
 	facts.WorktreeCapable, facts.WorktreeKnown = m.cachedWorktreeCapability(m.formSpawnDir())
 	if m.form.remote.on() {
@@ -383,7 +386,7 @@ func (m *Model) viewForm() string {
 		facts.Base = m.spawnBaseLabel(m.formSpawnDir(), m.selectedGroupPath())
 	}
 	body, hint := m.form.View(m.spawnHost(), facts)
-	return m.card("◆ New Session", body, hint)
+	return m.card(m.glyphs().NewSessionGlyph+" New Session", body, hint)
 }
 
 func (m *Model) rememberSpawnPick(tool string, worktree bool) {
