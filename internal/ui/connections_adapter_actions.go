@@ -109,7 +109,7 @@ func (m *Model) remoteSessionIntent(kind uirail.ActionKind, row uiconnections.Ro
 	case kind == uirail.Kill && row.Terminal:
 		request.op = remoteCloseTerminal
 	case kind == uirail.Kill:
-		request.op = remoteKill
+		request.op, request.dead = remoteKill, row.Status == status.Dead
 	case kind == uirail.Revive:
 		request.op = remoteRevive
 	case kind == uirail.Archive || kind == uirail.Restore:
@@ -149,6 +149,10 @@ func (m *Model) confirmRemote(request remoteRequest) tea.Cmd {
 		return nil
 	}
 	ask := remoteConfirm[request.op]
+	if request.dead {
+		// A dead agent holds no RAM there to free.
+		ask.consequence = ""
+	}
 	m.confirm.confirmTarget = confirmTarget{
 		action: ask.action,
 		label:  ask.verb + " " + escapeControlsInline(request.name) + " on " + request.host + "?" + ask.consequence,

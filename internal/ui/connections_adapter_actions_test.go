@@ -325,6 +325,11 @@ func TestRemoteLifecycleAsksFirstAndNoSendsNothing(t *testing.T) {
 	if calls := fake.taken(); len(calls) != 0 || m.mode != modeList {
 		t.Fatalf("calls = %q, mode %v after n", calls, m.mode)
 	}
+	// A dead agent holds no RAM there to free.
+	m.runRailIntent(uirail.Intent{Kind: uirail.Kill, Target: boxSession("s2")})
+	if m.confirm.label != "kill old on box?" {
+		t.Fatalf("dead kill label %q", m.confirm.label)
+	}
 }
 
 func TestQuickBarRefusesWhenARefreshDropsItsRemoteTarget(t *testing.T) {

@@ -117,6 +117,8 @@ type remoteRequest struct {
 	composerGen    int
 	closeAfterSend bool
 	fromForm       bool
+	// dead is a kill of an agent that has already exited there.
+	dead bool
 }
 
 func (remoteRequest) effectRequest() {}
