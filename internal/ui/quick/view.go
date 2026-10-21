@@ -115,7 +115,7 @@ func (q *Bar) statusRow(h Host, facts Facts, left string, width, line int) strin
 	worktree := st.Subtle.Render(presentation.GlyphsFor(st.GlyphMode).WorktreeGlyph + " off")
 	switch {
 	case facts.WorktreeInherit:
-		worktree = st.Subtle.Render("⎇ host default")
+		worktree = st.Subtle.Render(presentation.GlyphsFor(st.GlyphMode).WorktreeGlyph + " host default")
 	case !facts.WorktreeKnown || !facts.WorktreeCapable:
 		worktree = st.Subtle.Render(presentation.GlyphsFor(st.GlyphMode).WorktreeGlyph + " no repo")
 	case facts.WorktreeOn:
