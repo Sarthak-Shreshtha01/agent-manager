@@ -19,12 +19,16 @@ import (
 // command it prints and copies, the script i runs to unblock the launch,
 // the binary that script puts on PATH, the launch to run again once it is
 // there, and the images that launch's prompt names. command is empty when
-// the manager knows no recipe, which leaves the dialog read-only.
+// the manager knows no recipe, which leaves the dialog read-only. update
+// marks a CLI that is installed but too old, where the same installer
+// updates it, and resume is the mode the dialog returns to when it closes.
 type launchFix struct {
 	text        string
 	command     string
 	script      string
 	binary      string
+	update      bool
+	resume      mode
 	effectRetry effectRequest
 	images      []imageAttachment
 }
@@ -127,7 +131,34 @@ func (m *Model) reportLaunchError(err error) {
 		})
 		return
 	}
+	var outdated config.OutdatedToolError
+	if errors.As(err, &outdated) {
+		m.launchHint.open(m, launchFix{
+			text:    outdatedToolText(outdated),
+			command: outdatedToolCommand(outdated),
+			script:  outdatedToolCommand(outdated),
+			binary:  outdated.Binary,
+			update:  true,
+		})
+		return
+	}
 	m.reportErr(err.Error())
+}
+
+func outdatedToolCommand(outdated config.OutdatedToolError) string {
+	if outdated.ManagedExternally {
+		return ""
+	}
+	return deps.Command(outdated.Binary)
+}
+
+func outdatedToolText(outdated config.OutdatedToolError) string {
+	head := outdated.Binary + " " + outdated.Installed + " is older than " + outdated.Minimum +
+		", the oldest version Agent Manager supports."
+	if command := outdatedToolCommand(outdated); command != "" {
+		return head + "\n\nUpdate it with: " + command
+	}
+	return head + "\n\nUpdate it the way you installed it, then spawn again."
 }
 
 // missingToolText opens on why the launch stopped, then the command that
@@ -150,6 +181,11 @@ func missingToolText(missing config.MissingToolError) string {
 func (d *launchHintDialog) open(h launchHintHost, fix launchFix) {
 	h.advanceDialogGen()
 	fix.images = append(fix.images, h.takeComposerImages()...)
+	d.present(h, fix)
+}
+
+// present shows a refusal that is not a spawn, so a draft prompt keeps its images.
+func (d *launchHintDialog) present(h launchHintHost, fix launchFix) {
 	d.fix = fix
 	h.setMode(modeLaunchHint)
 }
@@ -170,7 +206,7 @@ func dropImages(images []imageAttachment) {
 // prompt is the fix as the dialog shows it; its keys and card are
 // uidialogs.LaunchHint.
 func (d *launchHintDialog) prompt() uidialogs.LaunchHint {
-	return uidialogs.LaunchHint{Text: d.fix.text, Command: d.fix.command}
+	return uidialogs.LaunchHint{Text: d.fix.text, Command: d.fix.command, Update: d.fix.update}
 }
 
 func (d *launchHintDialog) handleKey(h launchHintHost, msg tea.KeyMsg) tea.Cmd {
@@ -204,8 +240,9 @@ func (d *launchHintDialog) run(h launchHintHost, action uidialogs.LaunchHintActi
 // holding: they stayed alive while an install could still spawn it.
 func (d *launchHintDialog) close(h launchHintHost) {
 	dropImages(d.fix.images)
+	resume := d.fix.resume
 	d.fix = launchFix{}
-	h.setMode(modeList)
+	h.setMode(resume)
 }
 
 func (m *Model) handleLaunchCommandCopied(msg launchCommandCopiedMsg) {

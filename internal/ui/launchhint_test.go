@@ -160,6 +160,47 @@ func TestReportLaunchErrorOpensInstallHintForMissingCLI(t *testing.T) {
 	}
 }
 
+func TestReportLaunchErrorOpensHintForOutdatedCLI(t *testing.T) {
+	t.Parallel()
+	m := buildModel(t)
+
+	m.reportLaunchError(fmt.Errorf("spawn: %w", config.OutdatedToolError{Binary: "pi", Installed: "0.76.0", Minimum: "0.84.3"}))
+
+	if m.mode != modeLaunchHint {
+		t.Fatalf("mode = %v, want modeLaunchHint", m.mode)
+	}
+	if m.launchHint.fix.command != deps.Command("pi") || m.launchHint.fix.binary != "pi" {
+		t.Fatalf("fix = %+v, want pi's installer to rerun", m.launchHint.fix)
+	}
+	installer := "pi.dev/install.sh"
+	if runtime.GOOS == "windows" {
+		installer = "@earendil-works/pi-coding-agent"
+	}
+	if !strings.Contains(m.launchHint.fix.text, installer) {
+		t.Fatalf("dialog text %q should name the installer %q", m.launchHint.fix.text, installer)
+	}
+	frame := ansi.Strip(m.launchHint.view(m, m.glyphs()))
+	for _, want := range []string{"pi 0.76.0 is older than 0.84.3", "i update"} {
+		if !strings.Contains(strings.Join(strings.Fields(frame), " "), want) {
+			t.Fatalf("dialog should show %q:\n%s", want, frame)
+		}
+	}
+	got := map[string]bool{}
+	for _, hit := range m.layout.keyHits {
+		if hit.key.Type == tea.KeyEsc {
+			got["esc"] = true
+		}
+		if len(hit.key.Runes) == 1 {
+			got[string(hit.key.Runes)] = true
+		}
+	}
+	for _, key := range []string{"i", "c", "esc"} {
+		if !got[key] {
+			t.Fatalf("dialog foot is missing %q", key)
+		}
+	}
+}
+
 func TestLaunchHintKeepsTheInstallLineAndTheErrorOnAShortTerminal(t *testing.T) {
 	m := buildModel(t)
 	m.layout.width = 110
@@ -1010,6 +1051,14 @@ func TestInstallFinishesARefusedRestore(t *testing.T) {
 	}
 	if !m.services.tmux.Exists(sess.ID) {
 		t.Fatal("the session should be running again")
+	}
+}
+
+func TestExternallyManagedOldCLIDoesNotOfferTheVendorInstaller(t *testing.T) {
+	m := buildModel(t)
+	m.reportLaunchError(config.OutdatedToolError{Binary: "pi", Installed: "0.84.2", Minimum: "0.84.3", ManagedExternally: true})
+	if m.launchHint.fix.command != "" || !strings.Contains(m.launchHint.fix.text, "the way you installed it") {
+		t.Fatalf("external install hint = %+v", m.launchHint.fix)
 	}
 }
 
