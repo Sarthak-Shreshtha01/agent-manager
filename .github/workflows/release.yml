@@ -26,6 +26,7 @@ jobs:
           version: "~> v2"
           args: release --clean
         env:
+          SCOOP_TOKEN: ${{ secrets.SCOOP_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
