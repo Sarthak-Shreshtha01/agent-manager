@@ -107,6 +107,63 @@ func TestPrintHelpReturnsWriteError(t *testing.T) {
 	}
 }
 
+const noTerminalNotice = "agent-manager: no terminal attached; run it in a terminal to open the manager"
+
+func TestMainNonInteractiveStartDoesNotNeedMultiplexer(t *testing.T) {
+	if prepareMainProcess() {
+		main()
+		return
+	}
+	empty := t.TempDir()
+	home := t.TempDir()
+	cases := []struct {
+		name   string
+		args   []string
+		want   string
+		notice bool
+	}{
+		{name: "no-args", want: "Usage: agent-manager [command]", notice: true},
+		{name: "version", args: []string{"--version"}, want: "agent-manager dev"},
+		{name: "help", args: []string{"--help"}, want: "Usage: agent-manager [command]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := mainTestCommand(t, tc.args...)
+			cmd.Env = replaceEnv(cmd.Env,
+				"HOME", home,
+				"XDG_CONFIG_HOME", filepath.Join(home, ".config"),
+				"PATH", empty,
+				"Path", empty,
+			)
+			devNull, err := os.Open(os.DevNull)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { devNull.Close() })
+			cmd.Stdin = devNull
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("exit: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+			}
+			if !strings.Contains(stdout.String(), tc.want) {
+				t.Fatalf("stdout missing %q:\n%s", tc.want, stdout.String())
+			}
+			if strings.Contains(stdout.String(), noTerminalNotice) {
+				t.Fatalf("stdout included the terminal notice:\n%s", stdout.String())
+			}
+			if tc.notice {
+				if stderr.String() != noTerminalNotice+"\n" {
+					t.Fatalf("stderr = %q, want the terminal notice", stderr.String())
+				}
+			} else if strings.Contains(stderr.String(), noTerminalNotice) || strings.Contains(stderr.String(), "not found") {
+				t.Fatalf("stderr = %q", stderr.String())
+			}
+		})
+	}
+}
+
 func TestMainPrintsHelpWithoutStartingTUI(t *testing.T) {
 	if prepareMainProcess() {
 		main()
