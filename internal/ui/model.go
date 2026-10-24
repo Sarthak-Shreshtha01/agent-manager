@@ -256,6 +256,7 @@ func newView(deps Dependencies, version string) (*Model, error) {
 			whatsNewVersion:     loadWhatsNewVersion(st),
 			whatsNewFromVersion: loadWhatsNewFromVersion(st),
 			configImportError:   configImportError,
+			feedPending:         true,
 		},
 	}
 	if deps.ProfileDir != "" {
@@ -282,5 +283,5 @@ func newView(deps Dependencies, version string) (*Model, error) {
 
 func (m *Model) Init() tea.Cmd {
 	m.syncPollInput()
-	return tea.Batch(m.syncPaneTheme(), m.refreshExistingSessionUX, m.checkForUpdate, m.checkFeed, m.updateTick(), m.bannerTick(), m.previewTick(), m.startStartupTick(), m.sweepPastes, m.pasteSweepTick(), checkPaneShell)
+	return tea.Batch(m.syncPaneTheme(), m.refreshExistingSessionUX, m.checkForUpdate, m.checkStartupFeed, m.updateTick(), m.bannerTick(), m.previewTick(), m.startStartupTick(), m.sweepPastes, m.pasteSweepTick(), checkPaneShell)
 }
